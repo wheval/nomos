@@ -1,6 +1,6 @@
 # Nomos
 
-A private checkout gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays without their identity or the amount landing on a public ledger; settlement clears as a real transaction against the live STRK20 pool on mainnet.
+A private payment gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays without their identity or the amount landing on a public ledger; settlement clears as a real transaction against the live STRK20 pool on mainnet.
 
 Built on the official [STRK20 starter kit](https://github.com/Akashneelesh/strk20-starter-kit) — a lean Next.js base for privacy dApps on Starknet via [STRK20](https://eprint.iacr.org/2026/474) and `WalletAccountV6` (starknet.js v10): shield, unshield, private transfer, shielded balances, and an anonymizer (`privacy_invoke`) — all through the user's wallet, never a viewing key.
 
