@@ -9,6 +9,15 @@ import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 import { StrkCoin } from "../../TokenIcons";
 import SelectWallet from "./SelectWallet";
+import ReceiptCard from "../ReceiptCard";
+import {
+  fmtStrk,
+  shortHex,
+  errorResult,
+  receiptToResult,
+  type ActionResult,
+  type ResultRow,
+} from "@/utils/receipt";
 
 // DEMO: all actions use one token (STRK). Swap constants.addrSTRK for your token,
 // or make the token a user selection.
@@ -19,70 +28,9 @@ const TEN_STRK = 10n * 10n ** 18n;
 const FIVE_STRK = 5n * 10n ** 18n;
 const ONE_STRK = 1n * 10n ** 18n;
 
-// Format a felt amount (STRK, 18 decimals) as a human STRK string ("10", "1.5").
-function fmtStrk(amount: bigint): string {
-  const whole = amount / 10n ** 18n;
-  const frac = (amount % 10n ** 18n).toString().padStart(18, "0").replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : `${whole}`;
-}
-
-// Shorten a felt/hex for display, like the wallet address ("0x1dc5a1c...1927a").
-function shortHex(h: string): string {
-  const hex = num.toHex(h);
-  return hex.length <= 13 ? hex : `${hex.slice(0, 7)}...${hex.slice(-4)}`;
-}
-
 // Verdict shown for the complex (echo invoke) action.
 type VerdictRow = { label: string; value: string; ok?: boolean };
 type Verdict = { ok: boolean; pending?: boolean; title: string; rows: VerdictRow[] };
-
-// Human-readable result of an action - rendered as a receipt card, not raw JSON/hex.
-type ResultRow = { label: string; value: string; hash?: string };
-type ActionResult = {
-  status: "pending" | "ok" | "error";
-  title: string;
-  rows?: ResultRow[];
-  note?: string;
-};
-
-// Pretty on-chain status, e.g. "Accepted on L2 · Succeeded".
-function prettyStatus(finality?: string, exec?: string): string {
-  const f =
-    finality === "ACCEPTED_ON_L2" ? "Accepted on L2"
-      : finality === "ACCEPTED_ON_L1" ? "Accepted on L1"
-      : finality === "RECEIVED" ? "Received"
-      : finality ?? "";
-  const e =
-    exec === "SUCCEEDED" ? "Succeeded" : exec === "REVERTED" ? "Reverted" : "";
-  return [f, e].filter(Boolean).join(" · ") || "Confirmed";
-}
-
-// Turn a raw tx receipt into a readable receipt card (amount, status, fee, events, hash).
-function receiptToResult(txR: any, txH: string, amountLabel: string): ActionResult {
-  const r = txR?.value ?? txR;
-  const exec: string | undefined = r?.execution_status;
-  const finality: string | undefined = r?.finality_status;
-  const reverted = exec === "REVERTED";
-  let feeStr: string | undefined;
-  const feeRaw = r?.actual_fee?.amount ?? r?.actual_fee;
-  try {
-    if (feeRaw !== undefined && feeRaw !== null) feeStr = `${fmtStrk(num.toBigInt(feeRaw))} STRK`;
-  } catch {
-    /* leave fee undefined if unparseable */
-  }
-  const evCount = Array.isArray(r?.events) ? r.events.length : undefined;
-  const rows: ResultRow[] = [];
-  if (amountLabel) rows.push({ label: "Amount", value: amountLabel });
-  rows.push({ label: "Status", value: prettyStatus(finality, exec) });
-  if (feeStr) rows.push({ label: "Network fee", value: feeStr });
-  if (evCount !== undefined) rows.push({ label: "Events", value: String(evCount) });
-  rows.push({ label: "Transaction", value: shortHex(txH), hash: txH });
-  return {
-    status: reverted ? "error" : "ok",
-    title: reverted ? "Transaction reverted" : "Transaction confirmed",
-    rows,
-  };
-}
 
 // Turn the shielded-balances response into a token → amount list.
 function balancesToResult(raw: any): ActionResult {
@@ -124,11 +72,6 @@ function balancesToResult(raw: any): ActionResult {
   }
   // Unknown shape - never hide data; fall back to formatted JSON.
   return { status: "ok", title: "Shielded balances", note: json.stringify(r, undefined, 2) };
-}
-
-// A failed / rejected action.
-function errorResult(msg: string): ActionResult {
-  return { status: "error", title: "Action failed", note: msg };
 }
 
 // Tabs - one STRK20 action each (Umbra-style single-action interface).
@@ -434,54 +377,6 @@ export default function WalletAccountV6Tag() {
     : "";
   const shortWallet = walletAddr ? `${walletAddr.slice(0, 6)}…${walletAddr.slice(-4)}` : "-";
 
-  // Voyager explorer link for a tx hash on the current network.
-  const explorerTxUrl = (h: string) =>
-    myFrontendProviderIndex === 0
-      ? `https://voyager.online/tx/${h}`
-      : `https://sepolia.voyager.online/tx/${h}`;
-
-  // Readable receipt card - replaces the old raw-JSON/hex result blob.
-  const ResultCard = ({ r }: { r: ActionResult }) => (
-    <div
-      className={`${styles.receipt} ${
-        r.status === "error"
-          ? styles.receiptError
-          : r.status === "pending"
-          ? styles.receiptPending
-          : styles.receiptOk
-      }`}
-    >
-      <div className={styles.receiptHead}>
-        <span className={styles.receiptIcon}>
-          {r.status === "ok" ? "✓" : r.status === "error" ? "!" : "⋯"}
-        </span>
-        <span>{r.title}</span>
-      </div>
-      {r.rows?.length ? (
-        <div className={styles.receiptRows}>
-          {r.rows.map((row) => (
-            <div key={row.label} className={styles.receiptRow}>
-              <span className={styles.receiptLabel}>{row.label}</span>
-              {row.hash ? (
-                <a
-                  className={styles.receiptLink}
-                  href={explorerTxUrl(row.hash)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {row.value} ↗
-                </a>
-              ) : (
-                <span className={styles.receiptValue}>{row.value}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {r.note ? <pre className={styles.receiptNote}>{r.note}</pre> : null}
-    </div>
-  );
-
   // Per-tab content: label, the fixed amount + token, a one-line hint, the CTA
   // label, its handler, and the structured result.
   const CONFIG: Record<
@@ -558,7 +453,7 @@ export default function WalletAccountV6Tag() {
           >
             {deploying ? "Deploying…" : `Deploy echo helper (${networkName})`}
           </button>
-          {resultDeploy ? <ResultCard r={resultDeploy} /> : null}
+          {resultDeploy ? <ReceiptCard result={resultDeploy} providerIndex={myFrontendProviderIndex} /> : null}
         </>
       )}
 
@@ -593,7 +488,7 @@ export default function WalletAccountV6Tag() {
       )}
 
       {/* Inline result */}
-      {active.result ? <ResultCard r={active.result} /> : null}
+      {active.result ? <ReceiptCard result={active.result} providerIndex={myFrontendProviderIndex} /> : null}
     </div>
   );
 }

@@ -17,8 +17,8 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Shielded STRK · WalletAccountV6',
-  description: 'Shield, unshield and privately move STRK on Starknet with WalletAccountV6',
+  title: 'Nomos · Private payment gateway for Starknet',
+  description: 'Accept payment via Payment Link, invoice, or embedded widget — shielded and settled through the STRK20 pool.',
 }
 
 export default function RootLayout({
