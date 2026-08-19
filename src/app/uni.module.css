@@ -67,17 +67,8 @@
   display: block;
 }
 .brandMark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--pink);
-  color: #fff;
-  font-family: var(--font-mono-ui), monospace;
-  font-weight: 700;
-  font-size: 14px;
+  display: block;
+  flex: none;
 }
 .brandBadge {
   font-family: var(--font-mono-ui), monospace;
