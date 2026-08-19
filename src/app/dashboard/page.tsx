@@ -3,9 +3,9 @@
 import Link from "next/link";
 import styles from "../uni.module.css";
 import SelectWallet from "../components/client/WalletHandle/SelectWallet";
-import CreateLink from "../components/client/Payments/CreateLink";
+import Dashboard from "../components/client/Payments/Dashboard";
 
-export default function CreatePage() {
+export default function DashboardPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.nav}>
@@ -13,30 +13,26 @@ export default function CreatePage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/tokens/strk20.png" alt="STRK20" className={styles.brandImg} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <Link href="/dashboard" className={styles.navLink}>Dashboard</Link>
-          <SelectWallet variant="nav" />
-        </div>
+        <SelectWallet variant="nav" />
       </nav>
 
       <header className={styles.hero}>
         <h1 className={styles.heroTitle}>
-          Get paid,
+          Your
           <br />
-          <span className={styles.heroAccent}>privately</span>
+          <span className={styles.heroAccent}>dashboard</span>
         </h1>
         <p className={styles.heroSub}>
-          Generate a Payment Link. Whoever pays it, the amount and their
-          identity stay shielded in the STRK20 pool.
+          What's landed, and the key your own backend can use to check.
         </p>
       </header>
 
       <main>
-        <CreateLink />
+        <Dashboard />
       </main>
 
       <footer className={styles.footer}>
-        <Link href="/">Wallet panel</Link>
+        <Link href="/create">Create a link</Link>
         <span className={styles.footerDot}>·</span>
         <span>Nomos</span>
       </footer>

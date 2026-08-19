@@ -47,3 +47,6 @@ A1priv/A1priv.ts
 
 # cairo build artifacts
 /cairo/target/
+
+# local dev "database" for the payments API / merchant dashboard
+/.data/

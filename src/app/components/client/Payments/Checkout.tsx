@@ -94,7 +94,24 @@ export default function Checkout() {
       });
       const provider = constants.myFrontendProviders[myFrontendProviderIndex];
       const txR = await provider.waitForTransaction(txH, { retries: 400, retryInterval: 3000 });
-      setResult(receiptToResult(txR, txH, `${fmtStrk(amountWei)} STRK`));
+      const final = receiptToResult(txR, txH, `${fmtStrk(amountWei)} STRK`);
+      setResult(final);
+      if (final.status === "ok") {
+        // Best-effort order bookkeeping for the merchant dashboard - never
+        // blocks or fails the payment itself, which already confirmed on-chain.
+        fetch("/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: toValid,
+            amount: fmtStrk(amountWei),
+            token: "STRK",
+            note: note ?? undefined,
+            ref: ref ?? undefined,
+            txHash: txH,
+          }),
+        }).catch(() => {});
+      }
     } catch (error: any) {
       setResult(errorResult(error?.message ?? error?.toString?.() ?? String(error)));
     } finally {

@@ -55,6 +55,7 @@ export default function Page() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <Link href="/create" className={styles.navLink}>Create Payment Link</Link>
+          <Link href="/dashboard" className={styles.navLink}>Dashboard</Link>
           <SelectWallet variant="nav" />
         </div>
       </nav>
