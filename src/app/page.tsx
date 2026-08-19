@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from './uni.module.css';
 import SelectWallet from './components/client/WalletHandle/SelectWallet';
 import WalletAccountV6Tag from './components/client/WalletHandle/WalletAccountV6Tag';
+import Brand from './components/Brand';
 import { StrkCoin, BtcCoin, EthCoin, UsdcCoin, ZecCoin } from './components/TokenIcons';
 
 // Scattered, blurred token coins on the sides of the page (background ambience).
@@ -49,10 +50,7 @@ export default function Page() {
       </div>
 
       <nav className={styles.nav}>
-        <div className={styles.brand}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tokens/strk20.png" alt="STRK20" className={styles.brandImg} />
-        </div>
+        <Brand />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <Link href="/create" className={styles.navLink}>Create Payment Link</Link>
           <Link href="/dashboard" className={styles.navLink}>Dashboard</Link>
@@ -62,23 +60,33 @@ export default function Page() {
 
       <header className={styles.hero}>
         <h1 className={styles.heroTitle}>
-          Just Encrypt
+          A private payment
           <br />
-          <span className={styles.heroAccent}>Everything</span>
+          <span className={styles.heroAccent}>gateway</span>
         </h1>
         <p className={styles.heroSub}>
-          Shield, unshield, privately transfer and build your own private apps
-          on Starknet.
+          Nomos shields the checkout your business already wants — Payment
+          Links, invoices, and an embeddable widget, settling through the
+          STRK20 pool.
         </p>
+        <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', marginTop: 22, textDecoration: 'none' }}>
+          Create a Payment Link →
+        </Link>
       </header>
+
+      <div style={{ textAlign: 'center', margin: '56px 0 20px' }}>
+        <span className={styles.brandBadge}>Wallet tools — shield · send · unshield · echo · balances</span>
+      </div>
 
       <main>
         <WalletAccountV6Tag />
       </main>
 
       <footer className={styles.footer}>
+        <span>Nomos</span>
+        <span className={styles.footerDot}>·</span>
         <a href="https://github.com/PhilippeR26/Starknet-WalletAccount" target="_blank" rel="noreferrer">
-          Repo
+          Wallet toolkit source
         </a>
         <span className={styles.footerDot}>·</span>
         <span>Powered by Starknet.js v10.4.0</span>

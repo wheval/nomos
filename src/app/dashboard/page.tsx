@@ -4,15 +4,13 @@ import Link from "next/link";
 import styles from "../uni.module.css";
 import SelectWallet from "../components/client/WalletHandle/SelectWallet";
 import Dashboard from "../components/client/Payments/Dashboard";
+import Brand from "../components/Brand";
 
 export default function DashboardPage() {
   return (
     <div className={styles.page}>
       <nav className={styles.nav}>
-        <div className={styles.brand}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tokens/strk20.png" alt="STRK20" className={styles.brandImg} />
-        </div>
+        <Brand />
         <SelectWallet variant="nav" />
       </nav>
 
