@@ -27,6 +27,7 @@ export type MerchantKey = {
   publicKey: string;
   secretKeyHash: string; // sha256 hex - the plaintext secret is never stored
   createdAt: number;
+  webhookUrl?: string;
 };
 
 async function ensureDataDir() {
@@ -71,15 +72,17 @@ function randomKey(prefix: string): string {
 
 // Create (or rotate) the API key pair for a merchant address. Returns the
 // plaintext secret key - shown once, never recoverable again (only its
-// hash is persisted).
+// hash is persisted). Rotating preserves an existing webhook URL.
 export async function issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {
   const merchants = await readJson<Record<string, MerchantKey>>(MERCHANTS_FILE, {});
+  const key = address.toLowerCase();
   const publicKey = randomKey("pk");
   const secretKey = randomKey("sk");
-  merchants[address.toLowerCase()] = {
+  merchants[key] = {
     publicKey,
     secretKeyHash: sha256(secretKey),
     createdAt: Math.floor(Date.now() / 1000),
+    webhookUrl: merchants[key]?.webhookUrl,
   };
   await writeJson(MERCHANTS_FILE, merchants);
   return { publicKey, secretKey };
@@ -96,4 +99,36 @@ export async function verifyMerchantSecret(address: string, secretKey: string): 
   const record = merchants[address.toLowerCase()];
   if (!record) return false;
   return record.secretKeyHash === sha256(secretKey);
+}
+
+export async function getMerchantWebhookUrl(address: string): Promise<string | null> {
+  const merchants = await readJson<Record<string, MerchantKey>>(MERCHANTS_FILE, {});
+  return merchants[address.toLowerCase()]?.webhookUrl ?? null;
+}
+
+// Set (or clear, with url="") the webhook URL for a merchant. Requires the
+// same bearer secret key as reading payments - only the merchant themselves
+// can point their own webhook somewhere.
+export async function setMerchantWebhookUrl(address: string, secretKey: string, url: string): Promise<boolean> {
+  const merchants = await readJson<Record<string, MerchantKey>>(MERCHANTS_FILE, {});
+  const key = address.toLowerCase();
+  const record = merchants[key];
+  if (!record || record.secretKeyHash !== sha256(secretKey)) return false;
+  record.webhookUrl = url || undefined;
+  await writeJson(MERCHANTS_FILE, merchants);
+  return true;
+}
+
+// The HMAC key a merchant uses to verify X-Nomos-Signature: it's sha256(their
+// own secret key) - the same value Nomos already stores as secretKeyHash, so
+// no separate "webhook signing secret" needs to be issued or remembered. The
+// merchant computes sha256(secretKey) themselves and HMACs the raw payload
+// bytes with it to compare against the header.
+export async function getWebhookSigningKey(address: string): Promise<string | null> {
+  const merchants = await readJson<Record<string, MerchantKey>>(MERCHANTS_FILE, {});
+  return merchants[address.toLowerCase()]?.secretKeyHash ?? null;
+}
+
+export function hmacSha256Hex(key: string, payload: string): string {
+  return crypto.createHmac("sha256", key).update(payload).digest("hex");
 }

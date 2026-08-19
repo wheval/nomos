@@ -27,6 +27,10 @@ export default function Dashboard() {
   const [issuing, setIssuing] = useState(false);
   const [payments, setPayments] = useState<PaymentRecord[] | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookSaved, setWebhookSaved] = useState(false);
+  const [webhookError, setWebhookError] = useState("");
+  const [savingWebhook, setSavingWebhook] = useState(false);
 
   // Load any existing public key + locally-remembered secret key for this address.
   useEffect(() => {
@@ -54,6 +58,37 @@ export default function Dashboard() {
       .then((d) => setPayments(d.payments ?? []))
       .catch((e) => setLoadError(e.message ?? "Could not load payments."));
   }, [address, secretKey]);
+
+  // Load the currently-saved webhook URL, same auth as the payments list.
+  useEffect(() => {
+    if (!address || !secretKey) return;
+    fetch(`/api/merchant-webhook?address=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+      .then((r) => (r.ok ? r.json() : { webhookUrl: null }))
+      .then((d) => setWebhookUrl(d.webhookUrl ?? ""))
+      .catch(() => {});
+  }, [address, secretKey]);
+
+  async function handleSaveWebhook() {
+    if (!address || !secretKey) return;
+    setSavingWebhook(true);
+    setWebhookError("");
+    setWebhookSaved(false);
+    try {
+      const r = await fetch("/api/merchant-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, secretKey, url: webhookUrl.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
+      setWebhookSaved(true);
+      setTimeout(() => setWebhookSaved(false), 1800);
+    } catch (e: any) {
+      setWebhookError(e.message ?? "Could not save webhook URL.");
+    } finally {
+      setSavingWebhook(false);
+    }
+  }
 
   async function handleIssueKey() {
     if (!address) return;
@@ -117,6 +152,37 @@ export default function Dashboard() {
       <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={issuing} onClick={handleIssueKey}>
         {issuing ? "Generating…" : publicKey ? "Rotate API key" : "Generate API key"}
       </button>
+
+      {secretKey ? (
+        <>
+          <div className={styles.inputBlock} style={{ marginTop: 28 }}>
+            <div className={styles.inputLabel}>Webhook</div>
+            <div className={styles.subLine}>
+              <span>POSTed the moment a Payment Link is paid</span>
+            </div>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.fieldLabel} htmlFor="webhookUrl">
+              Your endpoint (https://…)
+            </label>
+            <input
+              id="webhookUrl"
+              className={styles.textInput}
+              placeholder="https://your-backend.example.com/webhooks/nomos"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+            />
+            {webhookError ? <div className={styles.errorText}>{webhookError}</div> : null}
+          </div>
+          <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={savingWebhook} onClick={handleSaveWebhook}>
+            {savingWebhook ? "Saving…" : webhookSaved ? "Saved" : "Save webhook URL"}
+          </button>
+          <p className={styles.heroSub} style={{ margin: "10px 0 0", fontSize: 12.5, textAlign: "left" }}>
+            Each delivery is signed: verify by computing sha256(your secret key), HMAC-ing the
+            raw request body with it, and comparing to the <code>X-Nomos-Signature</code> header.
+          </p>
+        </>
+      ) : null}
 
       <div className={styles.inputBlock} style={{ marginTop: 28 }}>
         <div className={styles.inputLabel}>Payments received</div>

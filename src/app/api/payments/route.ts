@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
-import { appendPayment, listPaymentsFor, verifyMerchantSecret } from "@/utils/store";
+import { appendPayment, listPaymentsFor, verifyMerchantSecret, type PaymentRecord } from "@/utils/store";
+import { deliverPaymentWebhook } from "@/utils/webhook";
 
 // Records a completed payment against a Payment Link. Called by the /pay
 // checkout page right after a transfer confirms on-chain - this is Nomos's
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "to is not a valid Starknet address." }, { status: 400 });
   }
 
-  await appendPayment({
+  const record: PaymentRecord = {
     to: normalizedTo,
     amount,
     token: typeof token === "string" ? token : "STRK",
@@ -34,7 +35,9 @@ export async function POST(request: NextRequest) {
     ref: typeof ref === "string" ? ref : undefined,
     txHash,
     recordedAt: Math.floor(Date.now() / 1000),
-  });
+  };
+  await appendPayment(record);
+  await deliverPaymentWebhook(record);
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
