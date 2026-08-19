@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import styles from "../../../uni.module.css";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
@@ -129,6 +130,10 @@ export default function CreateLink() {
             <button className={`${styles.btn} ${styles.btnGreen}`} onClick={handleCopy}>
               {copied ? "Copied" : "Copy"}
             </button>
+          </div>
+          <div className={styles.nextSteps}>
+            <a href={link} target="_blank" rel="noreferrer">Preview as customer ↗</a>
+            <Link href="/dashboard">View dashboard →</Link>
           </div>
         </div>
       ) : null}

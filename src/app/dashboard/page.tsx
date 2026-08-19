@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import styles from "../uni.module.css";
-import SelectWallet from "../components/client/WalletHandle/SelectWallet";
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
 import Dashboard from "../components/client/Payments/Dashboard";
-import Brand from "../components/Brand";
 
 export default function DashboardPage() {
   return (
     <div className={styles.page}>
-      <nav className={styles.nav}>
-        <Brand />
-        <SelectWallet variant="nav" />
-      </nav>
+      <Nav variant="merchant" />
 
       <header className={styles.hero}>
         <h1 className={styles.heroTitle}>
@@ -29,11 +26,7 @@ export default function DashboardPage() {
         <Dashboard />
       </main>
 
-      <footer className={styles.footer}>
-        <Link href="/create">Create a link</Link>
-        <span className={styles.footerDot}>·</span>
-        <span>Nomos</span>
-      </footer>
+      <Footer extra={<Link href="/create">Create a link</Link>} />
     </div>
   );
 }

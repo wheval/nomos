@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import styles from "../../../uni.module.css";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
@@ -198,9 +199,14 @@ export default function Dashboard() {
       ) : loadError ? (
         <div className={styles.errorText}>{loadError}</div>
       ) : payments && payments.length === 0 ? (
-        <p className={styles.heroSub} style={{ margin: "8px 0 0", fontSize: 14 }}>
-          No payments recorded yet — they'll appear here as your Payment Links get paid.
-        </p>
+        <>
+          <p className={styles.heroSub} style={{ margin: "8px 0 0", fontSize: 14 }}>
+            No payments recorded yet — they'll appear here as your Payment Links get paid.
+          </p>
+          <div className={styles.nextSteps}>
+            <Link href="/create">Create a Payment Link →</Link>
+          </div>
+        </>
       ) : payments ? (
         <div className={styles.receiptRows} style={{ marginTop: 8 }}>
           {payments.map((p, i) => (

@@ -48,6 +48,7 @@ export default function Checkout() {
     toValid = "";
   }
   const shortTo = toValid ? `${toValid.slice(0, 6)}…${toValid.slice(-4)}` : "";
+  const isPaid = result?.status === "ok";
 
   if (!toValid) {
     return (
@@ -161,7 +162,16 @@ export default function Checkout() {
         ) : null}
       </div>
 
-      {isExpired ? (
+      {isPaid ? (
+        <div className={styles.successCard}>
+          <div className={styles.successIcon}>✓</div>
+          <div className={styles.successTitle}>Payment sent</div>
+          <p className={styles.successNote}>
+            Shielded and settled on-chain. The business has been notified —
+            nothing more to do here.
+          </p>
+        </div>
+      ) : isExpired ? (
         <div className={styles.warn} style={{ padding: "0 0 12px" }}>
           This payment link has expired. Ask the business for a fresh one.
         </div>
@@ -182,13 +192,13 @@ export default function Checkout() {
         </div>
       ) : null}
 
-      {!isStrk20Network && isConnected ? (
+      {!isPaid && !isStrk20Network && isConnected ? (
         <div className={styles.warn}>
           STRK20 actions require Mainnet or Sepolia - switch your wallet network.
         </div>
       ) : null}
 
-      {isExpired ? null : isConnected ? (
+      {isPaid || isExpired ? null : isConnected ? (
         <button className={styles.btnCta} disabled={!isStrk20Network || paying} onClick={handlePay}>
           {paying ? "Confirm in your wallet…" : "Pay privately"}
         </button>

@@ -2,17 +2,14 @@
 
 import { Suspense } from "react";
 import styles from "../uni.module.css";
-import SelectWallet from "../components/client/WalletHandle/SelectWallet";
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
 import Checkout from "../components/client/Payments/Checkout";
-import Brand from "../components/Brand";
 
 export default function PayPage() {
   return (
     <div className={styles.page}>
-      <nav className={styles.nav}>
-        <Brand />
-        <SelectWallet variant="nav" />
-      </nav>
+      <Nav variant="customer" />
 
       <header className={styles.hero}>
         <h1 className={styles.heroTitle}>
@@ -32,11 +29,7 @@ export default function PayPage() {
         </Suspense>
       </main>
 
-      <footer className={styles.footer}>
-        <span>Nomos</span>
-        <span className={styles.footerDot}>·</span>
-        <span>Powered by STRK20</span>
-      </footer>
+      <Footer />
     </div>
   );
 }

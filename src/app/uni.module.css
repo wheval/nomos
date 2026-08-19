@@ -27,23 +27,6 @@
   isolation: isolate;
 }
 
-/* --- Scattered token-orb background ------------------------------------- */
-.aurora {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-/* Scattered blurred token coins (USDC / BTC / STRK / ETH) - position, blur and
-   opacity are set inline per instance in page.tsx. */
-.tok {
-  position: absolute;
-  display: inline-flex;
-  will-change: transform;
-}
-.tok svg { display: block; }
-
 /* --- Top nav ------------------------------------------------------------- */
 .nav {
   display: flex;
@@ -60,6 +43,12 @@
   font-weight: 600;
   font-size: 17px;
   letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.brandLink {
+  text-decoration: none;
+  color: inherit;
+  display: inline-flex;
 }
 .brandImg {
   height: 26px;
@@ -602,3 +591,80 @@
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(13, 14, 14, 0.25);
 }
+
+/* --- Homepage wallet-toolkit band --------------------------------------- */
+.toolkitBand {
+  background: var(--inset);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 44px 20px 64px;
+  margin-top: 64px;
+}
+.toolkitInner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.toolkitLabel {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.toolkitLabel p {
+  margin: 12px auto 0;
+  max-width: 440px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+/* --- /pay success state --------------------------------------------------*/
+.successCard {
+  text-align: center;
+  padding: 8px 4px 4px;
+}
+.successIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin: 0 auto 18px;
+}
+.successTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.successNote {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+/* --- next-step row (after generating a link, etc.) ---------------------- */
+.nextSteps {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.nextSteps a {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 14px;
+  text-decoration: none;
+  transition: background 140ms, border-color 140ms;
+}
+.nextSteps a:hover { background: var(--inset); border-color: var(--pink-soft-2); }
