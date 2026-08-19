@@ -9,7 +9,16 @@ export type PaymentLinkParams = {
   amount?: string; // absent = customer enters their own amount ("open" request)
   note?: string;
   ref?: string;
+  exp?: string; // unix seconds - absent = never expires
 };
+
+// Duration choices offered on the create form, in seconds.
+export const EXPIRY_CHOICES: { label: string; seconds: number | null }[] = [
+  { label: "Never", seconds: null },
+  { label: "1 hour", seconds: 60 * 60 },
+  { label: "24 hours", seconds: 24 * 60 * 60 },
+  { label: "7 days", seconds: 7 * 24 * 60 * 60 },
+];
 
 // Parse a human STRK amount ("5", "1.5") into wei (18 decimals). Returns null
 // for anything that isn't a positive, sane decimal.
@@ -34,6 +43,7 @@ export function buildPaymentUrl(origin: string, params: PaymentLinkParams): stri
   if (params.amount) url.searchParams.set("amount", params.amount);
   if (params.note) url.searchParams.set("note", params.note);
   if (params.ref) url.searchParams.set("ref", params.ref);
+  if (params.exp) url.searchParams.set("exp", params.exp);
   return url.toString();
 }
 

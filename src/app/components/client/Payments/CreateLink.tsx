@@ -4,7 +4,7 @@ import { useState } from "react";
 import styles from "../../../uni.module.css";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { buildPaymentUrl, makeRef, parseStrkAmount } from "@/utils/payments";
+import { buildPaymentUrl, makeRef, parseStrkAmount, EXPIRY_CHOICES } from "@/utils/payments";
 
 // Merchant-facing Payment Link creation. The link IS the record - nothing is
 // persisted server-side yet. Recipient is always the connected wallet: you
@@ -15,6 +15,7 @@ export default function CreateLink() {
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [expirySeconds, setExpirySeconds] = useState<number | null>(null);
   const [amountError, setAmountError] = useState("");
   const [link, setLink] = useState<string>("");
   const [copied, setCopied] = useState(false);
@@ -29,11 +30,13 @@ export default function CreateLink() {
       return;
     }
     setAmountError("");
+    const exp = expirySeconds ? String(Math.floor(Date.now() / 1000) + expirySeconds) : undefined;
     const url = buildPaymentUrl(window.location.origin, {
       to: address,
       amount: amount.trim() || undefined,
       note: note.trim() || undefined,
       ref: makeRef(),
+      exp,
     });
     setLink(url);
   }
@@ -96,6 +99,22 @@ export default function CreateLink() {
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.fieldLabel}>Expires</label>
+        <div className={styles.chipRow}>
+          {EXPIRY_CHOICES.map((choice) => (
+            <button
+              key={choice.label}
+              type="button"
+              className={`${styles.chip} ${expirySeconds === choice.seconds ? styles.chipActive : ""}`}
+              onClick={() => setExpirySeconds(choice.seconds)}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <button className={styles.btnCta} onClick={handleGenerate}>

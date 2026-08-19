@@ -525,3 +525,65 @@
 .summaryRow + .summaryRow { border-top: 1px dashed var(--line); }
 .summaryLabel { color: var(--muted); }
 .summaryValue { font-weight: 600; color: var(--ink); font-family: var(--font-mono-ui), monospace; text-align: right; }
+
+.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 140ms, color 140ms, border-color 140ms;
+}
+.chip:hover { color: var(--ink); }
+.chipActive { color: var(--pink-text); background: var(--pink-soft); border-color: var(--pink-soft-2); }
+
+/* --- Embeddable widget button + modal ----------------------------------- */
+.widgetBtn {
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+  background: var(--pink, #e56b43);
+  border: none;
+  border-radius: 12px;
+  padding: 13px 22px;
+  cursor: pointer;
+}
+.widgetBtn:hover { filter: brightness(1.06); }
+.widgetOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(13, 14, 14, 0.45);
+}
+.widgetFrame {
+  width: min(480px, 100%);
+  height: min(720px, 90vh);
+  border: none;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px -20px rgba(13, 14, 14, 0.5);
+}
+.widgetClose {
+  position: absolute;
+  top: -14px;
+  right: calc(50% - min(240px, 50%) - 14px);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #0d0e0e;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(13, 14, 14, 0.25);
+}

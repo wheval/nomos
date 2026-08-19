@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Aurora Coffee Co. — checkout demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, system-ui, sans-serif;
+    background: #f8f6f2; color: #1c1a17;
+  }
+  header {
+    padding: 18px 24px; border-bottom: 1px solid #e7e2d8;
+    display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px;
+  }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b4a2f; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+  .product { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .swatch {
+    aspect-ratio: 1; border-radius: 20px;
+    background: linear-gradient(135deg, #d9c4a3, #6b4a2f);
+  }
+  h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .price { font-size: 22px; font-weight: 700; margin: 0 0 16px; }
+  p.desc { color: #55503f; line-height: 1.6; margin: 0 0 28px; }
+  .note {
+    margin-top: 40px; padding: 16px 18px; border-radius: 12px;
+    background: #fff; border: 1px solid #e7e2d8; font-size: 13px; color: #75705f;
+    line-height: 1.6;
+  }
+  .note code { background: #f2efe7; padding: 1px 5px; border-radius: 4px; }
+  @media (max-width: 640px) { .product { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <header><span class="dot"></span> Aurora Coffee Co.</header>
+  <main>
+    <div class="product">
+      <div class="swatch" aria-hidden="true"></div>
+      <div>
+        <h1>Single-Origin Reserve, 250g</h1>
+        <p class="price">25 STRK</p>
+        <p class="desc">
+          A small, ordinary storefront — this page has nothing to do with
+          Nomos or Starknet beyond one script tag below. That's the point:
+          a business drops in a button, a customer pays privately, and the
+          merchant never had to build anything on-chain themselves.
+        </p>
+
+        <!-- The entire integration is this one script tag. -->
+        <script src="/widget.js"
+                data-nomos-to="0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+                data-nomos-amount="25"
+                data-nomos-note="Single-Origin Reserve, 250g"
+                data-nomos-label="Pay with Nomos"></script>
+      </div>
+    </div>
+
+    <div class="note">
+      This is a demo storefront proving the embed, not a real product or business.
+      The recipient address above is a placeholder, not a live merchant account.
+      Integration is one <code>&lt;script&gt;</code> tag with <code>data-nomos-to</code>,
+      <code>data-nomos-amount</code>, and <code>data-nomos-note</code> — see
+      <code>/widget.js</code> for the full attribute list (adds <code>data-nomos-exp</code>
+      for an expiring request, and <code>data-nomos-ref</code> for a reconciliation reference).
+    </div>
+  </main>
+</body>
+</html>

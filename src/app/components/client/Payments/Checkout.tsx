@@ -25,6 +25,9 @@ export default function Checkout() {
   const fixedAmount = params.get("amount");
   const note = params.get("note");
   const ref = params.get("ref");
+  const expParam = params.get("exp");
+  const expiresAt = expParam ? Number(expParam) : null;
+  const isExpired = expiresAt !== null && Number.isFinite(expiresAt) && Date.now() / 1000 > expiresAt;
 
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const myWalletAccount = useStoreWallet((state) => state.myWalletAccount);
@@ -59,6 +62,10 @@ export default function Checkout() {
 
   async function handlePay() {
     setResult(null);
+    if (isExpired) {
+      setResult(errorResult("This payment link has expired."));
+      return;
+    }
     const amountStr = fixedAmount ?? customAmount;
     const amountWei = parseStrkAmount(amountStr);
     if (amountWei === null) {
@@ -127,9 +134,21 @@ export default function Checkout() {
             <span className={styles.summaryValue}>{ref}</span>
           </div>
         ) : null}
+        {expiresAt !== null ? (
+          <div className={styles.summaryRow}>
+            <span className={styles.summaryLabel}>Expires</span>
+            <span className={styles.summaryValue} style={isExpired ? { color: "var(--danger)" } : undefined}>
+              {isExpired ? "Expired" : new Date(expiresAt * 1000).toLocaleString()}
+            </span>
+          </div>
+        ) : null}
       </div>
 
-      {!fixedAmount ? (
+      {isExpired ? (
+        <div className={styles.warn} style={{ padding: "0 0 12px" }}>
+          This payment link has expired. Ask the business for a fresh one.
+        </div>
+      ) : !fixedAmount ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor="customAmount">
             Amount (STRK)
@@ -152,7 +171,7 @@ export default function Checkout() {
         </div>
       ) : null}
 
-      {isConnected ? (
+      {isExpired ? null : isConnected ? (
         <button className={styles.btnCta} disabled={!isStrk20Network || paying} onClick={handlePay}>
           {paying ? "Confirm in your wallet…" : "Pay privately"}
         </button>
