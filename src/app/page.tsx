@@ -27,6 +27,28 @@ export default function Page() {
         </Link>
       </header>
 
+      <section style={{ margin: '84px 0 76px' }}>
+        <div className={styles.sectionEyebrow}>How it works</div>
+        <h2 className={styles.sectionHeading}>Three ways to get paid</h2>
+        <div className={styles.howItWorks}>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}>01</div>
+            <h3>Payment Link</h3>
+            <p>Generate a link with a fixed or open amount. Share it anywhere — the customer pays without ever touching your dashboard.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}>02</div>
+            <h3>Invoice</h3>
+            <p>Add a note and an expiry. It reads like a real invoice, backed by a private settlement instead of a public one.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}>03</div>
+            <h3>Embedded widget</h3>
+            <p>Drop one script tag on your own site. A "Pay with Nomos" button opens checkout in place — no redirect, no rebuild.</p>
+          </div>
+        </div>
+      </section>
+
       <section className={styles.toolkitBand}>
         <div className={styles.toolkitInner}>
           <div className={styles.toolkitLabel}>

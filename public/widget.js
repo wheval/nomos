@@ -33,8 +33,10 @@
     style.id = STYLE_ID;
     style.textContent =
       ".nomos-widget-btn{font-family:-apple-system,system-ui,sans-serif;font-weight:600;font-size:15px;" +
-      "color:#fff;background:#e56b43;border:none;border-radius:12px;padding:13px 22px;cursor:pointer;}" +
-      ".nomos-widget-btn:hover{filter:brightness(1.06);}" +
+      "letter-spacing:-.005em;color:#fff;background:#e56b43;border:none;border-radius:12px;padding:13px 22px;" +
+      "cursor:pointer;box-shadow:0 1px 2px rgba(15,17,21,.05),0 1px 1px rgba(15,17,21,.03);" +
+      "transition:background 140ms,box-shadow 140ms;}" +
+      ".nomos-widget-btn:hover{background:#d85f37;box-shadow:0 6px 16px -4px rgba(15,17,21,.14);}" +
       ".nomos-widget-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;" +
       "justify-content:center;padding:20px;background:rgba(13,14,14,.45);}" +
       ".nomos-widget-frame{width:min(480px,100%);height:min(720px,90vh);border:none;border-radius:20px;" +

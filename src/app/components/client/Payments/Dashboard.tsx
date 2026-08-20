@@ -122,50 +122,77 @@ export default function Dashboard() {
   }
 
   const totalStrk = (payments ?? []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const shortSecret = secretKey ? `${secretKey.slice(0, 10)}${"•".repeat(14)}` : "";
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.inputBlock}>
-        <div className={styles.inputLabel}>API key</div>
-        <div className={styles.subLine}>
-          <span>Public key embeds in the widget; secret key stays here</span>
-        </div>
-      </div>
-
-      <div className={styles.summaryCard}>
-        <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Public key</span>
-          <span className={styles.summaryValue}>{publicKey ?? "not generated yet"}</span>
-        </div>
-      </div>
-
-      {justIssued && secretKey ? (
-        <div className={styles.field}>
-          <label className={styles.fieldLabel}>
-            Secret key — shown once, save it now. Used to call GET /api/payments.
-          </label>
-          <div className={styles.linkRow}>
-            <span className={styles.linkText}>{secretKey}</span>
+    <div className={styles.panelWide}>
+      <div className={styles.statGrid}>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Total received</div>
+          <div className={styles.statValue}>
+            {payments ? totalStrk.toLocaleString() : "—"} <span>STRK</span>
           </div>
         </div>
-      ) : null}
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Payments</div>
+          <div className={styles.statValue}>{payments ? payments.length : "—"}</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Webhook</div>
+          <div className={styles.statValue} style={{ fontSize: 16 }}>
+            {webhookUrl ? (
+              <span style={{ color: "var(--green)" }}>● Active</span>
+            ) : (
+              <span style={{ color: "var(--muted-2)" }}>Not set</span>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={issuing} onClick={handleIssueKey}>
-        {issuing ? "Generating…" : publicKey ? "Rotate API key" : "Generate API key"}
-      </button>
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>API key</span>
+        </div>
+        <p className={styles.sectionSub}>Public key embeds in the widget. Secret key stays here — bearer auth for GET /api/payments.</p>
+
+        <div className={styles.keyRow}>
+          <span className={styles.keyDot} />
+          <span className={styles.keyText}>{publicKey ?? "Not generated yet"}</span>
+          {publicKey ? <span className={styles.keyBadge}>Public</span> : null}
+        </div>
+
+        {justIssued && secretKey ? (
+          <div className={styles.keyRow} style={{ marginTop: 8 }} data-secret>
+            <span className={styles.keyDot} style={{ background: "var(--pink)" }} />
+            <span className={styles.keyText}>{secretKey}</span>
+            <span className={styles.keyBadge} style={{ color: "#fff", background: "var(--pink)" }}>Save now</span>
+          </div>
+        ) : secretKey ? (
+          <div className={styles.keyRow} style={{ marginTop: 8 }}>
+            <span className={styles.keyDot} style={{ background: "var(--muted-2)" }} />
+            <span className={styles.keyText}>{shortSecret}</span>
+            <span className={styles.keyBadge} style={{ background: "var(--inset-2)", color: "var(--muted)" }}>Remembered</span>
+          </div>
+        ) : null}
+
+        <button
+          className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`}
+          disabled={issuing}
+          onClick={handleIssueKey}
+          style={{ marginTop: 14 }}
+        >
+          {issuing ? "Generating…" : publicKey ? "Rotate API key" : "Generate API key"}
+        </button>
+      </div>
 
       {secretKey ? (
-        <>
-          <div className={styles.inputBlock} style={{ marginTop: 28 }}>
-            <div className={styles.inputLabel}>Webhook</div>
-            <div className={styles.subLine}>
-              <span>POSTed the moment a Payment Link is paid</span>
-            </div>
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHead}>
+            <span className={styles.sectionTitle}>Webhook</span>
           </div>
-          <div className={styles.field}>
-            <label className={styles.fieldLabel} htmlFor="webhookUrl">
-              Your endpoint (https://…)
-            </label>
+          <p className={styles.sectionSub}>POSTed the moment a Payment Link is paid, signed with HMAC-SHA256.</p>
+
+          <div className={styles.field} style={{ marginBottom: 10 }}>
             <input
               id="webhookUrl"
               className={styles.textInput}
@@ -176,60 +203,56 @@ export default function Dashboard() {
             {webhookError ? <div className={styles.errorText}>{webhookError}</div> : null}
           </div>
           <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={savingWebhook} onClick={handleSaveWebhook}>
-            {savingWebhook ? "Saving…" : webhookSaved ? "Saved" : "Save webhook URL"}
+            {savingWebhook ? "Saving…" : webhookSaved ? "Saved ✓" : "Save webhook URL"}
           </button>
-          <p className={styles.heroSub} style={{ margin: "10px 0 0", fontSize: 12.5, textAlign: "left" }}>
-            Each delivery is signed: verify by computing sha256(your secret key), HMAC-ing the
-            raw request body with it, and comparing to the <code>X-Nomos-Signature</code> header.
+          <p className={styles.sectionSub} style={{ margin: "12px 0 0" }}>
+            Verify by computing <code>sha256(secret key)</code>, HMAC-ing the raw request body
+            with it, and comparing to <code>X-Nomos-Signature</code>.
           </p>
-        </>
+        </div>
       ) : null}
 
-      <div className={styles.inputBlock} style={{ marginTop: 28 }}>
-        <div className={styles.inputLabel}>Payments received</div>
-        <div className={styles.subLine}>
-          <span>{payments ? `${payments.length} recorded · ${totalStrk} STRK total` : "—"}</span>
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>Payments received</span>
+          {payments?.length ? <span className={styles.sectionMeta}>{payments.length} total</span> : null}
         </div>
-      </div>
 
-      {!secretKey ? (
-        <p className={styles.heroSub} style={{ margin: "8px 0 0", fontSize: 14 }}>
-          Generate an API key above to unlock this list.
-        </p>
-      ) : loadError ? (
-        <div className={styles.errorText}>{loadError}</div>
-      ) : payments && payments.length === 0 ? (
-        <>
-          <p className={styles.heroSub} style={{ margin: "8px 0 0", fontSize: 14 }}>
-            No payments recorded yet — they'll appear here as your Payment Links get paid.
-          </p>
-          <div className={styles.nextSteps}>
-            <Link href="/create">Create a Payment Link →</Link>
+        {!secretKey ? (
+          <div className={styles.emptyState}>
+            <p>Generate an API key above to unlock this list.</p>
           </div>
-        </>
-      ) : payments ? (
-        <div className={styles.receiptRows} style={{ marginTop: 8 }}>
-          {payments.map((p, i) => (
-            <div key={i} className={styles.receiptRow}>
-              <span className={styles.receiptLabel}>
-                {p.note ?? p.ref ?? "Payment"}
-                <br />
-                <span style={{ fontSize: 11, opacity: 0.7 }}>
-                  {new Date(p.recordedAt * 1000).toLocaleString()}
-                </span>
-              </span>
-              <a
-                className={styles.receiptLink}
-                href={explorerTxUrl(myFrontendProviderIndex, p.txHash)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {p.amount} STRK · {shortHex(p.txHash)} ↗
-              </a>
+        ) : loadError ? (
+          <div className={styles.errorText}>{loadError}</div>
+        ) : payments && payments.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No payments recorded yet — they'll appear here as your Payment Links get paid.</p>
+            <div className={styles.nextSteps} style={{ maxWidth: 260, margin: "0 auto" }}>
+              <Link href="/create">Create a Payment Link →</Link>
             </div>
-          ))}
-        </div>
-      ) : null}
+          </div>
+        ) : payments ? (
+          <div className={styles.txTable}>
+            {payments.map((p, i) => (
+              <div key={i} className={styles.txRow}>
+                <div className={styles.txMain}>
+                  <div className={styles.txTitle}>{p.note ?? p.ref ?? "Payment"}</div>
+                  <div className={styles.txTime}>{new Date(p.recordedAt * 1000).toLocaleString()}</div>
+                </div>
+                <div className={styles.txAmount}>{p.amount} STRK</div>
+                <a
+                  className={styles.txLink}
+                  href={explorerTxUrl(myFrontendProviderIndex, p.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {shortHex(p.txHash)} ↗
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

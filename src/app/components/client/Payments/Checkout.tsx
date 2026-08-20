@@ -134,16 +134,10 @@ export default function Checkout() {
           <span className={styles.summaryLabel}>Pay to</span>
           <span className={styles.summaryValue}>{shortTo}</span>
         </div>
-        <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Amount</span>
-          <span className={styles.summaryValue}>
-            {fixedAmount ? `${fixedAmount} STRK` : "You choose"}
-          </span>
-        </div>
         {note ? (
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Note</span>
-            <span className={styles.summaryValue}>{note}</span>
+            <span className={styles.summaryLabel}>For</span>
+            <span className={styles.summaryValue} style={{ fontFamily: "var(--font-body)", fontWeight: 500 }}>{note}</span>
           </div>
         ) : null}
         {ref ? (
@@ -160,6 +154,12 @@ export default function Checkout() {
             </span>
           </div>
         ) : null}
+        <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
+          <span className={styles.summaryLabel}>Amount</span>
+          <span className={styles.summaryValue}>
+            {fixedAmount ? `${fixedAmount} STRK` : "You choose"}
+          </span>
+        </div>
       </div>
 
       {isPaid ? (
@@ -204,6 +204,16 @@ export default function Checkout() {
         </button>
       ) : (
         <SelectWallet variant="ctaBig" />
+      )}
+
+      {isPaid || isExpired ? null : (
+        <div className={styles.trustRow}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          Shielded through the STRK20 privacy pool
+        </div>
       )}
 
       {result ? <ReceiptCard result={result} providerIndex={myFrontendProviderIndex} /> : null}

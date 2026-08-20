@@ -8,40 +8,93 @@
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; font-family: -apple-system, system-ui, sans-serif;
-    background: #f8f6f2; color: #1c1a17;
+    margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+    background: #faf9f7; color: #1c1a17;
+    -webkit-font-smoothing: antialiased;
   }
   header {
-    padding: 18px 24px; border-bottom: 1px solid #e7e2d8;
-    display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px;
+    padding: 20px 28px; border-bottom: 1px solid #ece7dd;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff;
   }
-  header .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b4a2f; }
-  main { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
-  .product { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+  .brand .dot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, #caa876, #6b4a2f); flex: none; }
+  nav { display: flex; gap: 26px; font-size: 13.5px; color: #6b6558; font-weight: 500; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 56px 28px 100px; }
+  .breadcrumb { font-size: 12.5px; color: #9a9484; margin-bottom: 28px; }
+  .product { display: grid; grid-template-columns: 1fr 1fr; gap: 52px; align-items: start; }
+
   .swatch {
-    aspect-ratio: 1; border-radius: 20px;
-    background: linear-gradient(135deg, #d9c4a3, #6b4a2f);
+    aspect-ratio: 1; border-radius: 18px;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,255,255,0.25), transparent 55%),
+      linear-gradient(135deg, #e2cba0 0%, #a9805a 45%, #5f4029 100%);
+    box-shadow: 0 20px 50px -20px rgba(80, 55, 30, 0.45), inset 0 0 0 1px rgba(255,255,255,0.15);
+    position: relative;
+    overflow: hidden;
   }
-  h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -0.01em; }
-  .price { font-size: 22px; font-weight: 700; margin: 0 0 16px; }
-  p.desc { color: #55503f; line-height: 1.6; margin: 0 0 28px; }
+  .swatch::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(115deg, rgba(0,0,0,0.05) 0 2px, transparent 2px 22px);
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    color: #6b8f5c; background: #eef3ea; border-radius: 999px; padding: 4px 10px;
+    margin-bottom: 14px;
+  }
+  .badge .d { width: 6px; height: 6px; border-radius: 50%; background: #6b8f5c; }
+
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.015em; line-height: 1.15; }
+  .rating { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #9a9484; margin-bottom: 18px; }
+  .rating .stars { color: #d99a3d; letter-spacing: 1px; }
+
+  .priceRow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 22px; }
+  .price { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .priceUnit { font-size: 13px; color: #9a9484; }
+
+  p.desc { color: #57503f; line-height: 1.65; margin: 0 0 30px; font-size: 14.5px; }
+
+  .specs { display: flex; flex-direction: column; gap: 9px; margin: 0 0 30px; padding: 18px 20px; background: #fff; border: 1px solid #ece7dd; border-radius: 14px; }
+  .specRow { display: flex; justify-content: space-between; font-size: 13px; }
+  .specRow span:first-child { color: #9a9484; }
+  .specRow span:last-child { font-weight: 600; }
+
+  .checkoutBox { padding: 4px; }
+
   .note {
-    margin-top: 40px; padding: 16px 18px; border-radius: 12px;
-    background: #fff; border: 1px solid #e7e2d8; font-size: 13px; color: #75705f;
-    line-height: 1.6;
+    margin-top: 48px; padding: 18px 20px; border-radius: 14px;
+    background: #fff; border: 1px solid #ece7dd; font-size: 12.5px; color: #837c6c;
+    line-height: 1.65;
   }
-  .note code { background: #f2efe7; padding: 1px 5px; border-radius: 4px; }
-  @media (max-width: 640px) { .product { grid-template-columns: 1fr; } }
+  .note strong { color: #57503f; }
+  .note code { background: #f2efe7; padding: 1.5px 6px; border-radius: 4px; font-size: 11.5px; }
+
+  @media (max-width: 680px) { .product { grid-template-columns: 1fr; } nav { display: none; } }
 </style>
 </head>
 <body>
-  <header><span class="dot"></span> Aurora Coffee Co.</header>
+  <header>
+    <div class="brand"><span class="dot"></span> Aurora Coffee Co.</div>
+    <nav><span>Shop</span><span>Subscriptions</span><span>About</span></nav>
+  </header>
   <main>
+    <div class="breadcrumb">Shop / Single-Origin / Reserve</div>
     <div class="product">
       <div class="swatch" aria-hidden="true"></div>
       <div>
+        <span class="badge"><span class="d"></span>In stock</span>
         <h1>Single-Origin Reserve, 250g</h1>
-        <p class="price">25 STRK</p>
+        <div class="rating"><span class="stars">★★★★★</span> 4.9 · 212 reviews</div>
+
+        <div class="priceRow">
+          <span class="price">25 STRK</span>
+          <span class="priceUnit">/ 250g bag</span>
+        </div>
+
         <p class="desc">
           A small, ordinary storefront — this page has nothing to do with
           Nomos or Starknet beyond one script tag below. That's the point:
@@ -49,17 +102,25 @@
           merchant never had to build anything on-chain themselves.
         </p>
 
+        <div class="specs">
+          <div class="specRow"><span>Origin</span><span>Yirgacheffe, Ethiopia</span></div>
+          <div class="specRow"><span>Roast</span><span>Light</span></div>
+          <div class="specRow"><span>Ships</span><span>2–3 business days</span></div>
+        </div>
+
         <!-- The entire integration is this one script tag. -->
-        <script src="/widget.js"
-                data-nomos-to="0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
-                data-nomos-amount="25"
-                data-nomos-note="Single-Origin Reserve, 250g"
-                data-nomos-label="Pay with Nomos"></script>
+        <div class="checkoutBox">
+          <script src="/widget.js"
+                  data-nomos-to="0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+                  data-nomos-amount="25"
+                  data-nomos-note="Single-Origin Reserve, 250g"
+                  data-nomos-label="Pay with Nomos"></script>
+        </div>
       </div>
     </div>
 
     <div class="note">
-      This is a demo storefront proving the embed, not a real product or business.
+      <strong>This is a demo storefront proving the embed</strong>, not a real product or business.
       The recipient address above is a placeholder, not a live merchant account.
       Integration is one <code>&lt;script&gt;</code> tag with <code>data-nomos-to</code>,
       <code>data-nomos-amount</code>, and <code>data-nomos-note</code> — see
