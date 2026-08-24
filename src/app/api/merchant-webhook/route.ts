@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
-import { getMerchantWebhookUrl, setMerchantWebhookUrl, verifyMerchantSecret } from "@/utils/store";
+import { getStore } from "@/server/store";
 
 // GET: the merchant's current webhook URL (requires their secret key - a
 // webhook destination is as sensitive as the payments list it triggers on).
@@ -16,10 +16,11 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "address is not a valid Starknet address." }, { status: 400 });
   }
-  if (!secretKey || !(await verifyMerchantSecret(normalized, secretKey))) {
+  const store = getStore();
+  if (!secretKey || !(await store.verifyMerchantSecret(normalized, secretKey))) {
     return NextResponse.json({ error: "Invalid or missing secret key." }, { status: 401 });
   }
-  const webhookUrl = await getMerchantWebhookUrl(normalized);
+  const webhookUrl = await store.getMerchantWebhookUrl(normalized);
   return NextResponse.json({ webhookUrl });
 }
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "address is not a valid Starknet address." }, { status: 400 });
   }
-  const ok = await setMerchantWebhookUrl(normalized, secretKey, url);
+  const ok = await getStore().setMerchantWebhookUrl(normalized, secretKey, url);
   if (!ok) return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
   return NextResponse.json({ ok: true });
 }

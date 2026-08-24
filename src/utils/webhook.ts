@@ -1,23 +1,27 @@
-// Best-effort webhook delivery, fired the moment a payment is recorded.
-// This is the unblocked half of "notify the merchant a payment landed" -
-// see the call-prep doc for why automated detection straight off the
-// STRK20 pool (rather than off Nomos's own order log) is still an open
-// architecture question pending the STRK20 team's answer on discovery
-// services. This delivers off the write we already do in /api/payments,
-// no viewing-key material involved.
-import { getMerchantWebhookUrl, getWebhookSigningKey, hmacSha256Hex, type PaymentRecord } from "./store";
+// Best-effort webhook delivery, fired once a payment is confirmed and
+// credited to a merchant's ledger. Flow A fires it right after recording
+// (funds are already shielded); Flow B fires it from the shield-step
+// worker once shielding confirms (Phase 5) — this function itself doesn't
+// care which flow, only that the deposit is done.
+import crypto from "crypto";
+import { getStore, type Deposit } from "@/server/store";
 
 const DELIVERY_TIMEOUT_MS = 4000;
 
-export async function deliverPaymentWebhook(record: PaymentRecord): Promise<void> {
-  const url = await getMerchantWebhookUrl(record.to);
+function hmacSha256Hex(key: string, payload: string): string {
+  return crypto.createHmac("sha256", key).update(payload).digest("hex");
+}
+
+export async function deliverPaymentWebhook(deposit: Deposit): Promise<void> {
+  const store = getStore();
+  const url = await store.getMerchantWebhookUrl(deposit.merchantAddress);
   if (!url) return;
 
-  const signingKey = await getWebhookSigningKey(record.to);
+  const signingKey = await store.getWebhookSigningKey(deposit.merchantAddress);
   const payload = JSON.stringify({
     event: "payment.received",
-    id: record.txHash,
-    data: record,
+    id: deposit.txHash,
+    data: { ...deposit, amountWei: deposit.amountWei.toString() },
   });
   const signature = signingKey ? hmacSha256Hex(signingKey, payload) : "";
 

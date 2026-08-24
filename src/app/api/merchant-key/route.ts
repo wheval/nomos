@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
-import { getMerchantPublicKey, issueMerchantKey } from "@/utils/store";
+import { getStore } from "@/server/store";
 
 // GET: the merchant's current public key, if a key pair has already been
 // issued for this address. Safe to call from the browser - it's a public
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "address is not a valid Starknet address." }, { status: 400 });
   }
-  const publicKey = await getMerchantPublicKey(normalized);
+  const publicKey = await getStore().getMerchantPublicKey(normalized);
   return NextResponse.json({ publicKey });
 }
 
@@ -41,6 +41,6 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "address is not a valid Starknet address." }, { status: 400 });
   }
-  const { publicKey, secretKey } = await issueMerchantKey(normalized);
+  const { publicKey, secretKey } = await getStore().issueMerchantKey(normalized);
   return NextResponse.json({ publicKey, secretKey });
 }

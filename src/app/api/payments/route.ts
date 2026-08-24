@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
-import { appendPayment, listPaymentsFor, verifyMerchantSecret, type PaymentRecord } from "@/utils/store";
+import { getStore } from "@/server/store";
+import { getNoteDiscoveryClient } from "@/server/signer/noteDiscovery";
 import { deliverPaymentWebhook } from "@/utils/webhook";
+import { verifyFlowADeposit, verifyFlowBDeposit } from "@/utils/verifyTx";
 
-// Records a completed payment against a Payment Link. Called by the /pay
-// checkout page right after a transfer confirms on-chain - this is Nomos's
-// own bookkeeping (order status), not a read of the STRK20 pool itself.
-// Nobody needs a secret key to write here: the write is just "this link was
-// paid," not access to anyone's balance.
+function operatingWalletAddress(): string {
+  const addr = process.env.NOMOS_OPERATING_WALLET_ADDRESS;
+  if (!addr) throw new Error("NOMOS_OPERATING_WALLET_ADDRESS is not configured.");
+  return addr;
+}
+
+// Records a completed payment against a Payment Link, after verifying it
+// actually happened on-chain — Flow A (private transfer) and Flow B
+// (public transfer) verify differently; see src/utils/verifyTx.ts. Flow A
+// credits the merchant's ledger immediately (funds are already shielded);
+// Flow B is left pending_shield until the shield-step worker (Phase 5)
+// confirms shielding and credits it then.
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -16,36 +25,96 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { to, amount, token, note, ref, txHash } = body ?? {};
-  if (typeof to !== "string" || typeof amount !== "string" || typeof txHash !== "string") {
-    return NextResponse.json({ error: "to, amount, and txHash are required strings." }, { status: 400 });
-  }
-  let normalizedTo: string;
-  try {
-    normalizedTo = validateAndParseAddress(to);
-  } catch {
-    return NextResponse.json({ error: "to is not a valid Starknet address." }, { status: 400 });
+  const { flow, merchantAddress, amountWei, txHash, networkIndex, note, ref } = body ?? {};
+  if (
+    (flow !== "A" && flow !== "B") ||
+    typeof merchantAddress !== "string" ||
+    typeof amountWei !== "string" ||
+    typeof txHash !== "string" ||
+    typeof networkIndex !== "number"
+  ) {
+    return NextResponse.json(
+      { error: "flow ('A'|'B'), merchantAddress, amountWei, txHash, and networkIndex are required." },
+      { status: 400 }
+    );
   }
 
-  const record: PaymentRecord = {
-    to: normalizedTo,
-    amount,
-    token: typeof token === "string" ? token : "STRK",
+  let normalizedMerchant: string;
+  try {
+    normalizedMerchant = validateAndParseAddress(merchantAddress);
+  } catch {
+    return NextResponse.json({ error: "merchantAddress is not a valid Starknet address." }, { status: 400 });
+  }
+
+  let claimedAmountWei: bigint;
+  try {
+    claimedAmountWei = BigInt(amountWei);
+    if (claimedAmountWei <= 0n) throw new Error();
+  } catch {
+    return NextResponse.json({ error: "amountWei must be a positive integer string (wei)." }, { status: 400 });
+  }
+
+  const store = getStore();
+
+  const existing = await store.getDepositByTxHash(txHash);
+  if (existing) {
+    return NextResponse.json({ ok: true, status: existing.status, alreadyRecorded: true }, { status: 200 });
+  }
+
+  let verified: Awaited<ReturnType<typeof verifyFlowBDeposit>>;
+  if (flow === "B") {
+    let operatingWallet: string;
+    try {
+      operatingWallet = operatingWalletAddress();
+    } catch (err: any) {
+      return NextResponse.json({ error: err?.message ?? String(err) }, { status: 500 });
+    }
+    verified = await verifyFlowBDeposit({
+      txHash,
+      operatingWalletAddress: operatingWallet,
+      claimedAmountWei,
+      networkIndex,
+    });
+  } else {
+    verified = await verifyFlowADeposit({
+      txHash,
+      claimedAmountWei,
+      discovery: getNoteDiscoveryClient(),
+    });
+  }
+
+  if (!verified.ok) {
+    return NextResponse.json({ error: `Could not verify deposit: ${verified.reason}` }, { status: 422 });
+  }
+
+  const { deposit } = await store.recordDeposit({
+    merchantAddress: normalizedMerchant,
+    flow,
+    txHash,
+    amountWei: verified.amountWei,
     note: typeof note === "string" ? note : undefined,
     ref: typeof ref === "string" ? ref : undefined,
-    txHash,
-    recordedAt: Math.floor(Date.now() / 1000),
-  };
-  await appendPayment(record);
-  await deliverPaymentWebhook(record);
+    status: flow === "A" ? "verified" : "pending_shield",
+  });
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  if (flow === "A") {
+    await store.creditLedger({
+      merchantAddress: normalizedMerchant,
+      amountWei: verified.amountWei,
+      kind: "flow_a_deposit",
+      depositId: deposit.id,
+    });
+    await deliverPaymentWebhook(deposit);
+  }
+  // Flow B is credited (and its webhook fired) by the shield-step worker
+  // once shielding is confirmed — see Phase 5.
+
+  return NextResponse.json({ ok: true, status: deposit.status }, { status: 201 });
 }
 
-// Lists recorded payments for a merchant address - the actual "business
-// API" surface. Requires the merchant's own secret key as a bearer token,
-// same auth model as Stripe/Paystack: the public key is safe to embed in a
-// widget, the secret key never leaves the merchant's own backend/dashboard.
+// Lists recorded deposits + the current ledger balance for a merchant.
+// Requires the merchant's own secret key as a bearer token, same auth
+// model as before.
 export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to");
   const auth = request.headers.get("authorization") ?? "";
@@ -63,11 +132,20 @@ export async function GET(request: NextRequest) {
   if (!secretKey) {
     return NextResponse.json({ error: "Missing Authorization: Bearer <secret key>." }, { status: 401 });
   }
-  const ok = await verifyMerchantSecret(normalizedTo, secretKey);
+
+  const store = getStore();
+  const ok = await store.verifyMerchantSecret(normalizedTo, secretKey);
   if (!ok) {
     return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
   }
 
-  const payments = await listPaymentsFor(normalizedTo);
-  return NextResponse.json({ payments });
+  const [deposits, balanceWei] = await Promise.all([
+    store.listDepositsFor(normalizedTo),
+    store.getLedgerBalance(normalizedTo),
+  ]);
+
+  return NextResponse.json({
+    deposits: deposits.map((d) => ({ ...d, amountWei: d.amountWei.toString() })),
+    balanceWei: balanceWei.toString(),
+  });
 }

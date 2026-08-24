@@ -6,17 +6,35 @@ import styles from "../../../uni.module.css";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, shortHex } from "@/utils/receipt";
-import type { PaymentRecord } from "@/utils/store";
+import { explorerTxUrl, fmtStrk, shortHex } from "@/utils/receipt";
+import type { Deposit, DepositStatus } from "@/server/store";
+
+// Deposit as it comes over the wire from GET /api/payments — amountWei is
+// a decimal string there, since JSON has no bigint.
+type WireDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
 
 function secretKeyStorageKey(address: string) {
   return `nomos:sk:${address.toLowerCase()}`;
 }
 
-// Merchant dashboard: API key issuance + the payments list it unlocks. Reads
-// only Nomos's own order records (src/utils/store.ts) - not a scan of the
-// STRK20 pool itself, so it needs no viewing-key material at all. See the
-// call-prep doc for why that distinction matters.
+function statusLabel(status: DepositStatus): string | null {
+  switch (status) {
+    case "pending_shield":
+      return "Shielding…";
+    case "shield_failed":
+      return "Shield failed";
+    case "rejected":
+      return "Rejected";
+    case "pending_verify":
+      return "Verifying…";
+    default:
+      return null; // "verified" / "shielded" — already reflected in the balance, no badge needed
+  }
+}
+
+// Merchant dashboard: API key issuance + the deposit ledger it unlocks.
+// Reads only Nomos's own ledger (src/server/store) - not a scan of the
+// STRK20 pool itself, so it needs no viewing-key material at all.
 export default function Dashboard() {
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
@@ -26,7 +44,8 @@ export default function Dashboard() {
   const [secretKey, setSecretKey] = useState<string | null>(null);
   const [justIssued, setJustIssued] = useState(false);
   const [issuing, setIssuing] = useState(false);
-  const [payments, setPayments] = useState<PaymentRecord[] | null>(null);
+  const [deposits, setDeposits] = useState<WireDeposit[] | null>(null);
+  const [balanceWei, setBalanceWei] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSaved, setWebhookSaved] = useState(false);
@@ -37,7 +56,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!address) return;
     setPublicKey(null);
-    setPayments(null);
+    setDeposits(null);
+    setBalanceWei(null);
     setJustIssued(false);
     const stored = window.localStorage.getItem(secretKeyStorageKey(address));
     setSecretKey(stored);
@@ -47,7 +67,7 @@ export default function Dashboard() {
       .catch(() => {});
   }, [address]);
 
-  // Fetch the payments list whenever we have both an address and a secret key.
+  // Fetch the deposit ledger whenever we have both an address and a secret key.
   useEffect(() => {
     if (!address || !secretKey) return;
     setLoadError("");
@@ -56,7 +76,10 @@ export default function Dashboard() {
         if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
         return r.json();
       })
-      .then((d) => setPayments(d.payments ?? []))
+      .then((d) => {
+        setDeposits(d.deposits ?? []);
+        setBalanceWei(d.balanceWei ?? "0");
+      })
       .catch((e) => setLoadError(e.message ?? "Could not load payments."));
   }, [address, secretKey]);
 
@@ -121,21 +144,20 @@ export default function Dashboard() {
     );
   }
 
-  const totalStrk = (payments ?? []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const shortSecret = secretKey ? `${secretKey.slice(0, 10)}${"•".repeat(14)}` : "";
 
   return (
     <div className={styles.panelWide}>
       <div className={styles.statGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total received</div>
+          <div className={styles.statLabel}>Balance</div>
           <div className={styles.statValue}>
-            {payments ? totalStrk.toLocaleString() : "—"} <span>STRK</span>
+            {balanceWei !== null ? fmtStrk(BigInt(balanceWei)) : "—"} <span>STRK</span>
           </div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Payments</div>
-          <div className={styles.statValue}>{payments ? payments.length : "—"}</div>
+          <div className={styles.statLabel}>Deposits</div>
+          <div className={styles.statValue}>{deposits ? deposits.length : "—"}</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Webhook</div>
@@ -214,8 +236,8 @@ export default function Dashboard() {
 
       <div className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>Payments received</span>
-          {payments?.length ? <span className={styles.sectionMeta}>{payments.length} total</span> : null}
+          <span className={styles.sectionTitle}>Deposits</span>
+          {deposits?.length ? <span className={styles.sectionMeta}>{deposits.length} total</span> : null}
         </div>
 
         {!secretKey ? (
@@ -224,32 +246,42 @@ export default function Dashboard() {
           </div>
         ) : loadError ? (
           <div className={styles.errorText}>{loadError}</div>
-        ) : payments && payments.length === 0 ? (
+        ) : deposits && deposits.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No payments recorded yet — they&apos;ll appear here as your Payment Links get paid.</p>
+            <p>No deposits recorded yet — they&apos;ll appear here as your Payment Links get paid.</p>
             <div className={styles.nextSteps} style={{ maxWidth: 260, margin: "0 auto" }}>
               <Link href="/create">Create a Payment Link →</Link>
             </div>
           </div>
-        ) : payments ? (
+        ) : deposits ? (
           <div className={styles.txTable}>
-            {payments.map((p, i) => (
-              <div key={i} className={styles.txRow}>
-                <div className={styles.txMain}>
-                  <div className={styles.txTitle}>{p.note ?? p.ref ?? "Payment"}</div>
-                  <div className={styles.txTime}>{new Date(p.recordedAt * 1000).toLocaleString()}</div>
+            {deposits.map((d) => {
+              const badge = statusLabel(d.status);
+              return (
+                <div key={d.id} className={styles.txRow}>
+                  <div className={styles.txMain}>
+                    <div className={styles.txTitle}>
+                      {d.note ?? d.ref ?? "Payment"}
+                      {badge ? (
+                        <span className={styles.keyBadge} style={{ marginLeft: 8 }}>
+                          {badge}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className={styles.txTime}>{new Date(d.recordedAt * 1000).toLocaleString()}</div>
+                  </div>
+                  <div className={styles.txAmount}>{fmtStrk(BigInt(d.amountWei))} STRK</div>
+                  <a
+                    className={styles.txLink}
+                    href={explorerTxUrl(myFrontendProviderIndex, d.txHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {shortHex(d.txHash)} ↗
+                  </a>
                 </div>
-                <div className={styles.txAmount}>{p.amount} STRK</div>
-                <a
-                  className={styles.txLink}
-                  href={explorerTxUrl(myFrontendProviderIndex, p.txHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {shortHex(p.txHash)} ↗
-                </a>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
       </div>
