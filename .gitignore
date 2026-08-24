@@ -49,3 +49,8 @@ A1priv/A1priv.ts
 
 # local dev "database" for the payments API / merchant dashboard
 /.data/
+
+# sncast account secrets (throwaway declarer account for cairo/ deploys) —
+# holds a private key, never commit
+.sncast_accounts.json
+snfoundry.toml

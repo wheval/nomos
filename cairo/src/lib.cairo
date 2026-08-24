@@ -1,3 +1,5 @@
+mod operating_wallet;
+
 use starknet::ContractAddress;
 
 // Must match privacy::objects::OpenNoteDeposit (positional Serde).

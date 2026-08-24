@@ -5,6 +5,15 @@ edition = "2024_07"
 
 [dependencies]
 starknet = "2.18.0"
+# Needed only by NomosOperatingWallet (operating_wallet.cairo) — the echo
+# helper (lib.cairo) doesn't use these.
+openzeppelin_account = "3.0.0"
+# Pinned lower deliberately: openzeppelin_interfaces' latest published
+# release is 2.1.0, not 3.0.0 — it doesn't share a version line with the
+# other openzeppelin_* packages. Verified against scarbs.xyz directly, not
+# assumed from the "^3.0.0" comment in the generated contract.
+openzeppelin_interfaces = "2.1.0"
+openzeppelin_introspection = "3.0.0"
 
 [[target.starknet-contract]]
 sierra = true
