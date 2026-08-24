@@ -23,6 +23,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "cairo/target/**",
+    // Reference-only spike scripts that depend on an SDK not installed in
+    // this repo (see docs/ARCHITECTURE.md) — not runnable or lintable here.
+    "scripts/spikes/**",
   ]),
 ]);
 
