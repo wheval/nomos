@@ -52,11 +52,13 @@ export default function SelectWallet({ variant = "ctaBig" }: { variant?: "nav" |
     return () => unsub();
   }, []);
 
-  // Show every detected wallet except MetaMask (its Snap probing spams an unlock popup)
-  // and Braavos (excluded from this starter's picker).
+  // Show every detected wallet except MetaMask (its Snap probing spams an
+  // unlock popup). Braavos and other ordinary wallets are included - Flow B
+  // (public transfer) needs no STRK20/privacy wallet support at all; only
+  // Flow A's privacy actions require a capable wallet, checked separately.
   const pickable = wallets.filter((w) => {
     const id = normalizeId(w.name);
-    return !id.includes("metamask") && !id.includes("braavos");
+    return !id.includes("metamask");
   });
 
   // Unchanged connection flow: takes the wallet-standard wallet and populates

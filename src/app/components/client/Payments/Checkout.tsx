@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { num, validateAndParseAddress } from "starknet";
+import { CallData, cairo, num, validateAndParseAddress } from "starknet";
 import type { WALLET_API } from "@starknet-io/types-js";
 import styles from "../../../uni.module.css";
 import * as constants from "@/utils/constants";
@@ -15,10 +15,21 @@ import { errorResult, receiptToResult, shortHex, fmtStrk, type ActionResult } fr
 
 const TOKEN = constants.addrSTRK;
 
-// Customer-facing checkout for a Payment Link. Reads {to, amount, note} from
-// the URL and submits a single private transfer via the connected wallet -
-// same STRK20 action the wallet panel's "Send" tab uses, aimed at whoever
-// generated the link instead of back at the sender.
+type Flow = "A" | "B";
+
+// Customer-facing checkout for a Payment Link. Reads {to, amount, note}
+// from the URL and settles into Nomos's own operating wallet — not the
+// merchant directly — via one of two flows the customer picks:
+//
+//   Flow A ("Pay privately"): a private STRK20 transfer. Requires a
+//   shielded-capable wallet (Ready, etc). Fully private end to end.
+//
+//   Flow B ("Pay with any wallet"): a plain public ERC-20 transfer. Works
+//   with any Starknet wallet. The deposit itself is public, but which
+//   merchant it's for stays private — see docs/ARCHITECTURE.md.
+//
+// Either way, the merchant is credited via their internal ledger balance,
+// not by receiving funds directly — see docs/PRD.md for why.
 export default function Checkout() {
   const params = useSearchParams();
   const to = params.get("to") ?? "";
@@ -35,7 +46,16 @@ export default function Checkout() {
 
   const networkName = constants.Strk20Networks[myFrontendProviderIndex];
   const isStrk20Network = networkName !== undefined;
+  const operatingWallet = constants.operatingWalletAddress;
+  const hasOperatingWallet = (() => {
+    try {
+      return num.toBigInt(operatingWallet) !== 0n;
+    } catch {
+      return false;
+    }
+  })();
 
+  const [flow, setFlow] = useState<Flow>("A");
   const [customAmount, setCustomAmount] = useState("");
   const [amountError, setAmountError] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
@@ -78,13 +98,31 @@ export default function Checkout() {
       setResult(errorResult("No wallet connected."));
       return;
     }
+    if (!hasOperatingWallet) {
+      setResult(errorResult("Nomos's operating wallet isn't configured on this deployment."));
+      return;
+    }
     setPaying(true);
-    const actions: WALLET_API.STRK20_ACTION[] = [
-      { type: "transfer", token: TOKEN, amount: num.toHex(amountWei), recipient: toValid },
-    ];
     try {
-      const r = await myWalletAccount.strk20InvokeTransaction(actions);
-      const txH = r.transaction_hash;
+      let txH: string;
+      if (flow === "A") {
+        const actions: WALLET_API.STRK20_ACTION[] = [
+          { type: "transfer", token: TOKEN, amount: num.toHex(amountWei), recipient: operatingWallet },
+        ];
+        const r = await myWalletAccount.strk20InvokeTransaction(actions);
+        txH = r.transaction_hash;
+      } else {
+        // Flow B: an ordinary public ERC-20 transfer — needs no STRK20
+        // wallet support, works with any connected Starknet account.
+        const r = await myWalletAccount.execute([
+          {
+            contractAddress: TOKEN,
+            entrypoint: "transfer",
+            calldata: CallData.compile({ recipient: operatingWallet, amount: cairo.uint256(amountWei) }),
+          },
+        ]);
+        txH = r.transaction_hash;
+      }
       setResult({
         status: "pending",
         title: "Waiting for confirmation…",
@@ -100,16 +138,19 @@ export default function Checkout() {
       if (final.status === "ok") {
         // Best-effort order bookkeeping for the merchant dashboard - never
         // blocks or fails the payment itself, which already confirmed on-chain.
+        // Server re-verifies this on-chain before crediting anything - see
+        // src/utils/verifyTx.ts.
         fetch("/api/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            to: toValid,
-            amount: fmtStrk(amountWei),
-            token: "STRK",
+            flow,
+            merchantAddress: toValid,
+            amountWei: amountWei.toString(),
+            txHash: txH,
+            networkIndex: myFrontendProviderIndex,
             note: note ?? undefined,
             ref: ref ?? undefined,
-            txHash: txH,
           }),
         }).catch(() => {});
       }
@@ -128,6 +169,33 @@ export default function Checkout() {
           <span>Shielded on the STRK20 pool</span>
         </div>
       </div>
+
+      {isPaid || isExpired ? null : (
+        <div className={styles.field}>
+          <label className={styles.fieldLabel}>How do you want to pay?</label>
+          <div className={styles.chipRow}>
+            <button
+              type="button"
+              className={`${styles.chip} ${flow === "A" ? styles.chipActive : ""}`}
+              onClick={() => setFlow("A")}
+            >
+              Pay privately
+            </button>
+            <button
+              type="button"
+              className={`${styles.chip} ${flow === "B" ? styles.chipActive : ""}`}
+              onClick={() => setFlow("B")}
+            >
+              Pay with any wallet
+            </button>
+          </div>
+          <p className={styles.sectionSub} style={{ margin: "8px 0 0" }}>
+            {flow === "A"
+              ? "Needs a shielded wallet (Ready, or Argent/Braavos with Private Balances). Fully private end to end."
+              : "Works with any Starknet wallet. Your payment amount is visible on-chain, but which business you paid stays private."}
+          </p>
+        </div>
+      )}
 
       <div className={styles.summaryCard}>
         <div className={styles.summaryRow}>
@@ -167,8 +235,9 @@ export default function Checkout() {
           <div className={styles.successIcon}>✓</div>
           <div className={styles.successTitle}>Payment sent</div>
           <p className={styles.successNote}>
-            Shielded and settled on-chain. The business has been notified —
-            nothing more to do here.
+            {flow === "A"
+              ? "Shielded and settled on-chain. The business has been notified — nothing more to do here."
+              : "Settled on-chain and recorded for the business — nothing more to do here."}
           </p>
         </div>
       ) : isExpired ? (
@@ -194,13 +263,13 @@ export default function Checkout() {
 
       {!isPaid && !isStrk20Network && isConnected ? (
         <div className={styles.warn}>
-          STRK20 actions require Mainnet or Sepolia - switch your wallet network.
+          Nomos requires Mainnet or Sepolia - switch your wallet network.
         </div>
       ) : null}
 
       {isPaid || isExpired ? null : isConnected ? (
         <button className={styles.btnCta} disabled={!isStrk20Network || paying} onClick={handlePay}>
-          {paying ? "Confirm in your wallet…" : "Pay privately"}
+          {paying ? "Confirm in your wallet…" : "Pay"}
         </button>
       ) : (
         <SelectWallet variant="ctaBig" />
@@ -212,7 +281,7 @@ export default function Checkout() {
             <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
             <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          Shielded through the STRK20 privacy pool
+          {flow === "A" ? "Shielded through the STRK20 privacy pool" : "Which business you paid stays private"}
         </div>
       )}
 

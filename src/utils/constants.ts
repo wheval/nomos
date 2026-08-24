@@ -43,3 +43,10 @@ export function echoHelperForIndex(index: number): string {
 // Frontend provider indices where the STRK20 privacy pool is available, mapped to a
 // display name. Used to gate the WalletAccountV6 STRK20 actions.
 export const Strk20Networks: Record<number, string> = { 0: "MAINNET", 2: "SEPOLIA" };
+
+// ─── Operating wallet (custodial hold-until-payout model) ──────────────────
+// Nomos's own account — the recipient of both checkout flows. Deployed on
+// Sepolia; see cairo/address.md and docs/ARCHITECTURE.md "Custody & signing".
+// Public info (just an address), safe to ship to the client — the signing
+// key stays server-only (NOMOS_OPERATING_WALLET_PRIVKEY, never NEXT_PUBLIC_*).
+export const operatingWalletAddress = process.env.NEXT_PUBLIC_NOMOS_OPERATING_WALLET_ADDRESS ?? "0x0";
