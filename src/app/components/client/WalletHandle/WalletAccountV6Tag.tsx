@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hash, json, num, shortString, validateAndParseAddress } from "starknet";
+import { hash, json, num, validateAndParseAddress } from "starknet";
 import type { WALLET_API } from "@starknet-io/types-js";
 import styles from "../../../uni.module.css";
 import * as constants from "@/utils/constants";
@@ -92,7 +92,7 @@ export default function WalletAccountV6Tag() {
   const connectedAddress = useStoreWallet((state) => state.address);
   const isConnected = useStoreWallet((state) => state.isConnected);
   const chain = useStoreWallet((state) => state.chain);
-  const [chainIdWA, setChainIdWA] = useState<string>(chain);
+  const [, setChainIdWA] = useState<string>(chain);
 
   // STRK20 privacy pool is available on Mainnet (index 0) and Sepolia (index 2).
   const networkName = constants.Strk20Networks[myFrontendProviderIndex];

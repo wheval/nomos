@@ -44,7 +44,7 @@ export default function Page() {
           <div className={styles.howStep}>
             <div className={styles.howStepNum}>03</div>
             <h3>Embedded widget</h3>
-            <p>Drop one script tag on your own site. A "Pay with Nomos" button opens checkout in place — no redirect, no rebuild.</p>
+            <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
           </div>
         </div>
       </section>

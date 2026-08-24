@@ -18,7 +18,7 @@ export default function DashboardPage() {
           <span className={styles.heroAccent}>dashboard</span>
         </h1>
         <p className={styles.heroSub}>
-          What's landed, and the key your own backend can use to check.
+          What&apos;s landed, and the key your own backend can use to check.
         </p>
       </header>
 

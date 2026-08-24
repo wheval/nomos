@@ -226,7 +226,7 @@ export default function Dashboard() {
           <div className={styles.errorText}>{loadError}</div>
         ) : payments && payments.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No payments recorded yet — they'll appear here as your Payment Links get paid.</p>
+            <p>No payments recorded yet — they&apos;ll appear here as your Payment Links get paid.</p>
             <div className={styles.nextSteps} style={{ maxWidth: 260, margin: "0 auto" }}>
               <Link href="/create">Create a Payment Link →</Link>
             </div>
