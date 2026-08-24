@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "shield:list": "tsx scripts/shield-reconcile.ts list",
+    "shield:mark": "tsx scripts/shield-reconcile.ts mark"
   },
   "dependencies": {
     "@starknet-io/get-starknet-discovery": "6.0.2",

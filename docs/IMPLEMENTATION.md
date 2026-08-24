@@ -115,11 +115,17 @@ New env vars (`.env.example` only, placeholders — never commit real values): `
 
 `SelectWallet.tsx`: remove `!id.includes("braavos")` from the picker filter (keep the MetaMask exclusion — unrelated Snap-probe issue). Privacy-only UI (the Shield/Send/Unshield/Echo tabs in `WalletAccountV6Tag.tsx`, and the Flow A checkout option) gates on wallet *capability* (attempt `strk20Balances` / check `supportedSpecs`), not connect-time exclusion.
 
-## Phase 5 — Shield-step worker
+## Phase 5 — Shield reconciliation (manual, not an automated worker)
 
-STRK20 proving is slow (existing code already budgets `retries: 400 × 3000ms`) — shielding can't run inline in a serverless request.
+Revised after discovering the deposit-screening constraint (see `docs/ARCHITECTURE.md`): every deposit into the STRK20 pool needs an FPI screening signature, with no self-hosting workaround, so the operating wallet cannot headlessly shield Flow B deposits itself. Decision: shielding is a manual, team-operated step — a team member shields through their own privacy-capable wallet (Ready/Xverse) and privately transfers the result into the operating wallet — and this phase is just the bookkeeping half of that, not an automated worker.
 
-`src/app/api/internal/shield-worker/route.ts` (protected by a `NOMOS_SHIELD_WORKER_SECRET` header): scans `listPendingShieldDeposits()`, shields each via the Phase 3 signer, marks `shielded` + credits the ledger on confirmation, or `shield_failed` (with a retry count) on failure. `vercel.json` gets a Cron entry to trigger it on an interval; a `yarn shield:worker` script allows manual triggering before Vercel Cron is live.
+`src/app/api/internal/shield/route.ts` (protected by a `NOMOS_SHIELD_WORKER_SECRET` bearer header):
+- `GET` — lists deposits with status `pending_shield` and the total wei that needs shielding in one batch, so the team member knows what to do.
+- `POST { depositIds: string[], shieldTxHash: string }` — after the manual shield + transfer is done, marks each listed deposit `shielded`, credits its merchant's ledger, and fires their webhook. Reports success/failure per deposit rather than failing the whole batch on one bad ID.
+
+`scripts/shield-reconcile.ts` — a small CLI (`npx tsx scripts/shield-reconcile.ts list` / `mark <shieldTxHash> <depositId...>`) wrapping the same endpoint, so this doesn't require raw curl.
+
+No Vercel Cron, no automated retry loop — there's nothing to automate here until/unless the FPI screening question (raised with the STRK20 team) resolves differently.
 
 ## Phase 6 — Payout
 
