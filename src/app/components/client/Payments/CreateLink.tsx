@@ -64,14 +64,12 @@ export default function CreateLink() {
   }
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.inputBlock}>
-        <div className={styles.inputLabel}>Payment Link</div>
-        <div className={styles.subLine}>
-          <span>Pays into your shielded balance</span>
-          <span className={styles.subMono}>{shortAddr}</span>
-        </div>
+    <div className={styles.sectionCard}>
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionTitle}>Payment Link</span>
+        <span className={styles.sectionMeta}>{shortAddr}</span>
       </div>
+      <p className={styles.sectionSub}>Pays into your shielded balance</p>
 
       <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="amount">

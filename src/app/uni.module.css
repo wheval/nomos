@@ -515,7 +515,7 @@
   box-shadow: 0 0 0 3.5px var(--pink-soft);
 }
 .textInput:focus-visible { outline: none; }
-.textInput::placeholder { color: #b7b7c2; }
+.textInput::placeholder { color: var(--muted); opacity: 0.75; }
 .textInput:disabled { color: var(--muted); background: var(--inset); }
 
 .linkRow {
