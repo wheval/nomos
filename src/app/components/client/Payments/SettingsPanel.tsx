@@ -5,6 +5,64 @@ import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { useMerchantAuth } from "./useMerchantAuth";
 
+function EyeIcon({ off }: { off?: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      {off ? (
+        <>
+          <path
+            d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.5A9.9 9.9 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.2 2.3-2.3 3.5M6.3 6.9C4.4 8.1 3 9.9 2 12c1 2.5 5 7 10 7 1 0 2-.2 2.9-.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      ) : (
+        <>
+          <path
+            d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+        </>
+      )}
+    </svg>
+  );
+}
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <rect x="9" y="9" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className={styles.iconBtn}
+      title="Copy"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          /* clipboard denied - value is still selectable text */
+        }
+      }}
+    >
+      {copied ? "✓" : <CopyIcon />}
+    </button>
+  );
+}
+
 export default function SettingsPanel() {
   const { isConnected, address, publicKey, secretKey, justIssued, issuing, issueKey } = useMerchantAuth();
 
@@ -12,6 +70,7 @@ export default function SettingsPanel() {
   const [webhookSaved, setWebhookSaved] = useState(false);
   const [webhookError, setWebhookError] = useState("");
   const [savingWebhook, setSavingWebhook] = useState(false);
+  const [secretRevealed, setSecretRevealed] = useState(false);
 
   useEffect(() => {
     if (!address || !secretKey) return;
@@ -54,7 +113,7 @@ export default function SettingsPanel() {
     );
   }
 
-  const shortSecret = secretKey ? `${secretKey.slice(0, 10)}${"•".repeat(14)}` : "";
+  const maskedSecret = secretKey ? `${secretKey.slice(0, 6)}${"•".repeat(22)}` : "";
 
   return (
     <div className={styles.consolePage}>
@@ -65,27 +124,52 @@ export default function SettingsPanel() {
 
       <div className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>API key</span>
+          <span className={styles.sectionTitle}>API configuration</span>
         </div>
-        <p className={styles.sectionSub}>Public key embeds in the widget. Secret key stays here — bearer auth for GET /api/payments.</p>
 
-        <div className={styles.keyRow}>
-          <span className={styles.keyDot} />
-          <span className={styles.keyText}>{publicKey ?? "Not generated yet"}</span>
-          {publicKey ? <span className={styles.keyBadge}>Public</span> : null}
+        <div className={styles.settingsRow}>
+          <div className={styles.settingsRowLeft}>
+            <div className={styles.settingsRowLabel}>Public key</div>
+            <div className={styles.settingsRowDesc}>Safe to embed in the checkout widget</div>
+          </div>
+          <div className={styles.settingsRowRight}>
+            {publicKey ? (
+              <div className={styles.secretField}>
+                <span className={styles.secretFieldValue}>{publicKey}</span>
+                <CopyButton value={publicKey} />
+              </div>
+            ) : (
+              <span className={styles.consoleSub}>Not generated yet</span>
+            )}
+          </div>
         </div>
+
+        {secretKey ? (
+          <div className={styles.settingsRow}>
+            <div className={styles.settingsRowLeft}>
+              <div className={styles.settingsRowLabel}>Secret key</div>
+              <div className={styles.settingsRowDesc}>Bearer auth for GET /api/payments — never share this</div>
+            </div>
+            <div className={styles.settingsRowRight}>
+              <div className={styles.secretField}>
+                <span className={styles.secretFieldValue}>{secretRevealed ? secretKey : maskedSecret}</span>
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  title={secretRevealed ? "Hide" : "Reveal"}
+                  onClick={() => setSecretRevealed((v) => !v)}
+                >
+                  <EyeIcon off={secretRevealed} />
+                </button>
+                <CopyButton value={secretKey} />
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {justIssued && secretKey ? (
-          <div className={styles.keyRow} style={{ marginTop: 8 }} data-secret>
-            <span className={styles.keyDot} style={{ background: "var(--c-accent)" }} />
-            <span className={styles.keyText}>{secretKey}</span>
-            <span className={styles.keyBadge} style={{ color: "#fff", background: "var(--c-accent)" }}>Save now</span>
-          </div>
-        ) : secretKey ? (
-          <div className={styles.keyRow} style={{ marginTop: 8 }}>
-            <span className={styles.keyDot} style={{ background: "var(--c-muted-2)" }} />
-            <span className={styles.keyText}>{shortSecret}</span>
-            <span className={styles.keyBadge} style={{ background: "var(--c-surface-2)", color: "var(--c-muted)" }}>Remembered</span>
+          <div className={styles.warn} style={{ padding: "8px 0 0" }}>
+            Save your secret key now — it won&apos;t be shown again after you leave this page.
           </div>
         ) : null}
 

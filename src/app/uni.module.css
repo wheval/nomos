@@ -1112,54 +1112,155 @@
 }
 .consoleCollapseBtn:hover { background: var(--inset); color: var(--ink); }
 
-.consoleNetPill {
+/* Reusable Switch primitive — the toggle pattern from the design
+   reference (Test/Live mode, Active). A labeled track + thumb, not a
+   checkbox-styled input, so it can carry a text label alongside it. */
+.switchWrap { display: inline-flex; align-items: center; gap: 9px; }
+.switchLabel { font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.switchLabelOn { color: var(--ink); }
+.switch {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--line);
+  width: 40px;
+  height: 22px;
   border-radius: 999px;
-  padding: 6px 12px;
+  border: none;
+  padding: 2px;
   cursor: pointer;
-  transition: border-color 120ms;
+  background: var(--line);
+  transition: background 160ms ease;
+  flex: none;
 }
-.consoleNetPill:hover { border-color: var(--pink-soft-2); }
-.consoleNetMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 160px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-lg);
-  padding: 6px;
-  z-index: 20;
+.switchOn { background: var(--green); }
+.switchDanger.switchOn { background: var(--pink); }
+.switchThumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translateX(0);
+  transition: transform 160ms ease;
 }
-.consoleNetOption {
+.switchOn .switchThumb { transform: translateX(18px); }
+
+/* Network mode switch — Test (Sepolia) / Live (Mainnet), same visual
+   language as the Test/Live toggle in the design reference. */
+.netSwitchWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono-ui), monospace;
+}
+.netSwitchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.netSwitchLabelLive { color: var(--green); }
+
+/* Full-width test-mode banner — appears above the sidebar/topbar grid
+   entirely, matching the reference (Blockradar/Paystack both put it at
+   the very top of the page, not inside the content area). Only shown on
+   a non-mainnet network. */
+.testBanner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fde68a;
+}
+.testBanner strong { font-weight: 700; }
+.testBannerAction {
+  font-weight: 700;
+  color: #92400e;
+  text-decoration: underline;
+  background: none;
   border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+.console[data-theme="dark"] .testBanner,
+:root:not([data-theme="light"]) .console:not([data-theme="light"]) .testBanner {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf6a;
+  border-bottom-color: rgba(245, 158, 11, 0.3);
+}
+.console[data-theme="dark"] .testBannerAction,
+:root:not([data-theme="light"]) .console:not([data-theme="light"]) .testBannerAction {
+  color: #fbbf6a;
+}
+@media (prefers-color-scheme: dark) {
+  .console:not([data-theme="light"]) .testBanner {
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf6a;
+    border-bottom-color: rgba(245, 158, 11, 0.3);
+  }
+  .console:not([data-theme="light"]) .testBannerAction { color: #fbbf6a; }
+}
+
+/* Settings: label-left / control-right rows, matching the API
+   configuration pattern from the design reference. */
+.settingsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.settingsRow:first-child { border-top: none; padding-top: 4px; }
+.settingsRowLeft { min-width: 0; }
+.settingsRowLabel { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.settingsRowDesc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.settingsRowRight { flex: none; display: flex; align-items: center; gap: 8px; }
+
+.secretField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 260px;
+}
+.secretFieldValue {
   font-family: var(--font-mono-ui), monospace;
   font-size: 12.5px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background 120ms;
+  color: var(--ink);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.consoleNetOption:hover { background: var(--inset); }
-.consoleNetOptionActive { color: var(--pink-text); }
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.iconBtn:hover { background: var(--inset); color: var(--ink); }
 
 .consoleAddrPill {
   display: inline-flex;

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "../uni.module.css";
 import { BrandMark } from "./Brand";
 import ThemeToggle from "./ThemeToggle";
+import Switch from "./Switch";
 import { useStoreWallet } from "./Wallet/walletContext";
 import { useFrontendProvider } from "./client/provider/providerContext";
 import * as constants from "@/utils/constants";
@@ -18,12 +19,11 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-// Network indices that map to a real, connectable STRK20 network (see
-// src/utils/constants.ts's Strk20Networks) — the only two the switcher offers.
-const NETWORK_OPTIONS = [
-  { index: 2, label: "Sepolia" },
-  { index: 0, label: "Mainnet" },
-];
+// The only two real, connectable STRK20 networks (constants.Strk20Networks).
+// 0 = Mainnet ("live"), 2 = Sepolia ("test") — a plain boolean toggle, same
+// as the Test/Live switch in the design reference, not a multi-option menu.
+const MAINNET_INDEX = 0;
+const SEPOLIA_INDEX = 2;
 
 const COLLAPSE_STORAGE_KEY = "nomos:sidebar-collapsed";
 
@@ -40,24 +40,14 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const setCurrentFrontendProviderIndex = useFrontendProvider((state) => state.setCurrentFrontendProviderIndex);
   const networkName = constants.Strk20Networks[myFrontendProviderIndex] ?? "Unsupported";
+  const isLive = myFrontendProviderIndex === MAINNET_INDEX;
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
 
   const [collapsed, setCollapsed] = useState(false);
-  const [netMenuOpen, setNetMenuOpen] = useState(false);
-  const netMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1");
   }, []);
-
-  useEffect(() => {
-    if (!netMenuOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (netMenuRef.current && !netMenuRef.current.contains(e.target as Node)) setNetMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [netMenuOpen]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -68,7 +58,16 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className={`${styles.console} ${collapsed ? styles.collapsed : ""}`}>
+    <>
+      {!isLive ? (
+        <div className={styles.testBanner}>
+          You&apos;re currently on <strong>test mode</strong> ({networkName.toLowerCase()}). Payments here don&apos;t move real funds.{" "}
+          <button className={styles.testBannerAction} onClick={() => setCurrentFrontendProviderIndex(MAINNET_INDEX)}>
+            Switch to live mode →
+          </button>
+        </div>
+      ) : null}
+      <div className={`${styles.console} ${collapsed ? styles.collapsed : ""}`}>
       <aside className={styles.consoleSidebar}>
         <Link href="/" className={styles.consoleBrand} style={{ textDecoration: "none" }}>
           <BrandMark />
@@ -110,33 +109,17 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
               <CollapseIcon />
             </button>
 
-            <div ref={netMenuRef} style={{ position: "relative" }}>
-              <button className={styles.consoleNetPill} onClick={() => setNetMenuOpen((v) => !v)}>
-                <span
-                  className={styles.netDot}
-                  style={{ background: networkName !== "Unsupported" ? "var(--green)" : "var(--danger)" }}
-                />
-                {networkName}
-                <ChevronIcon />
-              </button>
-              {netMenuOpen ? (
-                <div className={styles.consoleNetMenu}>
-                  {NETWORK_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.index}
-                      className={`${styles.consoleNetOption} ${myFrontendProviderIndex === opt.index ? styles.consoleNetOptionActive : ""}`}
-                      onClick={() => {
-                        setCurrentFrontendProviderIndex(opt.index);
-                        setNetMenuOpen(false);
-                      }}
-                    >
-                      <span className={styles.netDot} style={{ background: "var(--green)" }} />
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <span className={styles.netSwitchWrap}>
+              <span className={`${styles.netSwitchLabel} ${!isLive ? styles.netSwitchLabelLive : ""}`} style={!isLive ? { color: "#d97706" } : undefined}>
+                Test
+              </span>
+              <Switch
+                checked={isLive}
+                onChange={(next) => setCurrentFrontendProviderIndex(next ? MAINNET_INDEX : SEPOLIA_INDEX)}
+                ariaLabel="Toggle test/live mode"
+              />
+              <span className={`${styles.netSwitchLabel} ${isLive ? styles.netSwitchLabelLive : ""}`}>Live</span>
+            </span>
           </div>
 
           <div className={styles.consoleTopbarRight}>
@@ -151,7 +134,8 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         </div>
         {children}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -160,13 +144,6 @@ function CollapseIcon() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
       <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-function ChevronIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

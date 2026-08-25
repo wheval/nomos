@@ -59,9 +59,9 @@ export default function OverviewPanel() {
           <div className={styles.statLabel}>Webhook</div>
           <div className={styles.statValue} style={{ fontSize: 16 }}>
             {webhookUrl ? (
-              <span style={{ color: "var(--c-green)" }}>● Active</span>
+              <span style={{ color: "var(--green)" }}>● Active</span>
             ) : (
-              <span style={{ color: "var(--c-muted-2)" }}>Not set</span>
+              <span style={{ color: "var(--muted-2)" }}>Not set</span>
             )}
           </div>
         </div>
@@ -70,7 +70,7 @@ export default function OverviewPanel() {
       <div className={styles.sectionCard}>
         <div className={styles.sectionHead}>
           <span className={styles.sectionTitle}>Recent activity</span>
-          <Link href="/dashboard/transactions" className={styles.consoleSub} style={{ color: "var(--c-accent)" }}>
+          <Link href="/dashboard/transactions" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
             View all →
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default function OverviewPanel() {
         {!secretKey ? (
           <div className={styles.emptyState}>
             <p>Generate an API key in Settings to unlock this list.</p>
-            <Link href="/dashboard/settings" className={styles.consoleSub} style={{ color: "var(--c-accent)" }}>
+            <Link href="/dashboard/settings" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
               Go to Settings →
             </Link>
           </div>
