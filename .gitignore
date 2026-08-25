@@ -54,3 +54,7 @@ A1priv/A1priv.ts
 # holds a private key, never commit
 .sncast_accounts.json
 snfoundry.toml
+.env*
+
+# supabase CLI local state (project link ref, CLI version cache)
+/supabase/.temp/
