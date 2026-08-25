@@ -163,72 +163,73 @@ export default function Checkout() {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.inputBlock}>
-        <div className={styles.inputLabel}>Pay privately</div>
-        <div className={styles.subLine}>
-          <span>Shielded on the STRK20 pool</span>
+      <div className={styles.checkoutAmountBlock}>
+        <div className={styles.checkoutAmountLabel}>You&apos;re paying</div>
+        <div className={styles.checkoutAmountValue}>
+          {fixedAmount ? (
+            <>
+              {fixedAmount}
+              <span>STRK</span>
+            </>
+          ) : (
+            "Enter amount"
+          )}
+        </div>
+        <div className={styles.checkoutMeta}>
+          to <b>{shortTo}</b>
+          {note ? ` · ${note}` : ""}
         </div>
       </div>
 
       {isPaid || isExpired ? null : (
         <div className={styles.field}>
-          <label className={styles.fieldLabel}>How do you want to pay?</label>
-          <div className={styles.chipRow}>
+          <label className={styles.fieldLabel}>Payment method</label>
+          <div className={styles.methodGrid}>
             <button
               type="button"
-              className={`${styles.chip} ${flow === "A" ? styles.chipActive : ""}`}
+              className={`${styles.methodCard} ${flow === "A" ? styles.methodCardActive : ""}`}
               onClick={() => setFlow("A")}
             >
-              Pay privately
+              <ShieldIcon />
+              <span className={styles.methodCardTitle}>Pay privately</span>
+              <span className={styles.methodCardSub}>Shielded wallet</span>
             </button>
             <button
               type="button"
-              className={`${styles.chip} ${flow === "B" ? styles.chipActive : ""}`}
+              className={`${styles.methodCard} ${flow === "B" ? styles.methodCardActive : ""}`}
               onClick={() => setFlow("B")}
             >
-              Pay with any wallet
+              <WalletIcon />
+              <span className={styles.methodCardTitle}>Any wallet</span>
+              <span className={styles.methodCardSub}>Public transfer</span>
             </button>
           </div>
-          <p className={styles.sectionSub} style={{ margin: "8px 0 0" }}>
+          <p className={styles.sectionSub} style={{ margin: "10px 0 0", fontSize: 12.5 }}>
             {flow === "A"
-              ? "Needs a shielded wallet (Ready, or Argent/Braavos with Private Balances). Fully private end to end."
-              : "Works with any Starknet wallet. Your payment amount is visible on-chain, but which business you paid stays private."}
+              ? "Needs a shielded wallet (Ready, or Argent/Braavos with Private Balances)."
+              : "Works with any Starknet wallet — which business you paid still stays private."}
           </p>
         </div>
       )}
 
-      <div className={styles.summaryCard}>
-        <div className={styles.summaryRow}>
-          <span className={styles.summaryLabel}>Pay to</span>
-          <span className={styles.summaryValue}>{shortTo}</span>
+      {ref || expiresAt !== null ? (
+        <div className={styles.summaryCard}>
+          {ref ? (
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>Reference</span>
+              <span className={styles.summaryValue}>{ref}</span>
+            </div>
+          ) : null}
+          {expiresAt !== null ? (
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>Expires</span>
+              <span className={styles.summaryValue} style={isExpired ? { color: "var(--danger)" } : undefined}>
+                {isExpired ? "Expired" : new Date(expiresAt * 1000).toLocaleString()}
+              </span>
+            </div>
+          ) : null}
         </div>
-        {note ? (
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>For</span>
-            <span className={styles.summaryValue} style={{ fontFamily: "var(--font-body)", fontWeight: 500 }}>{note}</span>
-          </div>
-        ) : null}
-        {ref ? (
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Reference</span>
-            <span className={styles.summaryValue}>{ref}</span>
-          </div>
-        ) : null}
-        {expiresAt !== null ? (
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Expires</span>
-            <span className={styles.summaryValue} style={isExpired ? { color: "var(--danger)" } : undefined}>
-              {isExpired ? "Expired" : new Date(expiresAt * 1000).toLocaleString()}
-            </span>
-          </div>
-        ) : null}
-        <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-          <span className={styles.summaryLabel}>Amount</span>
-          <span className={styles.summaryValue}>
-            {fixedAmount ? `${fixedAmount} STRK` : "You choose"}
-          </span>
-        </div>
-      </div>
+      ) : null}
 
       {isPaid ? (
         <div className={styles.successCard}>
@@ -287,5 +288,23 @@ export default function Checkout() {
 
       {result ? <ReceiptCard result={result} providerIndex={myFrontendProviderIndex} /> : null}
     </div>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function WalletIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" />
+    </svg>
   );
 }

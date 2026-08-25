@@ -38,79 +38,7 @@ export default function Page() {
         <p className={styles.heroTrust}>No card, no signup — connect a wallet and go.</p>
       </header>
 
-      <section style={{ margin: '76px 0 84px' }}>
-        <div className={styles.sectionEyebrow}>The dashboard</div>
-        <h2 className={styles.sectionHeading}>See what lands, in real time</h2>
-        <p className={styles.sectionSubCentered}>
-          Every deposit shows up here the moment it&apos;s confirmed —
-          shielded or not, it&apos;s one balance.
-        </p>
-        <div className={styles.previewFrame}>
-          <div className={styles.previewChrome}>
-            <div className={styles.previewChromeBar}>
-              <span className={styles.previewDot} />
-              <span className={styles.previewDot} />
-              <span className={styles.previewDot} />
-            </div>
-            <div className={styles.previewBody}>
-              <div className={styles.statGrid}>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Balance</div>
-                  <div className={styles.statValue}>
-                    412.5 <span>STRK</span>
-                  </div>
-                </div>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Deposits</div>
-                  <div className={styles.statValue}>18</div>
-                </div>
-                <div className={styles.statCard}>
-                  <div className={styles.statLabel}>Webhook</div>
-                  <div className={styles.statValue} style={{ fontSize: 16 }}>
-                    <span style={{ color: 'var(--green)' }}>● Active</span>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.sectionCard} style={{ marginBottom: 0 }}>
-                <div className={styles.sectionHead}>
-                  <span className={styles.sectionTitle}>Recent activity</span>
-                </div>
-                <div className={styles.txTable}>
-                  <div className={styles.txRow}>
-                    <div className={styles.txMain}>
-                      <div className={styles.txTitle}>
-                        Invoice #104
-                        <span className={styles.keyBadge} style={{ marginLeft: 8 }}>shielded</span>
-                      </div>
-                      <div className={styles.txTime}>2 minutes ago</div>
-                    </div>
-                    <div className={styles.txAmount}>40.0 STRK</div>
-                  </div>
-                  <div className={styles.txRow}>
-                    <div className={styles.txMain}>
-                      <div className={styles.txTitle}>
-                        Payment Link
-                        <span className={styles.keyBadge} style={{ marginLeft: 8 }}>shielded on receipt</span>
-                      </div>
-                      <div className={styles.txTime}>41 minutes ago</div>
-                    </div>
-                    <div className={styles.txAmount}>125.0 STRK</div>
-                  </div>
-                  <div className={styles.txRow}>
-                    <div className={styles.txMain}>
-                      <div className={styles.txTitle}>Widget checkout</div>
-                      <div className={styles.txTime}>3 hours ago</div>
-                    </div>
-                    <div className={styles.txAmount}>7.5 STRK</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={{ margin: '84px 0 88px' }}>
+      <section style={{ margin: '64px 0' }}>
         <div className={styles.sectionEyebrow}>How it works</div>
         <h2 className={styles.sectionHeading}>Three ways to get paid</h2>
         <div className={styles.howItWorks}>
@@ -132,7 +60,7 @@ export default function Page() {
         </div>
       </section>
 
-      <section style={{ margin: '88px 0 84px' }}>
+      <section style={{ margin: '64px 0' }}>
         <div className={styles.sectionEyebrow}>Why Nomos</div>
         <h2 className={styles.sectionHeading}>Whatever wallet your customer has</h2>
         <p className={styles.sectionSubCentered}>
@@ -158,7 +86,7 @@ export default function Page() {
         </div>
       </section>
 
-      <section className={styles.closingCta} style={{ margin: '84px auto 0' }}>
+      <section className={styles.closingCta} style={{ margin: '64px auto 0' }}>
         <h2 className={styles.sectionHeading} style={{ marginBottom: 12 }}>Ready to accept private payments?</h2>
         <p>Connect the wallet you want paid into and generate your first Payment Link in under a minute.</p>
         <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
@@ -166,7 +94,7 @@ export default function Page() {
         </Link>
       </section>
 
-      <section className={styles.toolkitBand} style={{ marginTop: 88 }}>
+      <section className={styles.toolkitBand} style={{ marginTop: 64 }}>
         <div className={styles.toolkitInner}>
           <div className={styles.toolkitLabel}>
             <span className={styles.brandBadge}>Wallet toolkit</span>
