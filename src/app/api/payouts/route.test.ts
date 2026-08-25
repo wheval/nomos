@@ -61,6 +61,7 @@ describe("POST /api/payouts", () => {
     secretKey: "sk_test",
     destination: VALID_ADDR_2,
     amountWei: "100",
+    token: "STRK",
     mode: "withdraw",
   };
 
@@ -83,7 +84,7 @@ describe("POST /api/payouts", () => {
     expect(res.status).toBe(201);
     expect(data.status).toBe("confirmed");
     expect(data.txHash).toBe("0xpayouttx");
-    expect(executeWithdraw).toHaveBeenCalledWith({ amountWei: 100n, destination: NORMALIZED_ADDR_2 });
+    expect(executeWithdraw).toHaveBeenCalledWith({ amountWei: 100n, token: "STRK", destination: NORMALIZED_ADDR_2 });
     expect(debitLedger).toHaveBeenCalledWith(
       expect.objectContaining({ amountWei: 100n, kind: "payout", payoutId: "payout-1" })
     );
@@ -92,7 +93,7 @@ describe("POST /api/payouts", () => {
 
   it("executes a transfer payout via the transfer path", async () => {
     await POST(req("POST", { ...validBody, mode: "transfer" }));
-    expect(executeTransfer).toHaveBeenCalledWith({ amountWei: 100n, destination: NORMALIZED_ADDR_2 });
+    expect(executeTransfer).toHaveBeenCalledWith({ amountWei: 100n, token: "STRK", destination: NORMALIZED_ADDR_2 });
     expect(executeWithdraw).not.toHaveBeenCalled();
   });
 

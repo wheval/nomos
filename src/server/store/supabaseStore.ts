@@ -68,6 +68,7 @@ type PayoutRow = {
   merchant_address: string;
   destination: string;
   amount_wei: string;
+  token: string;
   mode: "withdraw" | "transfer";
   status: PayoutStatus;
   tx_hash: string | null;
@@ -81,6 +82,7 @@ function payoutFromRow(r: PayoutRow): Payout {
     merchantAddress: r.merchant_address,
     destination: r.destination,
     amountWei: BigInt(r.amount_wei),
+    token: r.token,
     mode: r.mode,
     status: r.status,
     txHash: r.tx_hash ?? undefined,
@@ -168,20 +170,21 @@ export class SupabaseStore implements Store {
     return (data ?? []).map(depositFromRow);
   }
 
-  async getLedgerBalance(merchantAddress: string): Promise<bigint> {
+  async getLedgerBalance(merchantAddress: string, token: string): Promise<bigint> {
     const { data } = await this.client
       .from("ledger_entries")
       .select("running_balance_wei")
       .eq("merchant_address", merchantAddress.toLowerCase())
+      .eq("token", token)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ running_balance_wei: string }>();
     return data ? BigInt(data.running_balance_wei) : 0n;
   }
 
-  async creditLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
+  async creditLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
     await this.ensureMerchant(input.merchantAddress);
-    const balance = await this.getLedgerBalance(input.merchantAddress);
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
     const runningBalanceWei = balance + input.amountWei;
     const { data, error } = await this.client
       .from("ledger_entries")
@@ -189,6 +192,7 @@ export class SupabaseStore implements Store {
         merchant_address: input.merchantAddress.toLowerCase(),
         direction: "credit",
         amount_wei: input.amountWei.toString(),
+        token: input.token,
         kind: input.kind,
         deposit_id: input.depositId ?? null,
         running_balance_wei: runningBalanceWei.toString(),
@@ -201,6 +205,7 @@ export class SupabaseStore implements Store {
       merchantAddress: input.merchantAddress,
       direction: "credit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       depositId: input.depositId,
       runningBalanceWei,
@@ -208,8 +213,8 @@ export class SupabaseStore implements Store {
     };
   }
 
-  async debitLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress);
+  async debitLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }
@@ -220,6 +225,7 @@ export class SupabaseStore implements Store {
         merchant_address: input.merchantAddress.toLowerCase(),
         direction: "debit",
         amount_wei: input.amountWei.toString(),
+        token: input.token,
         kind: input.kind,
         payout_id: input.payoutId ?? null,
         running_balance_wei: runningBalanceWei.toString(),
@@ -232,6 +238,7 @@ export class SupabaseStore implements Store {
       merchantAddress: input.merchantAddress,
       direction: "debit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       payoutId: input.payoutId,
       runningBalanceWei,
@@ -247,6 +254,7 @@ export class SupabaseStore implements Store {
         merchant_address: input.merchantAddress.toLowerCase(),
         destination: input.destination,
         amount_wei: input.amountWei.toString(),
+        token: input.token,
         mode: input.mode,
         status: "pending",
       })

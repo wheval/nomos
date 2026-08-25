@@ -3,11 +3,18 @@
 // Payment Link checkout flow, so a transaction reads the same way everywhere.
 import { num } from "starknet";
 
+// Format an amount in a token's smallest unit as a human string ("10", "1.5"),
+// at the given decimals.
+export function fmtTokenAmount(amount: bigint, decimals: number): string {
+  const base = 10n ** BigInt(decimals);
+  const whole = amount / base;
+  const frac = (amount % base).toString().padStart(decimals, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : `${whole}`;
+}
+
 // Format a felt amount (STRK, 18 decimals) as a human STRK string ("10", "1.5").
 export function fmtStrk(amount: bigint): string {
-  const whole = amount / 10n ** 18n;
-  const frac = (amount % 10n ** 18n).toString().padStart(18, "0").replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : `${whole}`;
+  return fmtTokenAmount(amount, 18);
 }
 
 // Shorten a felt/hex for display, like the wallet address ("0x1dc5a1c...1927a").

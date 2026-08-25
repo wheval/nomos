@@ -10,6 +10,12 @@ Customer (ordinary wallet)  ──public transfer────┘         (shield
 
 One operating wallet, controlled by Nomos, receives both flows. A ledger (not an on-chain account per merchant) tracks whose money is whose. A merchant only actually receives funds when they request a payout.
 
+## Settlement tokens: STRK and USDC
+
+STRK20 is a privacy *protocol*, not a token — every action (`deposit`, `transfer`, `withdraw`) takes an explicit `token` address, so any ERC-20 the pool has onboarded can be shielded. It launched STRK-only; USDC support went live June 25, 2026. A payment gateway checkout should default to a dollar-pegged stablecoin, not a token whose USD value moves under the merchant mid-settlement — so Nomos offers both, merchant picks per Payment Link, customer sees whichever the link specifies.
+
+This makes the ledger balance **scoped to (merchant, token)** rather than a single aggregate — STRK and USDC are different assets with different decimals (18 vs 6), summing their wei together would be meaningless. `getLedgerBalance`/`creditLedger`/`debitLedger` all take a token; `GET /api/payments` returns a `balances: {STRK, USDC}` map, not one number. Token addresses and decimals are centralized in `src/utils/constants.ts`'s `Tokens` registry, sourced from `starknet-io/starknet-addresses` (the canonical registry), not hand-typed elsewhere.
+
 ## Why custodial, not a pure router
 
 The original design routed private transfers directly wallet-to-wallet — Nomos never held funds, only recorded that a payment happened after the fact. That model can't serve Flow B customers at all: an ordinary wallet's plain transfer has to land *somewhere* before it can become a shielded balance, and the customer's wallet can't sign a compound "receive-then-shield" action itself. Once Flow B requires an intermediary hop regardless, running Flow A through the same intermediary (rather than half router, half custodian) is simpler to build, reason about, and secure — one trust model instead of two.

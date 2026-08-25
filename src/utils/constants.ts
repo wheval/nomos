@@ -6,6 +6,47 @@ import { ProviderInterface, RpcProvider } from "starknet";
 // moves privately (STRK on Starknet here).
 export const addrSTRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 
+// ─── Settlement tokens ───────────────────────────────────────────────────
+// STRK20 is a privacy *protocol*, not a token — every action (deposit,
+// transfer, withdraw) takes an explicit token address, so any ERC-20 the
+// pool has onboarded can be shielded. USDC went live on STRK20 June 25,
+// 2026. A payment gateway checkout should quote a dollar-pegged stablecoin
+// by default, not a token whose USD value moves under the merchant — so
+// both are offered, merchant picks per Payment Link.
+export type TokenSymbol = "STRK" | "USDC";
+
+export const Tokens: Record<TokenSymbol, { decimals: number; addresses: Record<number, string> }> = {
+  STRK: {
+    decimals: 18,
+    addresses: { 0: addrSTRK, 2: addrSTRK },
+  },
+  USDC: {
+    decimals: 6,
+    // Native USDC on Starknet — addresses from starknet-io/starknet-addresses
+    // (bridged_tokens/{mainnet,sepolia}.json), the canonical registry.
+    addresses: {
+      0: "0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+      2: "0x053b40a647cedfca6ca84f542a0fe36736031905a9639a7f19a3c1e66bfd5080",
+    },
+  },
+};
+
+export const TokenSymbols: TokenSymbol[] = ["STRK", "USDC"];
+
+// Resolve a token symbol to its contract address on a given frontend
+// provider index (0 = Mainnet, 2 = Sepolia). "0x0" if unmapped.
+export function tokenAddressFor(symbol: TokenSymbol, networkIndex: number): string {
+  return Tokens[symbol]?.addresses[networkIndex] ?? "0x0";
+}
+
+export function tokenDecimals(symbol: TokenSymbol): number {
+  return Tokens[symbol]?.decimals ?? 18;
+}
+
+export function isTokenSymbol(value: unknown): value is TokenSymbol {
+  return value === "STRK" || value === "USDC";
+}
+
 // Frontend RPC providers, indexed. The STRK20 privacy pool lives on Mainnet (0)
 // and Sepolia (2); index 1 is a spare public testnet endpoint. NEXT_PUBLIC_PROVIDER_URL
 // is your Alchemy key (see .env.example).

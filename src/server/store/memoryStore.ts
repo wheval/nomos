@@ -99,22 +99,27 @@ export class MemoryStore implements Store {
       .sort((a, b) => b.recordedAt - a.recordedAt);
   }
 
-  private nextRunningBalance(merchantAddress: string, delta: bigint): bigint {
-    const key = merchantAddress.toLowerCase();
+  private balanceKey(merchantAddress: string, token: string): string {
+    return `${merchantAddress.toLowerCase()}:${token}`;
+  }
+
+  private nextRunningBalance(merchantAddress: string, token: string, delta: bigint): bigint {
+    const key = this.balanceKey(merchantAddress, token);
     const current = this.balances.get(key) ?? 0n;
     const next = current + delta;
     this.balances.set(key, next);
     return next;
   }
 
-  async creditLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
+  async creditLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
     this.ensureMerchant(input.merchantAddress);
-    const runningBalanceWei = this.nextRunningBalance(input.merchantAddress, input.amountWei);
+    const runningBalanceWei = this.nextRunningBalance(input.merchantAddress, input.token, input.amountWei);
     const entry: LedgerEntry = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
       direction: "credit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       depositId: input.depositId,
       runningBalanceWei,
@@ -124,17 +129,18 @@ export class MemoryStore implements Store {
     return entry;
   }
 
-  async debitLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress);
+  async debitLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }
-    const runningBalanceWei = this.nextRunningBalance(input.merchantAddress, -input.amountWei);
+    const runningBalanceWei = this.nextRunningBalance(input.merchantAddress, input.token, -input.amountWei);
     const entry: LedgerEntry = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
       direction: "debit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       payoutId: input.payoutId,
       runningBalanceWei,
@@ -144,8 +150,8 @@ export class MemoryStore implements Store {
     return entry;
   }
 
-  async getLedgerBalance(merchantAddress: string): Promise<bigint> {
-    return this.balances.get(merchantAddress.toLowerCase()) ?? 0n;
+  async getLedgerBalance(merchantAddress: string, token: string): Promise<bigint> {
+    return this.balances.get(this.balanceKey(merchantAddress, token)) ?? 0n;
   }
 
   async createPayout(input: CreatePayoutInput): Promise<Payout> {
@@ -155,6 +161,7 @@ export class MemoryStore implements Store {
       merchantAddress: input.merchantAddress,
       destination: input.destination,
       amountWei: input.amountWei,
+      token: input.token,
       mode: input.mode,
       status: "pending",
       createdAt: Math.floor(Date.now() / 1000),

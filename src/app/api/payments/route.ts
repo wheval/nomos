@@ -4,6 +4,7 @@ import { getStore } from "@/server/store";
 import { getNoteDiscoveryClient } from "@/server/signer/noteDiscovery";
 import { deliverPaymentWebhook } from "@/utils/webhook";
 import { verifyFlowADeposit, verifyFlowBDeposit } from "@/utils/verifyTx";
+import { isTokenSymbol, tokenAddressFor, TokenSymbols } from "@/utils/constants";
 
 function operatingWalletAddress(): string {
   const addr = process.env.NOMOS_OPERATING_WALLET_ADDRESS;
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { flow, merchantAddress, amountWei, txHash, networkIndex, note, ref } = body ?? {};
+  const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex, note, ref } = body ?? {};
   if (
     (flow !== "A" && flow !== "B") ||
     typeof merchantAddress !== "string" ||
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
       { error: "flow ('A'|'B'), merchantAddress, amountWei, txHash, and networkIndex are required." },
       { status: 400 }
     );
+  }
+  // Links created before multi-token support carry no token — treat as STRK.
+  const token = tokenRaw === undefined ? "STRK" : tokenRaw;
+  if (!isTokenSymbol(token)) {
+    return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
   }
 
   let normalizedMerchant: string;
@@ -61,6 +67,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, status: existing.status, alreadyRecorded: true }, { status: 200 });
   }
 
+  const tokenAddress = tokenAddressFor(token, networkIndex);
+
   let verified: Awaited<ReturnType<typeof verifyFlowBDeposit>>;
   if (flow === "B") {
     let operatingWallet: string;
@@ -72,6 +80,7 @@ export async function POST(request: NextRequest) {
     verified = await verifyFlowBDeposit({
       txHash,
       operatingWalletAddress: operatingWallet,
+      tokenAddress,
       claimedAmountWei,
       networkIndex,
     });
@@ -79,6 +88,7 @@ export async function POST(request: NextRequest) {
     verified = await verifyFlowADeposit({
       txHash,
       claimedAmountWei,
+      tokenAddress,
       discovery: getNoteDiscoveryClient(),
     });
   }
@@ -92,6 +102,7 @@ export async function POST(request: NextRequest) {
     flow,
     txHash,
     amountWei: verified.amountWei,
+    token,
     note: typeof note === "string" ? note : undefined,
     ref: typeof ref === "string" ? ref : undefined,
     status: flow === "A" ? "verified" : "pending_shield",
@@ -101,6 +112,7 @@ export async function POST(request: NextRequest) {
     await store.creditLedger({
       merchantAddress: normalizedMerchant,
       amountWei: verified.amountWei,
+      token,
       kind: "flow_a_deposit",
       depositId: deposit.id,
     });
@@ -139,13 +151,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
   }
 
-  const [deposits, balanceWei] = await Promise.all([
+  const [deposits, balances] = await Promise.all([
     store.listDepositsFor(normalizedTo),
-    store.getLedgerBalance(normalizedTo),
+    Promise.all(TokenSymbols.map(async (t) => [t, await store.getLedgerBalance(normalizedTo, t)] as const)),
   ]);
 
   return NextResponse.json({
     deposits: deposits.map((d) => ({ ...d, amountWei: d.amountWei.toString() })),
-    balanceWei: balanceWei.toString(),
+    balances: Object.fromEntries(balances.map(([t, wei]) => [t, wei.toString()])),
   });
 }

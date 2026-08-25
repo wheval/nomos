@@ -46,6 +46,7 @@ export type LedgerEntry = {
   merchantAddress: string;
   direction: LedgerDirection;
   amountWei: bigint;
+  token: string;
   kind: LedgerKind;
   depositId?: string;
   payoutId?: string;
@@ -61,6 +62,7 @@ export type Payout = {
   merchantAddress: string;
   destination: string;
   amountWei: bigint;
+  token: string;
   mode: PayoutMode;
   status: PayoutStatus;
   txHash?: string;
@@ -72,6 +74,7 @@ export type CreatePayoutInput = {
   merchantAddress: string;
   destination: string;
   amountWei: bigint;
+  token: string;
   mode: PayoutMode;
 };
 
@@ -100,20 +103,24 @@ export interface Store {
   listPendingShieldDeposits(): Promise<Deposit[]>;
   listDepositsFor(merchantAddress: string): Promise<Deposit[]>;
 
-  // Ledger
+  // Ledger — every balance is scoped to a single token. STRK and USDC are
+  // different assets with different decimals; summing their wei together
+  // would be meaningless, so there is no cross-token balance.
   creditLedger(input: {
     merchantAddress: string;
     amountWei: bigint;
+    token: string;
     kind: LedgerKind;
     depositId?: string;
   }): Promise<LedgerEntry>;
   debitLedger(input: {
     merchantAddress: string;
     amountWei: bigint;
+    token: string;
     kind: LedgerKind;
     payoutId?: string;
   }): Promise<LedgerEntry>; // throws InsufficientBalanceError
-  getLedgerBalance(merchantAddress: string): Promise<bigint>;
+  getLedgerBalance(merchantAddress: string, token: string): Promise<bigint>;
 
   // Payouts
   createPayout(input: CreatePayoutInput): Promise<Payout>;

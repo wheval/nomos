@@ -174,15 +174,16 @@ export class FileStore implements Store {
       .map(fromStoredDeposit);
   }
 
-  async creditLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
+  async creditLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
     await this.ensureMerchant(input.merchantAddress);
     const ledger = await this.readLedger();
-    const balance = await this.getLedgerBalance(input.merchantAddress);
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
     const entry: LedgerEntry = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
       direction: "credit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       depositId: input.depositId,
       runningBalanceWei: balance + input.amountWei,
@@ -193,8 +194,8 @@ export class FileStore implements Store {
     return entry;
   }
 
-  async debitLedger(input: { merchantAddress: string; amountWei: bigint; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress);
+  async debitLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }
@@ -204,6 +205,7 @@ export class FileStore implements Store {
       merchantAddress: input.merchantAddress,
       direction: "debit",
       amountWei: input.amountWei,
+      token: input.token,
       kind: input.kind,
       payoutId: input.payoutId,
       runningBalanceWei: balance - input.amountWei,
@@ -214,10 +216,10 @@ export class FileStore implements Store {
     return entry;
   }
 
-  async getLedgerBalance(merchantAddress: string): Promise<bigint> {
+  async getLedgerBalance(merchantAddress: string, token: string): Promise<bigint> {
     const normalized = merchantAddress.toLowerCase();
     const ledger = await this.readLedger();
-    const mine = ledger.filter((e) => e.merchantAddress.toLowerCase() === normalized);
+    const mine = ledger.filter((e) => e.merchantAddress.toLowerCase() === normalized && e.token === token);
     if (mine.length === 0) return 0n;
     mine.sort((a, b) => a.createdAt - b.createdAt);
     return BigInt(mine[mine.length - 1].runningBalanceWei);
@@ -231,6 +233,7 @@ export class FileStore implements Store {
       merchantAddress: input.merchantAddress,
       destination: input.destination,
       amountWei: input.amountWei,
+      token: input.token,
       mode: input.mode,
       status: "pending",
       createdAt: Math.floor(Date.now() / 1000),

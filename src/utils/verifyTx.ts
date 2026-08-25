@@ -7,7 +7,7 @@
 // risk: headless STRK20 signing" for why Flow A can't be checked from
 // public calldata.
 import { hash, num, type ProviderInterface } from "starknet";
-import { addrSTRK, myFrontendProviders } from "./constants";
+import { myFrontendProviders } from "./constants";
 
 const TRANSFER_SELECTOR = num.toHex(hash.getSelectorFromName("Transfer"));
 
@@ -22,7 +22,7 @@ function providerForNetwork(networkIndex: number): ProviderInterface {
 }
 
 // Flow B: an ordinary public ERC-20 transfer. Verified by decoding the
-// standard OpenZeppelin-shape Transfer event on addrSTRK — keys:
+// standard OpenZeppelin-shape Transfer event on the claimed token — keys:
 // [selector, from, to] (both parties indexed), data: [value_low, value_high]
 // as a u256 — and confirming it paid the operating wallet at least the
 // claimed amount. This event shape matches OZ's Cairo ERC20 implementation;
@@ -31,6 +31,7 @@ function providerForNetwork(networkIndex: number): ProviderInterface {
 export async function verifyFlowBDeposit(params: {
   txHash: string;
   operatingWalletAddress: string;
+  tokenAddress: string;
   claimedAmountWei: bigint;
   networkIndex: number;
 }): Promise<VerificationResult> {
@@ -47,10 +48,10 @@ export async function verifyFlowBDeposit(params: {
     return { ok: false, reason: "Transaction reverted." };
   }
 
-  let strkAddr: bigint;
+  let tokenAddr: bigint;
   let expectedTo: bigint;
   try {
-    strkAddr = num.toBigInt(addrSTRK);
+    tokenAddr = num.toBigInt(params.tokenAddress);
     expectedTo = num.toBigInt(params.operatingWalletAddress);
   } catch {
     return { ok: false, reason: "Misconfigured token or operating wallet address." };
@@ -59,7 +60,7 @@ export async function verifyFlowBDeposit(params: {
   const events: any[] = r?.events ?? [];
   for (const ev of events) {
     try {
-      if (num.toBigInt(ev.from_address) !== strkAddr) continue;
+      if (num.toBigInt(ev.from_address) !== tokenAddr) continue;
       if (!ev.keys?.length || num.toHex(ev.keys[0]) !== TRANSFER_SELECTOR) continue;
       if (ev.keys.length < 3 || num.toBigInt(ev.keys[2]) !== expectedTo) continue;
 
@@ -88,17 +89,19 @@ export async function verifyFlowBDeposit(params: {
 // implementation; src/server/signer/noteDiscovery.ts is the placeholder
 // until then.
 export interface NoteDiscoveryClient {
-  hasReceivedDeposit(params: { txHash: string; claimedAmountWei: bigint }): Promise<boolean>;
+  hasReceivedDeposit(params: { txHash: string; claimedAmountWei: bigint; tokenAddress: string }): Promise<boolean>;
 }
 
 export async function verifyFlowADeposit(params: {
   txHash: string;
   claimedAmountWei: bigint;
+  tokenAddress: string;
   discovery: NoteDiscoveryClient;
 }): Promise<VerificationResult> {
   const found = await params.discovery.hasReceivedDeposit({
     txHash: params.txHash,
     claimedAmountWei: params.claimedAmountWei,
+    tokenAddress: params.tokenAddress,
   });
   if (!found) {
     return {

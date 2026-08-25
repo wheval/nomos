@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import styles from "../../../uni.module.css";
-import { explorerTxUrl, fmtStrk, shortHex } from "@/utils/receipt";
-import { parseStrkAmount } from "@/utils/payments";
+import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
+import { parseTokenAmount } from "@/utils/payments";
+import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { useFrontendProvider } from "../provider/providerContext";
 import type { Payout as PayoutRecord, PayoutMode } from "@/server/store";
+import type { TokenBalances } from "./useLedger";
 
 type WirePayout = Omit<PayoutRecord, "amountWei"> & { amountWei: string };
 
@@ -18,19 +20,22 @@ type WirePayout = Omit<PayoutRecord, "amountWei"> & { amountWei: string };
 export default function Payout({
   merchantAddress,
   secretKey,
-  balanceWei,
+  balances,
   onPaidOut,
 }: {
   merchantAddress: string;
   secretKey: string;
-  balanceWei: string;
+  balances: TokenBalances;
   onPaidOut: () => void;
 }) {
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
 
+  const [token, setToken] = useState<TokenSymbol>("STRK");
   const [destination, setDestination] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PayoutMode>("withdraw");
+  const balanceWei = balances[token];
+  const decimals = tokenDecimals(token);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
@@ -47,13 +52,13 @@ export default function Payout({
   async function handlePayout() {
     setError("");
     setLastTxHash(null);
-    const amountWei = parseStrkAmount(amount);
+    const amountWei = parseTokenAmount(amount, decimals);
     if (amountWei === null) {
       setError("Enter a positive amount, e.g. 25 or 12.5");
       return;
     }
     if (amountWei > BigInt(balanceWei)) {
-      setError(`Amount exceeds your balance (${fmtStrk(BigInt(balanceWei))} STRK).`);
+      setError(`Amount exceeds your balance (${fmtTokenAmount(BigInt(balanceWei), decimals)} ${token}).`);
       return;
     }
     const normalizedDestination = destination.trim();
@@ -71,6 +76,7 @@ export default function Payout({
           secretKey,
           destination: normalizedDestination,
           amountWei: amountWei.toString(),
+          token,
           mode,
         }),
       });
@@ -93,8 +99,24 @@ export default function Payout({
         <span className={styles.sectionTitle}>Withdraw</span>
       </div>
       <p className={styles.sectionSub}>
-        Send from your balance ({fmtStrk(BigInt(balanceWei))} STRK available) to any address.
+        Send from your balance ({fmtTokenAmount(BigInt(balanceWei), decimals)} {token} available) to any address.
       </p>
+
+      <div className={styles.field} style={{ marginBottom: 10 }}>
+        <label className={styles.fieldLabel}>Token</label>
+        <div className={styles.chipRow}>
+          {TokenSymbols.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
+              onClick={() => setToken(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className={styles.field} style={{ marginBottom: 10 }}>
         <label className={styles.fieldLabel} htmlFor="payoutDestination">Destination address</label>
@@ -108,7 +130,7 @@ export default function Payout({
       </div>
 
       <div className={styles.field} style={{ marginBottom: 10 }}>
-        <label className={styles.fieldLabel} htmlFor="payoutAmount">Amount (STRK)</label>
+        <label className={styles.fieldLabel} htmlFor="payoutAmount">Amount ({token})</label>
         <input
           id="payoutAmount"
           className={styles.textInput}
@@ -167,7 +189,9 @@ export default function Payout({
                 <div className={styles.txTitle}>{p.mode === "withdraw" ? "Public withdrawal" : "Private transfer"}</div>
                 <div className={styles.txTime}>{new Date(p.createdAt * 1000).toLocaleString()}</div>
               </div>
-              <div className={styles.txAmount}>{fmtStrk(BigInt(p.amountWei))} STRK</div>
+              <div className={styles.txAmount}>
+                {fmtTokenAmount(BigInt(p.amountWei), tokenDecimals(p.token as TokenSymbol))} {p.token}
+              </div>
               {p.txHash ? (
                 <a className={styles.txLink} href={explorerTxUrl(myFrontendProviderIndex, p.txHash)} target="_blank" rel="noreferrer">
                   {shortHex(p.txHash)} ↗

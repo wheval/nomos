@@ -10,10 +10,8 @@ import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import ReceiptCard from "../ReceiptCard";
-import { parseStrkAmount } from "@/utils/payments";
-import { errorResult, receiptToResult, shortHex, fmtStrk, type ActionResult } from "@/utils/receipt";
-
-const TOKEN = constants.addrSTRK;
+import { parseTokenAmount } from "@/utils/payments";
+import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResult } from "@/utils/receipt";
 
 type Flow = "A" | "B";
 
@@ -34,6 +32,9 @@ export default function Checkout() {
   const params = useSearchParams();
   const to = params.get("to") ?? "";
   const fixedAmount = params.get("amount");
+  const tokenParam = params.get("token");
+  const token: constants.TokenSymbol = constants.isTokenSymbol(tokenParam) ? tokenParam : "STRK";
+  const decimals = constants.tokenDecimals(token);
   const note = params.get("note");
   const ref = params.get("ref");
   const expParam = params.get("exp");
@@ -47,6 +48,7 @@ export default function Checkout() {
   const networkName = constants.Strk20Networks[myFrontendProviderIndex];
   const isStrk20Network = networkName !== undefined;
   const operatingWallet = constants.operatingWalletAddress;
+  const tokenAddress = constants.tokenAddressFor(token, myFrontendProviderIndex);
   const hasOperatingWallet = (() => {
     try {
       return num.toBigInt(operatingWallet) !== 0n;
@@ -88,7 +90,7 @@ export default function Checkout() {
       return;
     }
     const amountStr = fixedAmount ?? customAmount;
-    const amountWei = parseStrkAmount(amountStr);
+    const amountWei = parseTokenAmount(amountStr, decimals);
     if (amountWei === null) {
       setAmountError("Enter a positive amount, e.g. 25 or 12.5");
       return;
@@ -107,7 +109,7 @@ export default function Checkout() {
       let txH: string;
       if (flow === "A") {
         const actions: WALLET_API.STRK20_ACTION[] = [
-          { type: "transfer", token: TOKEN, amount: num.toHex(amountWei), recipient: operatingWallet },
+          { type: "transfer", token: tokenAddress, amount: num.toHex(amountWei), recipient: operatingWallet },
         ];
         const r = await myWalletAccount.strk20InvokeTransaction(actions);
         txH = r.transaction_hash;
@@ -116,7 +118,7 @@ export default function Checkout() {
         // wallet support, works with any connected Starknet account.
         const r = await myWalletAccount.execute([
           {
-            contractAddress: TOKEN,
+            contractAddress: tokenAddress,
             entrypoint: "transfer",
             calldata: CallData.compile({ recipient: operatingWallet, amount: cairo.uint256(amountWei) }),
           },
@@ -127,13 +129,13 @@ export default function Checkout() {
         status: "pending",
         title: "Waiting for confirmation…",
         rows: [
-          { label: "Amount", value: `${fmtStrk(amountWei)} STRK` },
+          { label: "Amount", value: `${fmtTokenAmount(amountWei, decimals)} ${token}` },
           { label: "Transaction", value: shortHex(txH), hash: txH },
         ],
       });
       const provider = constants.myFrontendProviders[myFrontendProviderIndex];
       const txR = await provider.waitForTransaction(txH, { retries: 400, retryInterval: 3000 });
-      const final = receiptToResult(txR, txH, `${fmtStrk(amountWei)} STRK`);
+      const final = receiptToResult(txR, txH, `${fmtTokenAmount(amountWei, decimals)} ${token}`);
       setResult(final);
       if (final.status === "ok") {
         // Best-effort order bookkeeping for the merchant dashboard - never
@@ -147,6 +149,7 @@ export default function Checkout() {
             flow,
             merchantAddress: toValid,
             amountWei: amountWei.toString(),
+            token,
             txHash: txH,
             networkIndex: myFrontendProviderIndex,
             note: note ?? undefined,
@@ -169,7 +172,7 @@ export default function Checkout() {
           {fixedAmount ? (
             <>
               {fixedAmount}
-              <span>STRK</span>
+              <span>{token}</span>
             </>
           ) : (
             "Enter amount"
@@ -248,7 +251,7 @@ export default function Checkout() {
       ) : !fixedAmount ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor="customAmount">
-            Amount (STRK)
+            Amount ({token})
           </label>
           <input
             id="customAmount"

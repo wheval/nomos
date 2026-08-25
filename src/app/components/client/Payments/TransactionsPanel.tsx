@@ -3,11 +3,12 @@
 import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, fmtStrk, shortHex } from "@/utils/receipt";
+import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
 import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
+import { tokenDecimals } from "@/utils/constants";
 
 export default function TransactionsPanel() {
   const { isConnected, address, secretKey } = useMerchantAuth();
@@ -64,7 +65,9 @@ export default function TransactionsPanel() {
                     </div>
                     <div className={styles.txTime}>{new Date(d.recordedAt * 1000).toLocaleString()}</div>
                   </div>
-                  <div className={styles.txAmount}>{fmtStrk(BigInt(d.amountWei))} STRK</div>
+                  <div className={styles.txAmount}>
+                    {fmtTokenAmount(BigInt(d.amountWei), tokenDecimals(d.token as "STRK" | "USDC"))} {d.token}
+                  </div>
                   <a
                     className={styles.txLink}
                     href={explorerTxUrl(myFrontendProviderIndex, d.txHash)}

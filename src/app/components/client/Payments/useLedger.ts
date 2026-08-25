@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import type { Deposit } from "@/server/store";
+import { TokenSymbols, type TokenSymbol } from "@/utils/constants";
 
 type WireDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
+export type TokenBalances = Record<TokenSymbol, string>;
 
-// Shared deposit-ledger fetch for Overview/Transactions - both need the
-// same GET /api/payments response, just render different amounts of it.
+const ZERO_BALANCES: TokenBalances = Object.fromEntries(TokenSymbols.map((t) => [t, "0"])) as TokenBalances;
+
+// Shared deposit-ledger fetch for Overview/Transactions/Payouts - all need
+// the same GET /api/payments response, just render different parts of it.
+// Balances are per token (STRK, USDC, ...) - never summed together.
 export function useLedger(address: string, secretKey: string | null) {
   const [deposits, setDeposits] = useState<WireDeposit[] | null>(null);
-  const [balanceWei, setBalanceWei] = useState<string | null>(null);
+  const [balances, setBalances] = useState<TokenBalances | null>(null);
   const [loadError, setLoadError] = useState("");
 
   function refresh() {
@@ -22,12 +27,12 @@ export function useLedger(address: string, secretKey: string | null) {
       })
       .then((d) => {
         setDeposits(d.deposits ?? []);
-        setBalanceWei(d.balanceWei ?? "0");
+        setBalances({ ...ZERO_BALANCES, ...(d.balances ?? {}) });
       })
       .catch((e) => setLoadError(e.message ?? "Could not load payments."));
   }
 
   useEffect(refresh, [address, secretKey]);
 
-  return { deposits, balanceWei, loadError, refresh };
+  return { deposits, balances, loadError, refresh };
 }

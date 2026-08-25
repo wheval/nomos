@@ -24,29 +24,38 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
     it("credits and debits keep an accurate running balance", async () => {
       const store = makeStore();
       const merchant = randomAddress();
-      await store.creditLedger({ merchantAddress: merchant, amountWei: 500n, kind: "flow_a_deposit" });
-      const afterCredit = await store.getLedgerBalance(merchant);
+      await store.creditLedger({ merchantAddress: merchant, amountWei: 500n, token: "STRK", kind: "flow_a_deposit" });
+      const afterCredit = await store.getLedgerBalance(merchant, "STRK");
       expect(afterCredit).toBe(500n);
 
-      await store.debitLedger({ merchantAddress: merchant, amountWei: 200n, kind: "payout" });
-      const afterDebit = await store.getLedgerBalance(merchant);
+      await store.debitLedger({ merchantAddress: merchant, amountWei: 200n, token: "STRK", kind: "payout" });
+      const afterDebit = await store.getLedgerBalance(merchant, "STRK");
       expect(afterDebit).toBe(300n);
+    });
+
+    it("keeps balances for different tokens separate", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      await store.creditLedger({ merchantAddress: merchant, amountWei: 500n, token: "STRK", kind: "flow_a_deposit" });
+      await store.creditLedger({ merchantAddress: merchant, amountWei: 25n, token: "USDC", kind: "flow_a_deposit" });
+      expect(await store.getLedgerBalance(merchant, "STRK")).toBe(500n);
+      expect(await store.getLedgerBalance(merchant, "USDC")).toBe(25n);
     });
 
     it("refuses to debit past zero", async () => {
       const store = makeStore();
       const merchant = randomAddress();
-      await store.creditLedger({ merchantAddress: merchant, amountWei: 50n, kind: "flow_a_deposit" });
+      await store.creditLedger({ merchantAddress: merchant, amountWei: 50n, token: "STRK", kind: "flow_a_deposit" });
       await expect(
-        store.debitLedger({ merchantAddress: merchant, amountWei: 51n, kind: "payout" })
+        store.debitLedger({ merchantAddress: merchant, amountWei: 51n, token: "STRK", kind: "payout" })
       ).rejects.toBeInstanceOf(InsufficientBalanceError);
       // Balance must be unchanged after the rejected debit.
-      expect(await store.getLedgerBalance(merchant)).toBe(50n);
+      expect(await store.getLedgerBalance(merchant, "STRK")).toBe(50n);
     });
 
     it("a merchant with no ledger activity has a zero balance", async () => {
       const store = makeStore();
-      expect(await store.getLedgerBalance(randomAddress())).toBe(0n);
+      expect(await store.getLedgerBalance(randomAddress(), "STRK")).toBe(0n);
     });
 
     it("tracks deposits through pending_shield -> shielded", async () => {
@@ -85,6 +94,7 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
         merchantAddress: merchant,
         destination: randomAddress(),
         amountWei: 10n,
+        token: "STRK",
         mode: "withdraw",
       });
       expect(payout.status).toBe("pending");

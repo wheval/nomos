@@ -7,8 +7,8 @@
 // debit, status tracking) be built and tested today without a resolved
 // Sepolia proving-service URL. See docs/ARCHITECTURE.md.
 export interface PayoutExecutor {
-  executeWithdraw(params: { amountWei: bigint; destination: string }): Promise<{ txHash: string }>;
-  executeTransfer(params: { amountWei: bigint; destination: string }): Promise<{ txHash: string }>;
+  executeWithdraw(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
+  executeTransfer(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
 }
 
 export function getPayoutExecutor(): PayoutExecutor {

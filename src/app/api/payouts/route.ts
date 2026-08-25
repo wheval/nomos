@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { getStore } from "@/server/store";
 import { getPayoutExecutor } from "@/server/signer/payoutExecutor";
+import { isTokenSymbol, TokenSymbols } from "@/utils/constants";
 
 // POST: merchant-initiated withdrawal against their ledger balance.
 // Checks the balance but does NOT debit until execution actually succeeds
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { merchantAddress, secretKey, destination, amountWei, mode } = body ?? {};
+  const { merchantAddress, secretKey, destination, amountWei, token, mode } = body ?? {};
   if (
     typeof merchantAddress !== "string" ||
     typeof secretKey !== "string" ||
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
       { error: "merchantAddress, secretKey, destination, amountWei, and mode ('withdraw'|'transfer') are required." },
       { status: 400 }
     );
+  }
+  if (!isTokenSymbol(token)) {
+    return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
   }
 
   let normalizedMerchant: string;
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
   }
 
-  const balance = await store.getLedgerBalance(normalizedMerchant);
+  const balance = await store.getLedgerBalance(normalizedMerchant, token);
   if (balance < requestedWei) {
     return NextResponse.json(
       { error: `Insufficient balance: requested ${requestedWei}, available ${balance}.` },
@@ -64,6 +68,7 @@ export async function POST(request: NextRequest) {
     merchantAddress: normalizedMerchant,
     destination: normalizedDestination,
     amountWei: requestedWei,
+    token,
     mode,
   });
 
@@ -72,12 +77,13 @@ export async function POST(request: NextRequest) {
     const executor = getPayoutExecutor();
     const { txHash } =
       mode === "withdraw"
-        ? await executor.executeWithdraw({ amountWei: requestedWei, destination: normalizedDestination })
-        : await executor.executeTransfer({ amountWei: requestedWei, destination: normalizedDestination });
+        ? await executor.executeWithdraw({ amountWei: requestedWei, token, destination: normalizedDestination })
+        : await executor.executeTransfer({ amountWei: requestedWei, token, destination: normalizedDestination });
 
     await store.debitLedger({
       merchantAddress: normalizedMerchant,
       amountWei: requestedWei,
+      token,
       kind: "payout",
       payoutId: payout.id,
     });

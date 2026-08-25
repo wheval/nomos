@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       await store.creditLedger({
         merchantAddress: deposit.merchantAddress,
         amountWei: deposit.amountWei,
+        token: deposit.token,
         kind: "flow_b_deposit",
         depositId: deposit.id,
       });

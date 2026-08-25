@@ -5,7 +5,8 @@ import Link from "next/link";
 import styles from "../../../uni.module.css";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { buildPaymentUrl, makeRef, parseStrkAmount, EXPIRY_CHOICES } from "@/utils/payments";
+import { buildPaymentUrl, makeRef, parseTokenAmount, EXPIRY_CHOICES } from "@/utils/payments";
+import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 
 // Merchant-facing Payment Link creation. The link IS the record - nothing is
 // persisted server-side yet. Recipient is always the connected wallet: you
@@ -14,6 +15,7 @@ export default function CreateLink() {
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
 
+  const [token, setToken] = useState<TokenSymbol>("STRK");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [expirySeconds, setExpirySeconds] = useState<number | null>(null);
@@ -26,7 +28,7 @@ export default function CreateLink() {
   function handleGenerate() {
     setLink("");
     setCopied(false);
-    if (amount.trim() && parseStrkAmount(amount) === null) {
+    if (amount.trim() && parseTokenAmount(amount, tokenDecimals(token)) === null) {
       setAmountError("Enter a positive amount, e.g. 25 or 12.5");
       return;
     }
@@ -35,6 +37,7 @@ export default function CreateLink() {
     const url = buildPaymentUrl(window.location.origin, {
       to: address,
       amount: amount.trim() || undefined,
+      token,
       note: note.trim() || undefined,
       ref: makeRef(),
       exp,
@@ -72,8 +75,24 @@ export default function CreateLink() {
       <p className={styles.sectionSub}>Pays into your shielded balance</p>
 
       <div className={styles.field}>
+        <label className={styles.fieldLabel}>Token</label>
+        <div className={styles.chipRow}>
+          {TokenSymbols.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
+              onClick={() => setToken(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.field}>
         <label className={styles.fieldLabel} htmlFor="amount">
-          Amount (STRK) - leave blank to let the customer enter one
+          Amount ({token}) - leave blank to let the customer enter one
         </label>
         <input
           id="amount"

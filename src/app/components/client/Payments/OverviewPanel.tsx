@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, fmtStrk, shortHex } from "@/utils/receipt";
+import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
 import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
+import { TokenSymbols, tokenDecimals } from "@/utils/constants";
 
 export default function OverviewPanel() {
   const { isConnected, address, secretKey } = useMerchantAuth();
-  const { deposits, balanceWei, loadError } = useLedger(address, secretKey);
+  const { deposits, balances, loadError } = useLedger(address, secretKey);
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const [webhookUrl, setWebhookUrl] = useState("");
 
@@ -45,12 +46,14 @@ export default function OverviewPanel() {
       </div>
 
       <div className={styles.statGrid}>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Balance</div>
-          <div className={styles.statValue}>
-            {balanceWei !== null ? fmtStrk(BigInt(balanceWei)) : "—"} <span>STRK</span>
+        {TokenSymbols.map((t) => (
+          <div key={t} className={styles.statCard}>
+            <div className={styles.statLabel}>{t} Balance</div>
+            <div className={styles.statValue}>
+              {balances ? fmtTokenAmount(BigInt(balances[t]), tokenDecimals(t)) : "—"} <span>{t}</span>
+            </div>
           </div>
-        </div>
+        ))}
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Deposits</div>
           <div className={styles.statValue}>{deposits ? deposits.length : "—"}</div>
@@ -104,7 +107,9 @@ export default function OverviewPanel() {
                     </div>
                     <div className={styles.txTime}>{new Date(d.recordedAt * 1000).toLocaleString()}</div>
                   </div>
-                  <div className={styles.txAmount}>{fmtStrk(BigInt(d.amountWei))} STRK</div>
+                  <div className={styles.txAmount}>
+                    {fmtTokenAmount(BigInt(d.amountWei), tokenDecimals(d.token as "STRK" | "USDC"))} {d.token}
+                  </div>
                   <a
                     className={styles.txLink}
                     href={explorerTxUrl(myFrontendProviderIndex, d.txHash)}

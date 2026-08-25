@@ -32,6 +32,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -46,6 +47,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -61,6 +63,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -75,6 +78,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -89,6 +93,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -103,6 +108,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -115,6 +121,7 @@ describe("verifyFlowBDeposit", () => {
     const result = await verifyFlowBDeposit({
       txHash: "0xabc",
       operatingWalletAddress: OPERATING_WALLET,
+      tokenAddress: STRK_ADDR,
       claimedAmountWei: 100n,
       networkIndex: 2,
     });
@@ -127,6 +134,7 @@ describe("verifyFlowADeposit", () => {
     const result = await verifyFlowADeposit({
       txHash: "0xabc",
       claimedAmountWei: 100n,
+      tokenAddress: STRK_ADDR,
       discovery: { hasReceivedDeposit: async () => true },
     });
     expect(result).toEqual({ ok: true, amountWei: 100n });
@@ -136,6 +144,7 @@ describe("verifyFlowADeposit", () => {
     const result = await verifyFlowADeposit({
       txHash: "0xabc",
       claimedAmountWei: 100n,
+      tokenAddress: STRK_ADDR,
       discovery: { hasReceivedDeposit: async () => false },
     });
     expect(result.ok).toBe(false);
