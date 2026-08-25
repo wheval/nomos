@@ -1,5 +1,7 @@
 # Nomos
 
+[![CI](https://github.com/wheval/nomos/actions/workflows/ci.yml/badge.svg)](https://github.com/wheval/nomos/actions/workflows/ci.yml)
+
 A private payment gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays two ways — with a shielded wallet (fully private end to end) or an ordinary Starknet wallet (the payment itself is public, but which business it went to stays private); settlement clears as real transactions against the live STRK20 pool.
 
 ## The trust model, plainly
