@@ -1,32 +1,19 @@
 "use client";
 
-import styles from "../uni.module.css";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
+import ConsoleShell from "../components/ConsoleShell";
 import CreateLink from "../components/client/Payments/CreateLink";
+import styles from "../uni.module.css";
 
 export default function CreatePage() {
   return (
-    <div className={styles.page}>
-      <Nav variant="merchant" />
-
-      <header className={styles.hero}>
-        <h1 className={styles.heroTitle}>
-          Get paid,
-          <br />
-          <span className={styles.heroAccent}>privately</span>
-        </h1>
-        <p className={styles.heroSub}>
-          Generate a Payment Link. Whoever pays it, the amount and their
-          identity stay shielded in the STRK20 pool.
-        </p>
-      </header>
-
-      <main>
+    <ConsoleShell>
+      <div className={styles.consolePage}>
+        <div className={styles.consoleHead}>
+          <h1 className={styles.consoleTitle}>Payment Links</h1>
+          <p className={styles.consoleSub}>Generate a link. Whoever pays it, the amount and their identity stay shielded in the STRK20 pool.</p>
+        </div>
         <CreateLink />
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </ConsoleShell>
   );
 }

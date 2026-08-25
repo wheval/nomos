@@ -54,8 +54,8 @@ export default function CreateLink() {
 
   if (!isConnected) {
     return (
-      <div className={styles.panel}>
-        <p className={styles.heroSub} style={{ marginBottom: 18 }}>
+      <div className={styles.sectionCard} style={{ textAlign: "center" }}>
+        <p className={styles.sectionSub}>
           Connect the wallet you want paid into before creating a link.
         </p>
         <SelectWallet variant="ctaBig" />
