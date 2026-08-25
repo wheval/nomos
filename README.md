@@ -1,42 +1,56 @@
 # Nomos
 
-A private payment gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays without their identity or the amount landing on a public ledger; settlement clears as a real transaction against the live STRK20 pool on mainnet.
+A private payment gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays two ways — with a shielded wallet (fully private end to end) or an ordinary Starknet wallet (the payment itself is public, but which business it went to stays private); settlement clears as real transactions against the live STRK20 pool.
 
-Built on the official [STRK20 starter kit](https://github.com/Akashneelesh/strk20-starter-kit) — a lean Next.js base for privacy dApps on Starknet via [STRK20](https://eprint.iacr.org/2026/474) and `WalletAccountV6` (starknet.js v10): shield, unshield, private transfer, shielded balances, and an anonymizer (`privacy_invoke`) — all through the user's wallet, never a viewing key.
+## The trust model, plainly
 
-> Demo defaults (fixed token, fixed amounts, and an *echo* helper that just round-trips) are marked `DEMO` in the code — swap them for your own.
+Nomos is **custodial, not a pure router**. Both payment flows settle into Nomos's own operating wallet first; a merchant's balance is an internal ledger claim, not an on-chain account they hold directly, and they cash out via a payout whenever they choose (publicly, or privately if they have their own shielded wallet). This is a deliberate trade, not an oversight — see [`docs/PRD.md`](docs/PRD.md) for why (short version: an ordinary wallet's payment has to land somewhere before it can be shielded, so a pure non-custodial router can't serve those customers at all) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full custody/signing model, including exactly what's private and what isn't for each flow.
+
+The operating wallet signs with a software secp256k1 key today — an explicit stand-in for real key-management infra (Turnkey/KMS), not the intended end state. It's deployed on Sepolia; see [`cairo/address.md`](cairo/address.md) for the address and class hash.
 
 ## Quick start
 
 ```bash
-npm install
-cp .env.example .env.local     # add your Alchemy key
-npm run dev                    # http://localhost:3000
+yarn install
+cp .env.example .env.local     # add your Alchemy key + the other values below
+yarn dev                       # http://localhost:3000
 ```
 
-Needs a free [Alchemy](https://alchemy.com) Starknet RPC key and a privacy-enabled wallet (Ready) on Sepolia or Mainnet.
+Needs a free [Alchemy](https://alchemy.com) Starknet RPC key. `.env.example` documents every variable — the ledger store defaults to a local JSON-file driver (`NOMOS_STORE_DRIVER=file`), fine for local dev; a real deployment needs `NOMOS_STORE_DRIVER=supabase` and a Supabase project (schema in `supabase/migrations/0001_init.sql`).
 
 ## What's inside
 
-- **Connect** — `get-starknet` v6 discovery + wallet picker, with `eip1193Adapters: []` to stop MetaMask popups → `SelectWallet.tsx`
-- **Actions** — shield / unshield / private transfer / echo / balances via `strk20InvokeTransaction` → `WalletAccountV6Tag.tsx`
-- **Config** — token, RPC providers, helper addresses (all `DEMO`-labelled) → `src/utils/constants.ts`
-- **Anonymizer** — a minimal `privacy_invoke` contract you can deploy from the UI → `cairo/src/lib.cairo`
+- **Connect** — `get-starknet` v6 discovery + wallet picker, with `eip1193Adapters: []` to stop MetaMask popups → `SelectWallet.tsx`. Any wallet works now (Braavos included) — only the private-payment flow needs a shielded-capable one.
+- **Checkout** — the customer-facing flow split (shielded transfer, or a plain transfer from any wallet), both settling into the operating wallet → `Checkout.tsx`
+- **Ledger** — deposits, credits/debits, payouts; one `Store` interface with memory/file/Supabase implementations → `src/server/store/`
+- **Verification** — on-chain confirmation before crediting anything, per flow → `src/utils/verifyTx.ts`
+- **Dashboard** — API keys, webhook config, deposit history, balance, payout → `Dashboard.tsx`, `Payout.tsx`
+- **Shield reconciliation** — deposits into the pool need FPI screening with no headless workaround (see `docs/ARCHITECTURE.md`), so shielding a plain-wallet payment is a manual, team-operated step; `/api/internal/shield` + `scripts/shield-reconcile.ts` handle the bookkeeping around it
+- **Operating wallet** — an OpenZeppelin `eth`-type (secp256k1) Starknet account → `cairo/src/operating_wallet.cairo`, signer wrapper in `src/server/signer/`
+- **Anonymizer** — a minimal `privacy_invoke` demo contract, not part of the payment flow, kept as an integration reference → `cairo/src/lib.cairo`
 
-Stack: Next.js 16 · React 19 · TypeScript · starknet.js 10 · zustand. No component framework.
+Stack: Next.js 16 · React 19 · TypeScript · starknet.js 10 · zustand · vitest. No component framework.
 
 ## Gotchas worth knowing
 
-- **Placeholders are literal strings.** In the `invoke` action, `"OPEN"`, `"${poolAddress}"`, `"${openNoteIds[0]}"` are substituted by the wallet — never `num.toHex` them. Only real token/amounts get hex-normalized.
-- The echo helper is a **no-op demo** — replace its body with a real action (swap/vault/lend); the `privacy_invoke` shape stays the same. You own the tests and audit.
-- Ready wallet works today (Xverse's Wallet API is landing); the app degrades gracefully for others.
+- **Placeholders are literal strings.** In the `invoke` action (the anonymizer demo panel), `"OPEN"`, `"${poolAddress}"`, `"${openNoteIds[0]}"` are substituted by the wallet — never `num.toHex` them. Only real token/amounts get hex-normalized.
+- The echo helper (`WalletAccountV6Tag.tsx`) is a **no-op demo**, not part of the product flow — kept as an integration reference for anyone checking the wallet-toolkit wiring itself.
+- Deposits into the STRK20 pool need an FPI screening signature — self-hosting a prover doesn't bypass it. This is why shielding a plain-wallet payment isn't (yet) a fully automated background job; see `docs/ARCHITECTURE.md`.
+
+## Testing & CI
+
+`yarn lint` / `yarn typecheck` / `yarn test` / `yarn build` — all four run in GitHub Actions on every push/PR against `main`, using the in-memory store driver (no external credentials needed for CI to pass).
 
 ## Deploy
 
-Standard Next.js on [Vercel](https://vercel.com/new) — set `NEXT_PUBLIC_PROVIDER_URL` (and optionally `NEXT_PUBLIC_STRK20_ECHO_HELPER_SEPOLIA`).
+Standard Next.js on [Vercel](https://vercel.com/new). Set every variable in `.env.example` — in particular `NOMOS_STORE_DRIVER=supabase` with real Supabase credentials, since the file-based store doesn't survive Vercel's serverless filesystem.
+
+## Docs
+
+[`docs/PRD.md`](docs/PRD.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)
 
 ## Links
 
-[STRK20 by example](https://strk20-by-example.org/) · [Privacy SDK](https://github.com/starkware-libs/starknet-privacy) · [WalletAccount guide](https://starknet-js.com/docs/next/guides/account/walletAccount/#with-get-starknet-v6)
+[STRK20 by example](https://strk20.starknet.io/docs) · [Privacy SDK](https://github.com/starkware-libs/starknet-privacy) · [WalletAccount guide](https://starknet-js.com/docs/next/guides/account/walletAccount/#with-get-starknet-v6)
 
-Bootstrapped from [PhilippeR26/Starknet-WalletAccount](https://github.com/PhilippeR26/Starknet-WalletAccount).
+Bootstrapped from the official [STRK20 starter kit](https://github.com/Akashneelesh/strk20-starter-kit), in turn from [PhilippeR26/Starknet-WalletAccount](https://github.com/PhilippeR26/Starknet-WalletAccount).
