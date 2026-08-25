@@ -12,44 +12,161 @@ export default function Page() {
       <Nav variant="merchant" />
 
       <header className={styles.hero}>
+        <span className={styles.heroBadge}>
+          <span className={styles.heroBadgeDot} />
+          Built for the STRK20 Private Sprint
+        </span>
         <h1 className={styles.heroTitle}>
           A private payment
           <br />
           <span className={styles.heroAccent}>gateway</span>
         </h1>
         <p className={styles.heroSub}>
-          Nomos shields the checkout your business already wants — Payment
-          Links, invoices, and an embeddable widget, settling through the
-          STRK20 pool.
+          Payment Links, invoices, and an embeddable widget that settle into
+          the STRK20 privacy pool — whether your customer&apos;s wallet is
+          shielded or ordinary, your balance and identity never touch the
+          public chain.
         </p>
-        <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', marginTop: 22, textDecoration: 'none' }}>
-          Create a Payment Link →
-        </Link>
+        <div className={styles.heroCtaRow}>
+          <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
+            Create a Payment Link →
+          </Link>
+          <Link href="/dashboard" className={`${styles.btn} ${styles.btnGhost}`} style={{ textDecoration: 'none' }}>
+            View live dashboard
+          </Link>
+        </div>
+        <p className={styles.heroTrust}>No card, no signup — connect a wallet and go.</p>
       </header>
 
-      <section style={{ margin: '84px 0 76px' }}>
+      <section style={{ margin: '76px 0 84px' }}>
+        <div className={styles.sectionEyebrow}>The dashboard</div>
+        <h2 className={styles.sectionHeading}>See what lands, in real time</h2>
+        <p className={styles.sectionSubCentered}>
+          Every deposit shows up here the moment it&apos;s confirmed —
+          shielded or not, it&apos;s one balance.
+        </p>
+        <div className={styles.previewFrame}>
+          <div className={styles.previewChrome}>
+            <div className={styles.previewChromeBar}>
+              <span className={styles.previewDot} />
+              <span className={styles.previewDot} />
+              <span className={styles.previewDot} />
+            </div>
+            <div className={styles.previewBody}>
+              <div className={styles.statGrid}>
+                <div className={styles.statCard}>
+                  <div className={styles.statLabel}>Balance</div>
+                  <div className={styles.statValue}>
+                    412.5 <span>STRK</span>
+                  </div>
+                </div>
+                <div className={styles.statCard}>
+                  <div className={styles.statLabel}>Deposits</div>
+                  <div className={styles.statValue}>18</div>
+                </div>
+                <div className={styles.statCard}>
+                  <div className={styles.statLabel}>Webhook</div>
+                  <div className={styles.statValue} style={{ fontSize: 16 }}>
+                    <span style={{ color: 'var(--green)' }}>● Active</span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.sectionCard} style={{ marginBottom: 0 }}>
+                <div className={styles.sectionHead}>
+                  <span className={styles.sectionTitle}>Recent activity</span>
+                </div>
+                <div className={styles.txTable}>
+                  <div className={styles.txRow}>
+                    <div className={styles.txMain}>
+                      <div className={styles.txTitle}>
+                        Invoice #104
+                        <span className={styles.keyBadge} style={{ marginLeft: 8 }}>shielded</span>
+                      </div>
+                      <div className={styles.txTime}>2 minutes ago</div>
+                    </div>
+                    <div className={styles.txAmount}>40.0 STRK</div>
+                  </div>
+                  <div className={styles.txRow}>
+                    <div className={styles.txMain}>
+                      <div className={styles.txTitle}>
+                        Payment Link
+                        <span className={styles.keyBadge} style={{ marginLeft: 8 }}>shielded on receipt</span>
+                      </div>
+                      <div className={styles.txTime}>41 minutes ago</div>
+                    </div>
+                    <div className={styles.txAmount}>125.0 STRK</div>
+                  </div>
+                  <div className={styles.txRow}>
+                    <div className={styles.txMain}>
+                      <div className={styles.txTitle}>Widget checkout</div>
+                      <div className={styles.txTime}>3 hours ago</div>
+                    </div>
+                    <div className={styles.txAmount}>7.5 STRK</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ margin: '84px 0 88px' }}>
         <div className={styles.sectionEyebrow}>How it works</div>
         <h2 className={styles.sectionHeading}>Three ways to get paid</h2>
         <div className={styles.howItWorks}>
           <div className={styles.howStep}>
-            <div className={styles.howStepNum}>01</div>
+            <div className={styles.howStepNum}><LinkIcon /></div>
             <h3>Payment Link</h3>
             <p>Generate a link with a fixed or open amount. Share it anywhere — the customer pays without ever touching your dashboard.</p>
           </div>
           <div className={styles.howStep}>
-            <div className={styles.howStepNum}>02</div>
+            <div className={styles.howStepNum}><InvoiceIcon /></div>
             <h3>Invoice</h3>
             <p>Add a note and an expiry. It reads like a real invoice, backed by a private settlement instead of a public one.</p>
           </div>
           <div className={styles.howStep}>
-            <div className={styles.howStepNum}>03</div>
+            <div className={styles.howStepNum}><WidgetIcon /></div>
             <h3>Embedded widget</h3>
             <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
           </div>
         </div>
       </section>
 
-      <section className={styles.toolkitBand}>
+      <section style={{ margin: '88px 0 84px' }}>
+        <div className={styles.sectionEyebrow}>Why Nomos</div>
+        <h2 className={styles.sectionHeading}>Whatever wallet your customer has</h2>
+        <p className={styles.sectionSubCentered}>
+          Not every customer has a shielded wallet yet. Nomos accepts both —
+          and settles both into the same private balance.
+        </p>
+        <div className={styles.flowGrid}>
+          <div className={styles.flowCard}>
+            <div className={styles.flowCardIcon}><ShieldIcon /></div>
+            <h3>Customer has a shielded wallet</h3>
+            <p>Their payment is a private STRK20 transfer, direct into the pool. Sender, receiver, and amount are shielded end to end — nothing extra to do.</p>
+          </div>
+          <div className={styles.flowJoin}>
+            <span className={styles.flowJoinLine} />
+            <span className={styles.flowJoinLabel}>one private balance</span>
+            <span className={styles.flowJoinLine} />
+          </div>
+          <div className={styles.flowCard}>
+            <div className={styles.flowCardIcon}><WalletIcon /></div>
+            <h3>Customer has an ordinary wallet</h3>
+            <p>They send a normal transfer — no privacy wallet required. Nomos shields it into your balance on your behalf, so your identity still never touches the public chain.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.closingCta} style={{ margin: '84px auto 0' }}>
+        <h2 className={styles.sectionHeading} style={{ marginBottom: 12 }}>Ready to accept private payments?</h2>
+        <p>Connect the wallet you want paid into and generate your first Payment Link in under a minute.</p>
+        <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
+          Create a Payment Link →
+        </Link>
+      </section>
+
+      <section className={styles.toolkitBand} style={{ marginTop: 88 }}>
         <div className={styles.toolkitInner}>
           <div className={styles.toolkitLabel}>
             <span className={styles.brandBadge}>Wallet toolkit</span>
@@ -72,5 +189,51 @@ export default function Page() {
         }
       />
     </div>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M9 15L15 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M10.5 6.5L11.6 5.4a3.5 3.5 0 0 1 5 5L15.5 11.5M13.5 17.5L12.4 18.6a3.5 3.5 0 0 1-5-5L8.5 12.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+function InvoiceIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M6 3h9l3 3v15H6V3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M9 10h6M9 14h6M9 18h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+function WidgetIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 5l-2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function WalletIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="2" />
+      <circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" />
+    </svg>
   );
 }
