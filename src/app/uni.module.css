@@ -867,6 +867,17 @@
   font-size: 12px;
 }
 .trustRow svg { flex: none; }
+.securedByRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 20px;
+  color: var(--muted-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.securedByRow svg { flex: none; }
 
 /* --- Checkout: amount-first header --------------------------------------- */
 .checkoutAmountBlock { text-align: center; padding: 4px 0 22px; }
