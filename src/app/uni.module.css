@@ -945,16 +945,16 @@
 /* Dark values — applied when explicitly toggled, or via system preference
    when no explicit choice has been made (no [data-theme] attribute set). */
 .console[data-theme="dark"] {
-  --ink: #f2f3f5;
-  --ink-soft: #d3d5d9;
-  --muted: #9a9ea6;
-  --muted-2: #6b6f77;
-  --bg: #0a0b0d;
-  --card: #131417;
-  --line: #2a2d33;
-  --line-soft: #202226;
-  --inset: #1a1c20;
-  --inset-2: #222429;
+  --ink: #eef0f4;
+  --ink-soft: #c7ccd6;
+  --muted: #8b90a0;
+  --muted-2: #5c6270;
+  --bg: #0b0e15;
+  --card: #141822;
+  --line: #262c3b;
+  --line-soft: #1b2029;
+  --inset: #171c26;
+  --inset-2: #1f2531;
   --pink: #e56b43;
   --pink-hover: #f07c53;
   --pink-soft: rgba(229, 107, 67, 0.14);
@@ -966,20 +966,20 @@
   --danger-soft: rgba(248, 113, 113, 0.12);
   --shadow-sm: none;
   --shadow-md: none;
-  --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 48px -12px rgba(2, 4, 8, 0.55);
 }
 @media (prefers-color-scheme: dark) {
   .console:not([data-theme="light"]):not([data-theme="dark"]) {
-    --ink: #f2f3f5;
-    --ink-soft: #d3d5d9;
-    --muted: #9a9ea6;
-    --muted-2: #6b6f77;
-    --bg: #0a0b0d;
-    --card: #131417;
-    --line: #2a2d33;
-    --line-soft: #202226;
-    --inset: #1a1c20;
-    --inset-2: #222429;
+    --ink: #eef0f4;
+    --ink-soft: #c7ccd6;
+    --muted: #8b90a0;
+    --muted-2: #5c6270;
+    --bg: #0b0e15;
+    --card: #141822;
+    --line: #262c3b;
+    --line-soft: #1b2029;
+    --inset: #171c26;
+    --inset-2: #1f2531;
     --pink: #e56b43;
     --pink-hover: #f07c53;
     --pink-soft: rgba(229, 107, 67, 0.14);
@@ -991,7 +991,7 @@
     --danger-soft: rgba(248, 113, 113, 0.12);
     --shadow-sm: none;
     --shadow-md: none;
-    --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 20px 48px -12px rgba(2, 4, 8, 0.55);
   }
 }
 
