@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "../uni.module.css";
 import { BrandMark } from "./Brand";
+import ThemeToggle from "./ThemeToggle";
 import { useStoreWallet } from "./Wallet/walletContext";
 import { useFrontendProvider } from "./client/provider/providerContext";
 import * as constants from "@/utils/constants";
@@ -16,26 +18,61 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-// The merchant console shell: persistent sidebar + topbar, wrapping every
+// Network indices that map to a real, connectable STRK20 network (see
+// src/utils/constants.ts's Strk20Networks) — the only two the switcher offers.
+const NETWORK_OPTIONS = [
+  { index: 2, label: "Sepolia" },
+  { index: 0, label: "Mainnet" },
+];
+
+const COLLAPSE_STORAGE_KEY = "nomos:sidebar-collapsed";
+
+// The merchant console shell: collapsible sidebar + topbar, wrapping every
 // /dashboard* page and /create. This is the actual product surface — a
-// business's day-to-day tool, not a marketing page, so it gets its own
-// dark theme (.console in uni.module.css) instead of the public site's
-// light/hero treatment.
+// business's day-to-day tool, not a marketing page — so it gets its own
+// theme (light/dark/system, see uni.module.css's .console block) instead
+// of the public site's fixed light/hero treatment.
 export default function ConsoleShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
   const setConnected = useStoreWallet((state) => state.setConnected);
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
+  const setCurrentFrontendProviderIndex = useFrontendProvider((state) => state.setCurrentFrontendProviderIndex);
   const networkName = constants.Strk20Networks[myFrontendProviderIndex] ?? "Unsupported";
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
 
+  const [collapsed, setCollapsed] = useState(false);
+  const [netMenuOpen, setNetMenuOpen] = useState(false);
+  const netMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1");
+  }, []);
+
+  useEffect(() => {
+    if (!netMenuOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (netMenuRef.current && !netMenuRef.current.contains(e.target as Node)) setNetMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [netMenuOpen]);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
   return (
-    <div className={styles.console}>
+    <div className={`${styles.console} ${collapsed ? styles.collapsed : ""}`}>
       <aside className={styles.consoleSidebar}>
         <Link href="/" className={styles.consoleBrand} style={{ textDecoration: "none" }}>
           <BrandMark />
-          Nomos
+          <span>Nomos</span>
           <span className={styles.brandBadge}>on STRK20</span>
         </Link>
         <nav className={styles.consoleNav}>
@@ -46,9 +83,10 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
                 key={href}
                 href={href}
                 className={`${styles.consoleNavLink} ${active ? styles.consoleNavActive : ""}`}
+                title={collapsed ? label : undefined}
               >
                 <Icon />
-                {label}
+                <span>{label}</span>
               </Link>
             );
           })}
@@ -62,19 +100,54 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
 
       <div className={styles.consoleMain}>
         <div className={styles.consoleTopbar}>
-          <span className={styles.consoleNetPill}>
-            <span
-              className={styles.netDot}
-              style={{ background: networkName !== "Unsupported" ? "var(--c-green)" : "var(--c-danger)" }}
-            />
-            {networkName}
-          </span>
-          {isConnected && address ? (
-            <button className={styles.consoleAddrPill} onClick={() => setConnected(false)} title="Disconnect">
-              <span className={styles.netDot} style={{ background: "var(--c-green)" }} />
-              {shortAddr}
+          <div className={styles.consoleTopbarLeft}>
+            <button
+              className={styles.consoleCollapseBtn}
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <CollapseIcon />
             </button>
-          ) : null}
+
+            <div ref={netMenuRef} style={{ position: "relative" }}>
+              <button className={styles.consoleNetPill} onClick={() => setNetMenuOpen((v) => !v)}>
+                <span
+                  className={styles.netDot}
+                  style={{ background: networkName !== "Unsupported" ? "var(--green)" : "var(--danger)" }}
+                />
+                {networkName}
+                <ChevronIcon />
+              </button>
+              {netMenuOpen ? (
+                <div className={styles.consoleNetMenu}>
+                  {NETWORK_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.index}
+                      className={`${styles.consoleNetOption} ${myFrontendProviderIndex === opt.index ? styles.consoleNetOptionActive : ""}`}
+                      onClick={() => {
+                        setCurrentFrontendProviderIndex(opt.index);
+                        setNetMenuOpen(false);
+                      }}
+                    >
+                      <span className={styles.netDot} style={{ background: "var(--green)" }} />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className={styles.consoleTopbarRight}>
+            <ThemeToggle />
+            {isConnected && address ? (
+              <button className={styles.consoleAddrPill} onClick={() => setConnected(false)} title="Disconnect">
+                <span className={styles.netDot} style={{ background: "var(--green)" }} />
+                {shortAddr}
+              </button>
+            ) : null}
+          </div>
         </div>
         {children}
       </div>
@@ -82,6 +155,21 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   );
 }
 
+function CollapseIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+function ChevronIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function OverviewIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

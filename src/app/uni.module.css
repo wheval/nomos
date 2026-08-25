@@ -272,7 +272,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 7px 7px 7px 13px;
@@ -343,7 +343,7 @@
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 15px;
-  background: #fff;
+  background: var(--card);
   cursor: pointer;
   text-align: left;
   transition: background 140ms, border-color 140ms;
@@ -427,7 +427,7 @@
   font-weight: 600;
   font-size: 15px;
   color: var(--ink);
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 7px 15px 7px 8px;
@@ -459,7 +459,7 @@
   border-radius: 16px;
   font-size: 14px;
   color: var(--muted);
-  background: #fff;
+  background: var(--card);
 }
 .feeVal { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 500; }
 
@@ -506,7 +506,7 @@
   font-family: var(--font-body), sans-serif;
   font-size: 15px;
   color: var(--ink);
-  background: #fff;
+  background: var(--card);
   transition: border-color 120ms, box-shadow 120ms;
 }
 .textInput:focus {
@@ -683,7 +683,7 @@
   font-weight: 600;
   font-size: 13.5px;
   color: var(--ink);
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 11px 14px;
@@ -892,45 +892,124 @@
 }
 
 /* ========================================================================
-   Merchant console — dark shell (sidebar + topbar), scoped to .console.
-   Everything under this class gets its own dark token set; the light
-   theme above is untouched and still backs the public marketing page and
-   the customer-facing checkout, which stay light/transactional.
+   Merchant console shell, scoped to .console. Reuses every shared
+   component style (statCard, sectionCard, textInput, chip, btnCta, the
+   wallet-picker modal...) by redefining the SAME variable names .page
+   defines above, rather than a parallel --c-* token set — so the modal,
+   hover states, and every other shared piece theme-adapt automatically
+   instead of needing a second override for each one.
+
+   Three modes: light (default, same values as .page), dark (explicit
+   [data-theme="dark"] or system preference when unset), and an explicit
+   [data-theme="light"] to force light even under a dark system setting.
+   Toggled by ThemeToggle.tsx, persisted to localStorage, applied as a
+   data-theme attribute on this root element.
    ======================================================================== */
 .console {
-  --c-bg: #0a0b0d;
-  --c-surface: #131417;
-  --c-surface-2: #1a1c20;
-  --c-border: #2a2d33;
-  --c-border-soft: #202226;
-  --c-ink: #f2f3f5;
-  --c-muted: #9a9ea6;
-  --c-muted-2: #6b6f77;
-  --c-accent: #e56b43;
-  --c-accent-soft: rgba(229, 107, 67, 0.14);
-  --c-green: #34d399;
-  --c-green-soft: rgba(52, 211, 153, 0.12);
-  --c-danger: #f87171;
-  --c-danger-soft: rgba(248, 113, 113, 0.12);
+  --ink: #0f1115;
+  --ink-soft: #3d4149;
+  --muted: #676c76;
+  --muted-2: #9298a3;
+  --bg: #f7f7f8;
+  --card: #ffffff;
+  --line: #e4e6eb;
+  --line-soft: #eef0f3;
+  --inset: #f0f1f3;
+  --inset-2: #e7e8ec;
+  --pink: #e56b43;
+  --pink-hover: #d85f37;
+  --pink-soft: #fdefe9;
+  --pink-soft-2: #f9ddd1;
+  --pink-text: #b0491f;
+  --green: #059669;
+  --green-soft: #ecfdf5;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --shadow-sm: 0 1px 2px rgba(15, 17, 21, 0.05), 0 1px 1px rgba(15, 17, 21, 0.03);
+  --shadow-md: 0 6px 16px -4px rgba(15, 17, 21, 0.10), 0 2px 6px -2px rgba(15, 17, 21, 0.05);
+  --shadow-lg: 0 20px 48px -12px rgba(15, 17, 21, 0.18), 0 6px 16px -6px rgba(15, 17, 21, 0.08);
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --sidebar-w: 240px;
 
   min-height: 100vh;
-  background: var(--c-bg);
-  color: var(--c-ink);
+  background: var(--bg);
+  color: var(--ink);
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
   font-family: var(--font-body), system-ui, sans-serif;
+  transition: grid-template-columns 180ms ease;
 }
 
+/* Dark values — applied when explicitly toggled, or via system preference
+   when no explicit choice has been made (no [data-theme] attribute set). */
+.console[data-theme="dark"] {
+  --ink: #f2f3f5;
+  --ink-soft: #d3d5d9;
+  --muted: #9a9ea6;
+  --muted-2: #6b6f77;
+  --bg: #0a0b0d;
+  --card: #131417;
+  --line: #2a2d33;
+  --line-soft: #202226;
+  --inset: #1a1c20;
+  --inset-2: #222429;
+  --pink: #e56b43;
+  --pink-hover: #f07c53;
+  --pink-soft: rgba(229, 107, 67, 0.14);
+  --pink-soft-2: rgba(229, 107, 67, 0.24);
+  --pink-text: #f0916e;
+  --green: #34d399;
+  --green-soft: rgba(52, 211, 153, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  .console:not([data-theme="light"]):not([data-theme="dark"]) {
+    --ink: #f2f3f5;
+    --ink-soft: #d3d5d9;
+    --muted: #9a9ea6;
+    --muted-2: #6b6f77;
+    --bg: #0a0b0d;
+    --card: #131417;
+    --line: #2a2d33;
+    --line-soft: #202226;
+    --inset: #1a1c20;
+    --inset-2: #222429;
+    --pink: #e56b43;
+    --pink-hover: #f07c53;
+    --pink-soft: rgba(229, 107, 67, 0.14);
+    --pink-soft-2: rgba(229, 107, 67, 0.24);
+    --pink-text: #f0916e;
+    --green: #34d399;
+    --green-soft: rgba(52, 211, 153, 0.12);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.12);
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.console.collapsed { --sidebar-w: 68px; }
+
 .consoleSidebar {
-  background: var(--c-surface);
-  border-right: 1px solid var(--c-border-soft);
+  background: var(--card);
+  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   padding: 20px 14px;
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow: hidden;
+  transition: padding 180ms ease;
 }
+.console.collapsed .consoleSidebar { padding: 20px 10px; }
 .consoleBrand {
   display: flex;
   align-items: center;
@@ -938,19 +1017,24 @@
   font-weight: 600;
   font-size: 16px;
   letter-spacing: -0.01em;
-  color: var(--c-ink);
+  color: var(--ink);
   padding: 6px 10px 22px;
+  white-space: nowrap;
 }
 .consoleBrand .brandBadge {
   font-family: var(--font-mono-ui), monospace;
   font-weight: 600;
   font-size: 10px;
   letter-spacing: 0.03em;
-  color: var(--c-muted);
-  background: var(--c-surface-2);
-  border: 1px solid var(--c-border);
+  color: var(--muted);
+  background: var(--inset);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 3px 8px;
+}
+.console.collapsed .consoleBrand .brandBadge,
+.console.collapsed .consoleBrand span:not(.brandMark) {
+  display: none;
 }
 .consoleNav {
   display: flex;
@@ -964,33 +1048,39 @@
   gap: 11px;
   padding: 9px 12px;
   border-radius: 10px;
-  color: var(--c-muted);
+  color: var(--muted);
   font-size: 13.5px;
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
   transition: background 120ms, color 120ms;
 }
 .consoleNavLink svg { flex: none; opacity: 0.85; }
-.consoleNavLink:hover { background: var(--c-surface-2); color: var(--c-ink); }
+.consoleNavLink span { transition: opacity 120ms; }
+.console.collapsed .consoleNavLink span { display: none; }
+.console.collapsed .consoleNavLink { justify-content: center; }
+.consoleNavLink:hover { background: var(--inset); color: var(--ink); }
 .consoleNavActive {
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
+  background: var(--pink-soft);
+  color: var(--pink-text);
   font-weight: 600;
 }
-.consoleNavActive:hover { background: var(--c-accent-soft); color: var(--c-accent); }
+.consoleNavActive:hover { background: var(--pink-soft); color: var(--pink-text); }
 .consoleSidebarFoot {
-  border-top: 1px solid var(--c-border-soft);
+  border-top: 1px solid var(--line);
   padding-top: 14px;
   margin-top: 10px;
 }
 .consoleSidebarFoot a {
   display: block;
   font-size: 12px;
-  color: var(--c-muted-2);
+  color: var(--muted-2);
   text-decoration: none;
   padding: 6px 12px;
+  white-space: nowrap;
 }
-.consoleSidebarFoot a:hover { color: var(--c-muted); }
+.consoleSidebarFoot a:hover { color: var(--muted); }
+.console.collapsed .consoleSidebarFoot { display: none; }
 
 .consoleMain { min-width: 0; }
 .consoleTopbar {
@@ -998,27 +1088,79 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 28px;
-  border-bottom: 1px solid var(--c-border-soft);
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: rgba(10, 11, 13, 0.85);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(8px);
   z-index: 10;
 }
+.consoleTopbarLeft { display: flex; align-items: center; gap: 12px; }
+.consoleTopbarRight { display: flex; align-items: center; gap: 10px; }
+.consoleCollapseBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.consoleCollapseBtn:hover { background: var(--inset); color: var(--ink); }
+
 .consoleNetPill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono-ui), monospace;
   font-size: 12px;
   font-weight: 600;
-  color: var(--c-muted);
-  background: var(--c-surface-2);
-  border: 1px solid var(--c-border);
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 120ms;
 }
+.consoleNetPill:hover { border-color: var(--pink-soft-2); }
+.consoleNetMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 160px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 20;
+}
+.consoleNetOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.consoleNetOption:hover { background: var(--inset); }
+.consoleNetOptionActive { color: var(--pink-text); }
+
 .consoleAddrPill {
   display: inline-flex;
   align-items: center;
@@ -1026,78 +1168,49 @@
   font-family: var(--font-mono-ui), monospace;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--c-ink);
-  background: var(--c-surface-2);
-  border: 1px solid var(--c-border);
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 6px 6px 13px;
   cursor: pointer;
+  transition: border-color 120ms;
 }
+.consoleAddrPill:hover { border-color: var(--danger); color: var(--danger); }
+
+/* Light / Dark / System theme toggle — three-way segmented control. */
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+}
+.themeToggleBtn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.themeToggleBtn:hover { color: var(--ink); }
+.themeToggleActive { background: var(--card); color: var(--pink-text); box-shadow: var(--shadow-sm); }
+
 .consolePage { padding: 28px 32px 60px; max-width: 1080px; }
 .consoleHead { margin-bottom: 24px; }
-.consoleTitle { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; color: var(--c-ink); margin: 0 0 4px; }
-.consoleSub { font-size: 13.5px; color: var(--c-muted); margin: 0; line-height: 1.5; }
-
-/* Dark-mode variants of the shared card/stat/table/form primitives, scoped
-   under .console so the same component markup (statGrid, sectionCard,
-   txTable, field, textInput, chip, btnCta...) picks up dark colors here
-   without a second copy of every component. */
-.console .statCard,
-.console .sectionCard,
-.console .summaryCard,
-.console .keyRow {
-  background: var(--c-surface);
-  border-color: var(--c-border);
-  box-shadow: none;
-}
-.console .statLabel { color: var(--c-muted); }
-.console .statValue { color: var(--c-ink); }
-.console .statValue span { color: var(--c-muted-2); }
-.console .sectionTitle { color: var(--c-ink); }
-.console .sectionSub { color: var(--c-muted); }
-.console .sectionMeta { color: var(--c-muted); }
-.console .txRow { border-top-color: var(--c-border-soft); }
-.console .txTitle { color: var(--c-ink); }
-.console .txTime { color: var(--c-muted-2); }
-.console .txAmount { color: var(--c-ink); }
-.console .txLink { color: var(--c-muted); }
-.console .txLink:hover { color: var(--c-accent); }
-.console .fieldLabel { color: var(--c-muted); }
-.console .textInput {
-  background: var(--c-surface-2);
-  border-color: var(--c-border);
-  color: var(--c-ink);
-}
-.console .textInput::placeholder { color: var(--c-muted-2); }
-.console .textInput:focus { box-shadow: 0 0 0 3.5px var(--c-accent-soft); }
-.console .chip {
-  background: var(--c-surface-2);
-  border-color: var(--c-border);
-  color: var(--c-muted);
-}
-.console .chipActive { background: var(--c-accent-soft); border-color: var(--c-accent); color: var(--c-accent); }
-.console .btnCta { background: var(--c-accent); }
-.console .btnCta:not(:disabled):hover { background: #d85f37; }
-.console .btnGreen { background: var(--c-green-soft); color: var(--c-green); }
-.console .emptyState p { color: var(--c-muted); }
-.console .errorText { color: var(--c-danger); }
-.console .keyBadge { background: var(--c-accent-soft); color: var(--c-accent); }
-.console .keyDot { background: var(--c-green); }
-.console .inputBlock { background: var(--c-surface-2); border-color: var(--c-border); }
-.console .inputLabel { color: var(--c-accent); }
-.console .subLine { color: var(--c-muted); }
-.console .linkRow { background: var(--c-surface-2); border-color: var(--c-border); }
-.console .linkText { color: var(--c-ink); }
-.console .nextSteps a { background: var(--c-surface-2); border-color: var(--c-border); color: var(--c-ink); }
-.console .nextSteps a:hover { background: var(--c-border); }
-.console .summaryRow + .summaryRow { border-top-color: var(--c-border-soft); }
-.console .summaryLabel { color: var(--c-muted); }
-.console .summaryValue { color: var(--c-ink); }
-.console .summaryTotal { border-top-color: var(--c-border) !important; }
-.console .summaryTotal .summaryLabel { color: var(--c-ink); }
+.consoleTitle { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; color: var(--ink); margin: 0 0 4px; }
+.consoleSub { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }
 
 @media (max-width: 860px) {
-  .console { grid-template-columns: 1fr; }
+  .console,
+  .console.collapsed { grid-template-columns: 1fr; }
   .consoleSidebar {
     position: static;
     height: auto;
@@ -1105,10 +1218,13 @@
     align-items: center;
     overflow-x: auto;
     border-right: none;
-    border-bottom: 1px solid var(--c-border-soft);
+    border-bottom: 1px solid var(--line);
+    padding: 14px !important;
   }
   .consoleBrand { padding: 6px 10px; }
+  .consoleBrand span { display: inline !important; }
   .consoleNav { flex-direction: row; }
-  .consoleSidebarFoot { display: none; }
+  .consoleNavLink span { display: inline !important; }
+  .consoleSidebarFoot { display: none !important; }
   .consolePage { padding: 20px 16px 48px; }
 }
