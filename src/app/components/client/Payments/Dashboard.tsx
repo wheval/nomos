@@ -8,6 +8,7 @@ import { useFrontendProvider } from "../provider/providerContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { explorerTxUrl, fmtStrk, shortHex } from "@/utils/receipt";
 import type { Deposit, DepositStatus } from "@/server/store";
+import Payout from "./Payout";
 
 // Deposit as it comes over the wire from GET /api/payments — amountWei is
 // a decimal string there, since JSON has no bigint.
@@ -67,8 +68,7 @@ export default function Dashboard() {
       .catch(() => {});
   }, [address]);
 
-  // Fetch the deposit ledger whenever we have both an address and a secret key.
-  useEffect(() => {
+  function refreshLedger() {
     if (!address || !secretKey) return;
     setLoadError("");
     fetch(`/api/payments?to=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
@@ -81,7 +81,10 @@ export default function Dashboard() {
         setBalanceWei(d.balanceWei ?? "0");
       })
       .catch((e) => setLoadError(e.message ?? "Could not load payments."));
-  }, [address, secretKey]);
+  }
+
+  // Fetch the deposit ledger whenever we have both an address and a secret key.
+  useEffect(refreshLedger, [address, secretKey]);
 
   // Load the currently-saved webhook URL, same auth as the payments list.
   useEffect(() => {
@@ -232,6 +235,10 @@ export default function Dashboard() {
             with it, and comparing to <code>X-Nomos-Signature</code>.
           </p>
         </div>
+      ) : null}
+
+      {secretKey && balanceWei !== null ? (
+        <Payout merchantAddress={address} secretKey={secretKey} balanceWei={balanceWei} onPaidOut={refreshLedger} />
       ) : null}
 
       <div className={styles.sectionCard}>
