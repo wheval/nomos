@@ -4,6 +4,7 @@ import styles from './uni.module.css';
 import Nav from './components/Nav';
 import Footer from './components/Footer';
 import { ApiDemo, WebhookDemo, NoFeeCalculator, WalletsGrid, Faq } from './components/LandingSections';
+import { DottedGlowBackground } from '@/components/ui/dotted-glow-background';
 import Link from 'next/link';
 
 export default function Page() {
@@ -11,31 +12,43 @@ export default function Page() {
     <div className={styles.page}>
       <Nav variant="merchant" />
 
-      <header className={styles.hero}>
-        <span className={styles.heroBadge}>
-          <span className={styles.heroBadgeDot} />
-          Built for the STRK20 Private Sprint
-        </span>
-        <h1 className={styles.heroTitle}>
-          A private payment
-          <br />
-          <span className={styles.heroAccent}>gateway</span>
-        </h1>
-        <p className={styles.heroSub}>
-          Already accept stablecoins? Add privacy without changing your
-          stack — via Payment Links, an embeddable widget, or a direct API
-          integration, all settling through the STRK20 pool so your balance
-          and identity never touch the public chain.
-        </p>
-        <div className={styles.heroCtaRow}>
-          <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
-            Create a Payment Link →
-          </Link>
-          <Link href="/dashboard" className={`${styles.btn} ${styles.btnGhost}`} style={{ textDecoration: 'none' }}>
-            View live dashboard
-          </Link>
+      <header className={styles.hero} style={{ position: 'relative', overflow: 'hidden' }}>
+        <DottedGlowBackground
+          className="pointer-events-none"
+          color="rgba(255,255,255,0.35)"
+          glowColor="rgba(229,107,67,0.9)"
+          gap={14}
+          radius={1.4}
+          opacity={0.7}
+          speedMin={0.3}
+          speedMax={1.1}
+        />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <span className={styles.heroBadge}>
+            <span className={styles.heroBadgeDot} />
+            Built for the STRK20 Private Sprint
+          </span>
+          <h1 className={styles.heroTitle}>
+            A private payment
+            <br />
+            <span className={styles.heroAccent}>gateway</span>
+          </h1>
+          <p className={styles.heroSub}>
+            Already accept stablecoins? Add privacy without changing your
+            stack — via Payment Links, an embeddable widget, or a direct API
+            integration, all settling through the STRK20 pool so your balance
+            and identity never touch the public chain.
+          </p>
+          <div className={styles.heroCtaRow}>
+            <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
+              Create a Payment Link →
+            </Link>
+            <Link href="/dashboard" className={`${styles.btn} ${styles.btnGhost}`} style={{ textDecoration: 'none' }}>
+              View live dashboard
+            </Link>
+          </div>
+          <p className={styles.heroTrust}>No card, no signup — connect a wallet and go.</p>
         </div>
-        <p className={styles.heroTrust}>No card, no signup — connect a wallet and go.</p>
       </header>
 
       <section style={{ margin: '64px 0' }}>

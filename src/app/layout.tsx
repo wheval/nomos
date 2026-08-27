@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 import { Funnel_Display, Funnel_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
+import { cn } from "@/lib/utils";
 
 // Ferro-derived type system: Funnel Display for headings, Funnel Sans for
-// everything else, IBM Plex Mono for hex addresses / hashes / code.
+// everything else, IBM Plex Mono for hex addresses / hashes / code. Tailwind's
+// font-sans utility (used by shadcn/Aceternity components) is wired to
+// Funnel Sans too - see globals.css's --font-sans mapping - so nothing
+// introduces a second, competing typeface (shadcn init defaults to Geist).
 const funnelSans = Funnel_Sans({
   subsets: ['latin'],
   variable: '--font-body',
@@ -35,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${funnelSans.variable} ${funnelDisplay.variable} ${plexMono.variable}`}
+      className={cn(funnelSans.variable, funnelDisplay.variable, plexMono.variable, "font-sans")}
       suppressHydrationWarning
     >
       <body>{children}</body>
