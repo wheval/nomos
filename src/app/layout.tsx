@@ -1,17 +1,23 @@
 import type { Metadata } from 'next'
-import { Inter, Space_Mono } from 'next/font/google'
+import { Funnel_Display, Funnel_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 
-// Clean neutral grotesque for everything (matches the Uniswap reference); a mono
-// only for hex addresses / hashes.
-const inter = Inter({
+// Ferro-derived type system: Funnel Display for headings, Funnel Sans for
+// everything else, IBM Plex Mono for hex addresses / hashes / code.
+const funnelSans = Funnel_Sans({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap',
 })
-const spaceMono = Space_Mono({
+const funnelDisplay = Funnel_Display({
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: ['500', '600'],
+  variable: '--font-display',
+  display: 'swap',
+})
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
   variable: '--font-mono-ui',
   display: 'swap',
 })
@@ -29,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceMono.variable}`}
+      className={`${funnelSans.variable} ${funnelDisplay.variable} ${plexMono.variable}`}
       suppressHydrationWarning
     >
       <body>{children}</body>

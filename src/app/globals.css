@@ -91,14 +91,15 @@ body {
   overflow-x: hidden;
 }
 
-/* Redesigned app is committed to a single light "aurora" theme. */
+/* App is committed to a single dark theme (Ferro-derived) - not a preference,
+   the product's one identity. See uni.module.css's .page/.console tokens. */
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  color: #0b0a14;
-  background: #fbf7fd;
+  color: #ffffff;
+  background: #000000;
 }
 
 a {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "../uni.module.css";
 import { BrandMark } from "./Brand";
-import ThemeToggle from "./ThemeToggle";
 import Switch from "./Switch";
 import { useStoreWallet } from "./Wallet/walletContext";
 import { useFrontendProvider } from "./client/provider/providerContext";
@@ -28,10 +27,7 @@ const SEPOLIA_INDEX = 2;
 const COLLAPSE_STORAGE_KEY = "nomos:sidebar-collapsed";
 
 // The merchant console shell: collapsible sidebar + topbar, wrapping every
-// /dashboard* page and /create. This is the actual product surface — a
-// business's day-to-day tool, not a marketing page — so it gets its own
-// theme (light/dark/system, see uni.module.css's .console block) instead
-// of the public site's fixed light/hero treatment.
+// /dashboard* page and /create.
 export default function ConsoleShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isConnected = useStoreWallet((state) => state.isConnected);
@@ -110,7 +106,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
             </button>
 
             <span className={styles.netSwitchWrap}>
-              <span className={`${styles.netSwitchLabel} ${!isLive ? styles.netSwitchLabelLive : ""}`} style={!isLive ? { color: "#d97706" } : undefined}>
+              <span className={`${styles.netSwitchLabel} ${!isLive ? styles.netSwitchLabelTest : ""}`}>
                 Test
               </span>
               <Switch
@@ -123,7 +119,6 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
           </div>
 
           <div className={styles.consoleTopbarRight}>
-            <ThemeToggle />
             {isConnected && address ? (
               <button className={styles.consoleAddrPill} onClick={() => setConnected(false)} title="Disconnect">
                 <span className={styles.netDot} style={{ background: "var(--green)" }} />

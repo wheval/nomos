@@ -1,35 +1,42 @@
-/* Faithful Uniswap-style light theme for the WalletAccountV6 STRK20 panel:
-   clean white, scattered blurred token-orbs, flat card, soft-pink pills. */
+/* Ferro-derived design system: dark-native (not a theme — the identity),
+   flat (no shadows), Funnel Display/Funnel Sans/IBM Plex Mono type, a
+   restrained neutral surface stack (canvas/paper/cloud) with Nomos's own
+   terracotta-orange kept as the one accent color instead of Ferro's lime —
+   var names kept as --pink/--pink-* for continuity with every consumer. */
 
 .page {
-  --ink: #0f1115;
-  --ink-soft: #3d4149;
-  --muted: #676c76;
-  --muted-2: #9298a3;
-  --bg: #ffffff;
-  --card: #ffffff;
-  --line: #e4e6eb;
-  --line-soft: #eef0f3;
-  --inset: #f6f7f9;
-  --inset-2: #eef0f3;
-  /* Lightened terracotta (adapted from #d75821) - var names kept for continuity. */
+  --ink: #ffffff;
+  --ink-soft: #6b7280;
+  --muted: #6b7280;
+  --muted-2: #6b7280;
+  --bg: #000000;
+  --card: #161616;
+  --line: #2a2a2a;
+  --line-soft: #2a2a2a;
+  --inset: #1a1a1a;
+  --inset-2: #1a1a1a;
   --pink: #e56b43;
-  --pink-hover: #d85f37;
-  --pink-soft: #fdefe9;
-  --pink-soft-2: #f9ddd1;
-  --pink-text: #b0491f;
-  --green: #059669;
-  --green-soft: #ecfdf5;
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
+  --pink-hover: #f07c53;
+  --pink-soft: rgba(229, 107, 67, 0.14);
+  --pink-soft-2: rgba(229, 107, 67, 0.24);
+  --pink-text: #f0916e;
+  --green: #34d399;
+  --green-soft: rgba(52, 211, 153, 0.12);
+  --danger: #c4b5fd;
+  --danger-soft: rgba(196, 181, 253, 0.14);
 
-  --shadow-sm: 0 1px 2px rgba(15, 17, 21, 0.05), 0 1px 1px rgba(15, 17, 21, 0.03);
-  --shadow-md: 0 6px 16px -4px rgba(15, 17, 21, 0.10), 0 2px 6px -2px rgba(15, 17, 21, 0.05);
-  --shadow-lg: 0 20px 48px -12px rgba(15, 17, 21, 0.18), 0 6px 16px -6px rgba(15, 17, 21, 0.08);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
 
   --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 200ms;
+  --dur-base: 350ms;
 
   position: relative;
   min-height: 100vh;
@@ -91,10 +98,11 @@
   padding: 0 20px;
 }
 .heroTitle {
+  font-family: var(--font-display), var(--font-body), sans-serif;
   font-weight: 600;
   font-size: clamp(40px, 7vw, 76px);
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
   margin: 0;
   color: var(--ink);
   text-wrap: balance;
@@ -177,8 +185,8 @@
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
 }
-.receiptOk { border-color: #bbe8d2; background: var(--green-soft); }
-.receiptError { border-color: #f4c6c6; background: var(--danger-soft); }
+.receiptOk { border-color: rgba(52, 211, 153, 0.35); background: var(--green-soft); }
+.receiptError { border-color: rgba(196, 181, 253, 0.35); background: var(--danger-soft); }
 .receiptPending { border-color: var(--pink-soft-2); background: var(--pink-soft); }
 .receiptHead {
   display: flex;
@@ -216,7 +224,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 7px 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 13px;
 }
 .receiptRow:first-child { border-top: none; }
@@ -238,8 +246,8 @@
   margin: 12px 0 0;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.04);
-  color: #24242c;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-soft);
   font-family: var(--font-mono-ui), monospace;
   font-size: 12px;
   line-height: 1.55;
@@ -256,8 +264,8 @@
   border: 1px solid var(--line);
   background: var(--inset);
 }
-.verdictPass { border-color: #bfe9d5; background: var(--green-soft); }
-.verdictFail { border-color: #f4c9cb; background: #fdecec; }
+.verdictPass { border-color: rgba(52, 211, 153, 0.35); background: var(--green-soft); }
+.verdictFail { border-color: rgba(196, 181, 253, 0.35); background: var(--danger-soft); }
 .verdictHead {
   display: flex;
   align-items: center;
@@ -410,7 +418,7 @@
 }
 .footer a { color: var(--pink-text); text-decoration: none; font-weight: 500; }
 .footer a:hover { text-decoration: underline; }
-.footerDot { color: #d8d8de; }
+.footerDot { color: var(--line); }
 
 /* --- Tabbed action interface (Umbra-style) ------------------------------ */
 .panel { width: min(520px, calc(100vw - 32px)); margin: 0 auto; }
@@ -627,10 +635,9 @@
 .widgetFrame {
   width: min(480px, 100%);
   height: min(720px, 90vh);
-  border: none;
+  border: 1px solid var(--line);
   border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 24px 70px -20px rgba(13, 14, 14, 0.5);
+  background: var(--bg);
 }
 .widgetClose {
   position: absolute;
@@ -639,12 +646,11 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: none;
-  background: #fff;
-  color: #0d0e0e;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
   font-size: 16px;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(13, 14, 14, 0.25);
 }
 
 /* --- Homepage wallet-toolkit band --------------------------------------- */
@@ -956,9 +962,10 @@
   margin: 0 0 12px;
 }
 .sectionHeading {
+  font-family: var(--font-display), var(--font-body), sans-serif;
   text-align: center;
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0 0 16px;
   color: var(--ink);
@@ -1053,38 +1060,37 @@
    hover states, and every other shared piece theme-adapt automatically
    instead of needing a second override for each one.
 
-   Three modes: light (default, same values as .page), dark (explicit
-   [data-theme="dark"] or system preference when unset), and an explicit
-   [data-theme="light"] to force light even under a dark system setting.
-   Toggled by ThemeToggle.tsx, persisted to localStorage, applied as a
-   data-theme attribute on this root element.
+   Dark-native, same tokens as .page — Ferro has no light mode; it's the
+   product's one identity, not a preference. (The light/dark/system
+   toggle this used to have was removed for the same reason.)
    ======================================================================== */
 .console {
-  --ink: #0f1115;
-  --ink-soft: #3d4149;
-  --muted: #676c76;
-  --muted-2: #9298a3;
-  --bg: #f7f7f8;
-  --card: #ffffff;
-  --line: #e4e6eb;
-  --line-soft: #eef0f3;
-  --inset: #f0f1f3;
-  --inset-2: #e7e8ec;
+  --ink: #ffffff;
+  --ink-soft: #6b7280;
+  --muted: #6b7280;
+  --muted-2: #6b7280;
+  --bg: #000000;
+  --card: #161616;
+  --line: #2a2a2a;
+  --line-soft: #2a2a2a;
+  --inset: #1a1a1a;
+  --inset-2: #1a1a1a;
   --pink: #e56b43;
-  --pink-hover: #d85f37;
-  --pink-soft: #fdefe9;
-  --pink-soft-2: #f9ddd1;
-  --pink-text: #b0491f;
-  --green: #059669;
-  --green-soft: #ecfdf5;
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
-  --shadow-sm: 0 1px 2px rgba(15, 17, 21, 0.05), 0 1px 1px rgba(15, 17, 21, 0.03);
-  --shadow-md: 0 6px 16px -4px rgba(15, 17, 21, 0.10), 0 2px 6px -2px rgba(15, 17, 21, 0.05);
-  --shadow-lg: 0 20px 48px -12px rgba(15, 17, 21, 0.18), 0 6px 16px -6px rgba(15, 17, 21, 0.08);
+  --pink-hover: #f07c53;
+  --pink-soft: rgba(229, 107, 67, 0.14);
+  --pink-soft-2: rgba(229, 107, 67, 0.24);
+  --pink-text: #f0916e;
+  --green: #34d399;
+  --green-soft: rgba(52, 211, 153, 0.12);
+  --danger: #c4b5fd;
+  --danger-soft: rgba(196, 181, 253, 0.14);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
   --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
   --sidebar-w: 240px;
 
   min-height: 100vh;
@@ -1094,59 +1100,6 @@
   grid-template-columns: var(--sidebar-w) 1fr;
   font-family: var(--font-body), system-ui, sans-serif;
   transition: grid-template-columns 180ms ease;
-}
-
-/* Dark values — applied when explicitly toggled, or via system preference
-   when no explicit choice has been made (no [data-theme] attribute set). */
-.console[data-theme="dark"] {
-  --ink: #eef0f4;
-  --ink-soft: #c7ccd6;
-  --muted: #8b90a0;
-  --muted-2: #5c6270;
-  --bg: #0b0e15;
-  --card: #141822;
-  --line: #262c3b;
-  --line-soft: #1b2029;
-  --inset: #171c26;
-  --inset-2: #1f2531;
-  --pink: #e56b43;
-  --pink-hover: #f07c53;
-  --pink-soft: rgba(229, 107, 67, 0.14);
-  --pink-soft-2: rgba(229, 107, 67, 0.24);
-  --pink-text: #f0916e;
-  --green: #34d399;
-  --green-soft: rgba(52, 211, 153, 0.12);
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.12);
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: 0 20px 48px -12px rgba(2, 4, 8, 0.55);
-}
-@media (prefers-color-scheme: dark) {
-  .console:not([data-theme="light"]):not([data-theme="dark"]) {
-    --ink: #eef0f4;
-    --ink-soft: #c7ccd6;
-    --muted: #8b90a0;
-    --muted-2: #5c6270;
-    --bg: #0b0e15;
-    --card: #141822;
-    --line: #262c3b;
-    --line-soft: #1b2029;
-    --inset: #171c26;
-    --inset-2: #1f2531;
-    --pink: #e56b43;
-    --pink-hover: #f07c53;
-    --pink-soft: rgba(229, 107, 67, 0.14);
-    --pink-soft-2: rgba(229, 107, 67, 0.24);
-    --pink-text: #f0916e;
-    --green: #34d399;
-    --green-soft: rgba(52, 211, 153, 0.12);
-    --danger: #f87171;
-    --danger-soft: rgba(248, 113, 113, 0.12);
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: 0 20px 48px -12px rgba(2, 4, 8, 0.55);
-  }
 }
 
 .console.collapsed { --sidebar-w: 68px; }
@@ -1293,7 +1246,6 @@
   height: 18px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transform: translateX(0);
   transition: transform 160ms ease;
 }
@@ -1317,6 +1269,7 @@
   color: var(--muted);
 }
 .netSwitchLabelLive { color: var(--green); }
+.netSwitchLabelTest { color: #fbbf6a; }
 
 /* Full-width test-mode banner — appears above the sidebar/topbar grid
    entirely, matching the reference (Blockradar/Paystack both put it at
@@ -1332,38 +1285,20 @@
   font-size: 13px;
   font-weight: 500;
   text-align: center;
-  background: #fef3c7;
-  color: #92400e;
-  border-bottom: 1px solid #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf6a;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
 }
 .testBanner strong { font-weight: 700; }
 .testBannerAction {
   font-weight: 700;
-  color: #92400e;
+  color: #fbbf6a;
   text-decoration: underline;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
   font-size: 13px;
-}
-.console[data-theme="dark"] .testBanner,
-:root:not([data-theme="light"]) .console:not([data-theme="light"]) .testBanner {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf6a;
-  border-bottom-color: rgba(245, 158, 11, 0.3);
-}
-.console[data-theme="dark"] .testBannerAction,
-:root:not([data-theme="light"]) .console:not([data-theme="light"]) .testBannerAction {
-  color: #fbbf6a;
-}
-@media (prefers-color-scheme: dark) {
-  .console:not([data-theme="light"]) .testBanner {
-    background: rgba(245, 158, 11, 0.14);
-    color: #fbbf6a;
-    border-bottom-color: rgba(245, 158, 11, 0.3);
-  }
-  .console:not([data-theme="light"]) .testBannerAction { color: #fbbf6a; }
 }
 
 /* Settings: label-left / control-right rows, matching the API
@@ -1433,34 +1368,16 @@
 }
 .consoleAddrPill:hover { border-color: var(--danger); color: var(--danger); }
 
-/* Light / Dark / System theme toggle — three-way segmented control. */
-.themeToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px;
-}
-.themeToggleBtn {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 120ms, color 120ms;
-}
-.themeToggleBtn:hover { color: var(--ink); }
-.themeToggleActive { background: var(--card); color: var(--pink-text); box-shadow: var(--shadow-sm); }
-
 .consolePage { padding: 28px 32px 60px; max-width: 1080px; }
 .consoleHead { margin-bottom: 24px; }
-.consoleTitle { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; color: var(--ink); margin: 0 0 4px; }
+.consoleTitle {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
 .consoleSub { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }
 
 @media (max-width: 860px) {
