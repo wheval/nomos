@@ -33,6 +33,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# npmrc holds a GitHub Packages token reference — keep local, never commit
+.npmrc
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

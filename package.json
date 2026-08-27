@@ -16,6 +16,7 @@
     "@base-ui/react": "^1.7.0",
     "@starknet-io/get-starknet-discovery": "6.0.2",
     "@starknet-io/get-starknet-wallet-standard": "6.0.2",
+    "@starkware-libs/starknet-privacy-sdk": "0.14.3-rc.5",
     "@supabase/supabase-js": "^2.112.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

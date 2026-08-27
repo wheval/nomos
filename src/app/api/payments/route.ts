@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       txHash,
       claimedAmountWei,
       tokenAddress,
-      discovery: getNoteDiscoveryClient(),
+      discovery: getNoteDiscoveryClient(networkIndex),
     });
   }
 

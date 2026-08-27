@@ -1,29 +1,62 @@
-// Executes a confirmed payout on-chain. Both modes are STRK20 pool
-// actions (withdraw = public unshield, transfer = stays private) and need
-// the @starkware-libs/starknet-privacy-sdk's proving flow — unlike the
-// ordinary invokes in operatingWallet.ts. Dependency-injected via this
-// interface, same reasoning as src/utils/verifyTx.ts's NoteDiscoveryClient:
-// lets the payout route's business logic (auth, balance check, ledger
-// debit, status tracking) be built and tested today without a resolved
-// Sepolia proving-service URL. See docs/ARCHITECTURE.md.
+// Executes a confirmed payout on-chain. Both modes are STRK20 pool actions
+// (withdraw = public unshield, transfer = stays private) driven headlessly
+// through @starkware-libs/starknet-privacy-sdk — screening is deposit-only
+// (see docs/ARCHITECTURE.md), so neither mode is blocked by FPI.
+//
+// Uses the SDK's raw builder (not SimplePrivateTransfersImpl) specifically
+// to pass provingBlockId explicitly — the SDK's own proving-config docs say
+// to always pass it (currentBlock - 10), since omitting it "works most of
+// the time" but causes intermittent "Note not mature" failures.
+import { myFrontendProviders } from "@/utils/constants";
+import { getOperatingAccount } from "./operatingWallet";
+import { getPrivacyClient, provingBlockId, submitPrivateAction } from "./privacyClient";
+
 export interface PayoutExecutor {
   executeWithdraw(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
   executeTransfer(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
 }
 
+// Sepolia only for now — the operating wallet isn't deployed on Mainnet yet
+// (see docs/ARCHITECTURE.md "Sequencing"). Mainnet cutover needs this
+// parameterized the same way payments/route.ts threads networkIndex today.
+const NETWORK_INDEX = 2;
+
 export function getPayoutExecutor(): PayoutExecutor {
+  const provider = myFrontendProviders[NETWORK_INDEX];
+  if (!provider) {
+    throw new Error(`No RPC provider configured for network index ${NETWORK_INDEX}.`);
+  }
+
+  async function run(
+    mode: "withdraw" | "transfer",
+    params: { amountWei: bigint; token: string; destination: string }
+  ): Promise<{ txHash: string }> {
+    const account = getOperatingAccount(provider);
+    const transfers = getPrivacyClient(provider);
+    const blockId = await provingBlockId(provider);
+
+    const tokenKey = BigInt(params.token);
+    const recipientKey = BigInt(params.destination);
+
+    const result = await transfers
+      .build({
+        autoDiscover: { notes: "refresh", channels: "refresh" },
+        autoSelectNotes: "naive",
+        provingBlockId: blockId,
+      })
+      .with(tokenKey, (t) =>
+        mode === "withdraw"
+          ? t.withdraw({ recipient: recipientKey, amount: params.amountWei })
+          : t.transfer({ recipient: recipientKey, amount: params.amountWei })
+      )
+      .surplusTo(BigInt(account.address))
+      .execute();
+
+    return submitPrivateAction(account, result);
+  }
+
   return {
-    async executeWithdraw() {
-      throw new Error(
-        "Payout execution needs the privacy SDK wired with a resolved proving-service URL " +
-          "(PROVING_SERVICE_URL not yet configured). See docs/ARCHITECTURE.md."
-      );
-    },
-    async executeTransfer() {
-      throw new Error(
-        "Payout execution needs the privacy SDK wired with a resolved proving-service URL " +
-          "(PROVING_SERVICE_URL not yet configured). See docs/ARCHITECTURE.md."
-      );
-    },
+    executeWithdraw: (params) => run("withdraw", params),
+    executeTransfer: (params) => run("transfer", params),
   };
 }

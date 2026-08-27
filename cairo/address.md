@@ -15,3 +15,9 @@ declare tx : 0x05c0501c0ab8e599fd6e622f5c70ed5e45864f7611331470a569e778cc32fe6f
 deploy tx : 0x01c3949c97d9002c109cbfe2ab60634a8a68e57cffa572de00d16097544911dc
 
 Not yet deployed on mainnet — Sepolia only, per the Sepolia-first build sequence in docs/ARCHITECTURE.md.
+
+Registered on the STRK20 privacy pool (Sepolia) — 2026-08-27:
+
+register tx : 0x399a9894860e73ba046a7f94ac40a13101153ea4a12d2878df3805efd1e4677
+
+pool address (Sepolia) : 0x0254a6b2997ef52e9f830ce1f543f6b29768295e8d17e2267d672c552cfe0d91
