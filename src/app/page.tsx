@@ -4,6 +4,7 @@ import styles from './uni.module.css';
 import Nav from './components/Nav';
 import Footer from './components/Footer';
 import WalletAccountV6Tag from './components/client/WalletHandle/WalletAccountV6Tag';
+import { ApiDemo, WebhookDemo, NoFeeCalculator, WalletsGrid, Faq } from './components/LandingSections';
 import Link from 'next/link';
 
 export default function Page() {
@@ -85,6 +86,12 @@ export default function Page() {
           </div>
         </div>
       </section>
+
+      <ApiDemo />
+      <WebhookDemo />
+      <WalletsGrid />
+      <NoFeeCalculator />
+      <Faq />
 
       <section className={styles.closingCta} style={{ margin: '64px auto 0' }}>
         <h2 className={styles.sectionHeading} style={{ marginBottom: 12 }}>Ready to accept private payments?</h2>
