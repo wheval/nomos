@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import styles from "../uni.module.css";
+import CodeBlock from "./CodeBlock";
 
 // Ferro-structured product-demo sections for the landing page. Every value
 // shown here is real - actual API routes, actual webhook payload shape
@@ -123,11 +124,11 @@ export function ApiDemo() {
         <div className={styles.demoCodeGrid}>
           <div className={styles.demoCodeCol}>
             <div className={styles.demoCodeLabel}>cURL</div>
-            <pre className={styles.demoCode}>{current.curl}</pre>
+            <CodeBlock lang="bash" code={current.curl} />
           </div>
           <div className={styles.demoCodeCol}>
             <div className={styles.demoCodeLabel}>Response</div>
-            <pre className={styles.demoCode}>{current.response}</pre>
+            <CodeBlock lang="json" code={current.response} />
           </div>
         </div>
       </div>
@@ -212,7 +213,7 @@ X-Nomos-Signature: sha256=<hmac>
             : "Customer paid from an ordinary wallet - delivered once the deposit has been shielded into your balance."}
         </div>
         <div className={styles.webhookCode}>
-          <pre className={styles.demoCode}>{payloads[flow]}</pre>
+          <CodeBlock lang="http" code={payloads[flow]} />
         </div>
       </div>
     </section>

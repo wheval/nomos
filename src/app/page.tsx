@@ -22,10 +22,10 @@ export default function Page() {
           <span className={styles.heroAccent}>gateway</span>
         </h1>
         <p className={styles.heroSub}>
-          Payment Links, invoices, and an embeddable widget that settle into
-          the STRK20 privacy pool — whether your customer&apos;s wallet is
-          shielded or ordinary, your balance and identity never touch the
-          public chain.
+          Already accept stablecoins? Add privacy without changing your
+          stack — via Payment Links, an embeddable widget, or a direct API
+          integration, all settling through the STRK20 pool so your balance
+          and identity never touch the public chain.
         </p>
         <div className={styles.heroCtaRow}>
           <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
@@ -40,7 +40,7 @@ export default function Page() {
 
       <section style={{ margin: '64px 0' }}>
         <div className={styles.sectionEyebrow}>How it works</div>
-        <h2 className={styles.sectionHeading}>Three ways to get paid</h2>
+        <h2 className={styles.sectionHeading}>Four ways to get paid</h2>
         <div className={styles.howItWorks}>
           <div className={styles.howStep}>
             <div className={styles.howStepNum}><LinkIcon /></div>
@@ -56,6 +56,11 @@ export default function Page() {
             <div className={styles.howStepNum}><WidgetIcon /></div>
             <h3>Embedded widget</h3>
             <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}><ApiIcon /></div>
+            <h3>Direct API</h3>
+            <p>Already have a stablecoin checkout? Record payments, check balances, and trigger payouts straight from your own backend — no UI required.</p>
           </div>
         </div>
       </section>
@@ -94,7 +99,7 @@ export default function Page() {
 
       <section className={styles.closingCta} style={{ margin: '64px auto 0' }}>
         <h2 className={styles.sectionHeading} style={{ marginBottom: 12 }}>Ready to accept private payments?</h2>
-        <p>Connect the wallet you want paid into and generate your first Payment Link in under a minute.</p>
+        <p>Generate your first Payment Link in under a minute, or skip the UI and wire up the API directly.</p>
         <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
           Create a Payment Link →
         </Link>
@@ -134,6 +139,16 @@ function WidgetIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 5l-2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function ApiIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="3" y="13" width="18" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="7" cy="7.5" r="1" fill="currentColor" />
+      <circle cx="7" cy="16.5" r="1" fill="currentColor" />
     </svg>
   );
 }

@@ -24,6 +24,8 @@
   --green-soft: rgba(52, 211, 153, 0.12);
   --danger: #c4b5fd;
   --danger-soft: rgba(196, 181, 253, 0.14);
+  /* Narrowly scoped to code-token highlighting (numbers) - not a general UI accent. */
+  --accent-cyan: #67e8f9;
 
   --shadow-sm: none;
   --shadow-md: none;
@@ -896,11 +898,11 @@
 
 /* --- Landing page: sections ------------------------------------------------*/
 .howItWorks {
-  max-width: 880px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 20px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 .howStep {
@@ -923,7 +925,10 @@
 }
 .howStep h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.005em; }
 .howStep p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0; }
-@media (max-width: 720px) {
+@media (max-width: 860px) {
+  .howItWorks { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
   .howItWorks { grid-template-columns: 1fr; }
 }
 
@@ -958,7 +963,7 @@
 
 /* --- Landing: dual-flow "why Nomos" cards -------------------------------- */
 .flowGrid {
-  max-width: 860px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 20px;
   display: grid;
@@ -1093,8 +1098,17 @@
   overflow-x: auto;
   margin: 0;
 }
-.demoCode .k { color: var(--pink-text); }
-.demoCode .s { color: var(--green); }
+/* Code-token colors - syntax highlighting is a functional convention (every
+   editor does it), not decoration, so a small distinct palette here is fine
+   even though the rest of the UI keeps to one accent. */
+.tokKey { color: var(--pink-text); }
+.tokString { color: var(--green); }
+.tokNum { color: var(--accent-cyan); }
+.tokBool { color: var(--danger); }
+.tokPunct { color: var(--muted); }
+.tokFlag { color: var(--pink-text); }
+.tokKeyword { color: var(--pink); font-weight: 700; }
+.tokUrl { color: var(--ink); }
 @media (max-width: 720px) {
   .demoCodeGrid { grid-template-columns: 1fr; }
   .demoCodeCol + .demoCodeCol { border-left: none; border-top: 1px solid var(--line); }
@@ -1150,7 +1164,7 @@
 /* Supported-wallets grid - real integrations only (Ready/Argent/Braavos),
    not Ferro's multi-chain grid (Nomos is Starknet-only). */
 .walletsGrid {
-  max-width: 640px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -1173,7 +1187,7 @@
 .walletTile img { flex: none; }
 
 /* FAQ accordion */
-.faqList { max-width: 780px; margin: 0 auto; padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+.faqList { max-width: 1040px; margin: 0 auto; padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
 .faqItem { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card); overflow: hidden; }
 .faqQuestion {
   width: 100%;
@@ -1224,15 +1238,17 @@
 /* --- Landing: closing CTA -------------------------------------------------*/
 .closingCta {
   text-align: center;
-  max-width: 480px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 0 20px;
 }
+.closingCta h2 { max-width: 480px; margin-left: auto; margin-right: auto; }
 .closingCta p {
   color: var(--muted);
   font-size: 14.5px;
   line-height: 1.55;
-  margin: 0 0 20px;
+  max-width: 480px;
+  margin: 0 auto 20px;
 }
 
 /* ========================================================================
@@ -1267,6 +1283,7 @@
   --green-soft: rgba(52, 211, 153, 0.12);
   --danger: #c4b5fd;
   --danger-soft: rgba(196, 181, 253, 0.14);
+  --accent-cyan: #67e8f9;
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
