@@ -3,7 +3,6 @@
 import styles from './uni.module.css';
 import Nav from './components/Nav';
 import Footer from './components/Footer';
-import WalletAccountV6Tag from './components/client/WalletHandle/WalletAccountV6Tag';
 import { ApiDemo, WebhookDemo, NoFeeCalculator, WalletsGrid, Faq } from './components/LandingSections';
 import Link from 'next/link';
 
@@ -101,26 +100,9 @@ export default function Page() {
         </Link>
       </section>
 
-      <section className={styles.toolkitBand} style={{ marginTop: 64 }}>
-        <div className={styles.toolkitInner}>
-          <div className={styles.toolkitLabel}>
-            <span className={styles.brandBadge}>Wallet toolkit</span>
-            <p>
-              What Payment Links run on underneath — shield, send, unshield,
-              echo, and read balances directly against the STRK20 pool. Not
-              part of the product flow; here for anyone checking the
-              integration itself.
-            </p>
-          </div>
-          <WalletAccountV6Tag />
-        </div>
-      </section>
-
       <Footer
         extra={
-          <a href="https://github.com/PhilippeR26/Starknet-WalletAccount" target="_blank" rel="noreferrer">
-            Wallet toolkit source
-          </a>
+          <Link href="/integration">Wallet toolkit</Link>
         }
       />
     </div>

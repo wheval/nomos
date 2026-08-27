@@ -653,30 +653,6 @@
   cursor: pointer;
 }
 
-/* --- Homepage wallet-toolkit band --------------------------------------- */
-.toolkitBand {
-  background: var(--inset);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 44px 20px 64px;
-  margin-top: 64px;
-}
-.toolkitInner {
-  max-width: 640px;
-  margin: 0 auto;
-}
-.toolkitLabel {
-  text-align: center;
-  margin-bottom: 28px;
-}
-.toolkitLabel p {
-  margin: 12px auto 0;
-  max-width: 440px;
-  color: var(--muted);
-  font-size: 13.5px;
-  line-height: 1.55;
-}
-
 /* --- /pay success state --------------------------------------------------*/
 .successCard {
   text-align: center;
@@ -1194,7 +1170,7 @@
   font-weight: 600;
   color: var(--ink);
 }
-.walletTile svg { color: var(--pink); flex: none; }
+.walletTile img { flex: none; }
 
 /* FAQ accordion */
 .faqList { max-width: 780px; margin: 0 auto; padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -1226,8 +1202,24 @@
   color: var(--muted);
   font-size: 16px;
   line-height: 1;
+  transition: transform var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
+.faqToggleOpen {
+  transform: rotate(45deg);
+  background: var(--pink-soft);
+  color: var(--pink-text);
+}
+.faqAnswerWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-standard);
+}
+.faqAnswerOpen { grid-template-rows: 1fr; }
+.faqAnswerInner { overflow: hidden; }
 .faqAnswer { padding: 0 20px 18px; font-size: 13.5px; color: var(--muted); line-height: 1.6; max-width: 640px; }
+@media (prefers-reduced-motion: reduce) {
+  .faqToggle, .faqAnswerWrap { transition: none; }
+}
 
 /* --- Landing: closing CTA -------------------------------------------------*/
 .closingCta {

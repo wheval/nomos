@@ -209,7 +209,7 @@ export default function Checkout() {
           </div>
           <p className={styles.sectionSub} style={{ margin: "10px 0 0", fontSize: 12.5 }}>
             {flow === "A"
-              ? "Needs a shielded wallet (Ready, or Argent/Braavos with Private Balances)."
+              ? "Needs a shielded wallet (Ready, or Braavos with Private Balances)."
               : "Works with any Starknet wallet — which business you paid still stays private."}
           </p>
         </div>

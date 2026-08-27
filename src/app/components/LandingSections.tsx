@@ -293,18 +293,16 @@ export function NoFeeCalculator() {
   );
 }
 
-function WalletMarkIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
-      <path d="M3 10h18" stroke="currentColor" strokeWidth="2" />
-      <circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" />
-    </svg>
-  );
-}
+// Official icons, fetched directly from each wallet's own site (not
+// reproduced from memory). Ready and Argent X are the same product - Ready
+// is Argent's own rebrand of its Starknet wallet, confirmed by ready.co and
+// argent.xyz serving the identical mark - so this is one tile, not two.
+const WALLET_LOGOS: { name: string; src: string }[] = [
+  { name: "Ready (Argent X)", src: "/wallets/ready-argent.png" },
+  { name: "Braavos", src: "/wallets/braavos.png" },
+];
 
 export function WalletsGrid() {
-  const WALLETS = ["Ready", "Argent X", "Braavos"];
   return (
     <section className={styles.demoSection}>
       <div className={styles.demoHead} style={{ justifyContent: "center", textAlign: "center" }}>
@@ -313,10 +311,11 @@ export function WalletsGrid() {
         </h2>
       </div>
       <div className={styles.walletsGrid}>
-        {WALLETS.map((w) => (
-          <div key={w} className={styles.walletTile}>
-            <WalletMarkIcon />
-            {w}
+        {WALLET_LOGOS.map((w) => (
+          <div key={w.name} className={styles.walletTile}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={w.src} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+            {w.name}
           </div>
         ))}
       </div>
@@ -376,9 +375,13 @@ export function Faq() {
                 aria-expanded={open}
               >
                 {item.q}
-                <span className={styles.faqToggle}>{open ? "−" : "+"}</span>
+                <span className={`${styles.faqToggle} ${open ? styles.faqToggleOpen : ""}`}>+</span>
               </button>
-              {open ? <p className={styles.faqAnswer}>{item.a}</p> : null}
+              <div className={`${styles.faqAnswerWrap} ${open ? styles.faqAnswerOpen : ""}`}>
+                <div className={styles.faqAnswerInner}>
+                  <p className={styles.faqAnswer}>{item.a}</p>
+                </div>
+              </div>
             </div>
           );
         })}
