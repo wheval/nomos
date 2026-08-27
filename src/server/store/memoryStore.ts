@@ -2,6 +2,7 @@
 // unset or "memory") — no external state, resets every process start.
 import crypto from "crypto";
 import {
+  type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
@@ -9,6 +10,7 @@ import {
   type LedgerEntry,
   type LedgerKind,
   type MerchantKey,
+  type PaymentLink,
   type Payout,
   type PayoutStatus,
   type RecordDepositInput,
@@ -30,6 +32,7 @@ export class MemoryStore implements Store {
   private ledgerEntries: LedgerEntry[] = [];
   private balances = new Map<string, bigint>();
   private payouts = new Map<string, Payout>();
+  private paymentLinks = new Map<string, PaymentLink>();
 
   private ensureMerchant(address: string) {
     const key = address.toLowerCase();
@@ -185,6 +188,41 @@ export class MemoryStore implements Store {
     return [...this.payouts.values()]
       .filter((p) => p.merchantAddress.toLowerCase() === normalized)
       .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
+    this.ensureMerchant(input.merchantAddress);
+    const link: PaymentLink = {
+      id: crypto.randomUUID(),
+      merchantAddress: input.merchantAddress,
+      amountWei: input.amountWei,
+      token: input.token,
+      note: input.note,
+      ref: input.ref ?? randomKey("ref").slice(0, 10).toUpperCase(),
+      expiresAt: input.expiresAt,
+      revoked: false,
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    this.paymentLinks.set(link.id, link);
+    return link;
+  }
+
+  async getPaymentLink(id: string): Promise<PaymentLink | null> {
+    return this.paymentLinks.get(id) ?? null;
+  }
+
+  async listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]> {
+    const normalized = merchantAddress.toLowerCase();
+    return [...this.paymentLinks.values()]
+      .filter((l) => l.merchantAddress.toLowerCase() === normalized)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  async revokePaymentLink(id: string, merchantAddress: string): Promise<boolean> {
+    const link = this.paymentLinks.get(id);
+    if (!link || link.merchantAddress.toLowerCase() !== merchantAddress.toLowerCase()) return false;
+    link.revoked = true;
+    return true;
   }
 
   async issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {

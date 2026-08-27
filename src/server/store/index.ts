@@ -31,6 +31,7 @@ export function getStore(): Store {
 }
 
 export type {
+  CreatePaymentLinkInput,
   CreatePayoutInput,
   Deposit,
   DepositStatus,
@@ -39,6 +40,7 @@ export type {
   LedgerEntry,
   LedgerKind,
   MerchantKey,
+  PaymentLink,
   Payout,
   PayoutMode,
   PayoutStatus,

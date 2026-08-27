@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex, note, ref } = body ?? {};
+  const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex, note, ref, linkId } = body ?? {};
   if (
     (flow !== "A" && flow !== "B") ||
     typeof merchantAddress !== "string" ||
@@ -40,16 +40,51 @@ export async function POST(request: NextRequest) {
     );
   }
   // Links created before multi-token support carry no token — treat as STRK.
-  const token = tokenRaw === undefined ? "STRK" : tokenRaw;
-  if (!isTokenSymbol(token)) {
+  const tokenClaim = tokenRaw === undefined ? "STRK" : tokenRaw;
+  if (!isTokenSymbol(tokenClaim)) {
     return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
   }
 
-  let normalizedMerchant: string;
+  let normalizedMerchantClaim: string;
   try {
-    normalizedMerchant = validateAndParseAddress(merchantAddress);
+    normalizedMerchantClaim = validateAndParseAddress(merchantAddress);
   } catch {
     return NextResponse.json({ error: "merchantAddress is not a valid Starknet address." }, { status: 400 });
+  }
+
+  const store = getStore();
+
+  // A persisted Payment Link is the authoritative source for who gets
+  // credited — the client's own merchantAddress/token/note/ref claims are
+  // only trusted when there's no link to check them against (a raw,
+  // pre-persistence link, or the embeddable widget's direct-address mode).
+  // Without this, a client could POST any merchantAddress it wants and have
+  // a real on-chain payment credited to the wrong account.
+  let normalizedMerchant = normalizedMerchantClaim;
+  let token = tokenClaim;
+  let linkNote: string | undefined = typeof note === "string" ? note : undefined;
+  let linkRef: string | undefined = typeof ref === "string" ? ref : undefined;
+  if (linkId !== undefined) {
+    if (typeof linkId !== "string") {
+      return NextResponse.json({ error: "linkId must be a string." }, { status: 400 });
+    }
+    const link = await store.getPaymentLink(linkId);
+    if (!link) {
+      return NextResponse.json({ error: "Payment link not found." }, { status: 404 });
+    }
+    if (link.revoked) {
+      return NextResponse.json({ error: "This payment link has been revoked." }, { status: 410 });
+    }
+    if (link.expiresAt !== undefined && Date.now() / 1000 > link.expiresAt) {
+      return NextResponse.json({ error: "This payment link has expired." }, { status: 410 });
+    }
+    if (!isTokenSymbol(link.token)) {
+      return NextResponse.json({ error: "Payment link has an invalid token." }, { status: 500 });
+    }
+    normalizedMerchant = link.merchantAddress;
+    token = link.token;
+    linkNote = link.note;
+    linkRef = link.ref;
   }
 
   let claimedAmountWei: bigint;
@@ -59,8 +94,6 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "amountWei must be a positive integer string (wei)." }, { status: 400 });
   }
-
-  const store = getStore();
 
   const existing = await store.getDepositByTxHash(txHash);
   if (existing) {
@@ -103,8 +136,8 @@ export async function POST(request: NextRequest) {
     txHash,
     amountWei: verified.amountWei,
     token,
-    note: typeof note === "string" ? note : undefined,
-    ref: typeof ref === "string" ? ref : undefined,
+    note: linkNote,
+    ref: linkRef,
     status: flow === "A" ? "verified" : "pending_shield",
   });
 

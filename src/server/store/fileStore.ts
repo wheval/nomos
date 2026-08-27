@@ -10,6 +10,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
 import {
+  type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
@@ -17,6 +18,7 @@ import {
   type LedgerEntry,
   type LedgerKind,
   type MerchantKey,
+  type PaymentLink,
   type Payout,
   type PayoutStatus,
   type RecordDepositInput,
@@ -28,6 +30,7 @@ const MERCHANTS_FILE = path.join(DATA_DIR, "merchants.json");
 const DEPOSITS_FILE = path.join(DATA_DIR, "deposits.json");
 const LEDGER_FILE = path.join(DATA_DIR, "ledger.json");
 const PAYOUTS_FILE = path.join(DATA_DIR, "payouts.json");
+const PAYMENT_LINKS_FILE = path.join(DATA_DIR, "payment-links.json");
 
 type StoredDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
 type StoredLedgerEntry = Omit<LedgerEntry, "amountWei" | "runningBalanceWei"> & {
@@ -35,6 +38,7 @@ type StoredLedgerEntry = Omit<LedgerEntry, "amountWei" | "runningBalanceWei"> & 
   runningBalanceWei: string;
 };
 type StoredPayout = Omit<Payout, "amountWei"> & { amountWei: string };
+type StoredPaymentLink = Omit<PaymentLink, "amountWei"> & { amountWei?: string };
 
 async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -77,6 +81,12 @@ function toStoredPayout(p: Payout): StoredPayout {
 function fromStoredPayout(p: StoredPayout): Payout {
   return { ...p, amountWei: BigInt(p.amountWei) };
 }
+function toStoredPaymentLink(l: PaymentLink): StoredPaymentLink {
+  return { ...l, amountWei: l.amountWei?.toString() };
+}
+function fromStoredPaymentLink(l: StoredPaymentLink): PaymentLink {
+  return { ...l, amountWei: l.amountWei !== undefined ? BigInt(l.amountWei) : undefined };
+}
 
 export class FileStore implements Store {
   private async readMerchants(): Promise<Record<string, MerchantKey>> {
@@ -102,6 +112,12 @@ export class FileStore implements Store {
   }
   private async writePayouts(p: StoredPayout[]) {
     await writeJson(PAYOUTS_FILE, p);
+  }
+  private async readPaymentLinks(): Promise<StoredPaymentLink[]> {
+    return readJson(PAYMENT_LINKS_FILE, []);
+  }
+  private async writePaymentLinks(l: StoredPaymentLink[]) {
+    await writeJson(PAYMENT_LINKS_FILE, l);
   }
 
   private async ensureMerchant(address: string) {
@@ -260,6 +276,49 @@ export class FileStore implements Store {
       .filter((p) => p.merchantAddress.toLowerCase() === normalized)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(fromStoredPayout);
+  }
+
+  async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
+    await this.ensureMerchant(input.merchantAddress);
+    const links = await this.readPaymentLinks();
+    const link: PaymentLink = {
+      id: crypto.randomUUID(),
+      merchantAddress: input.merchantAddress,
+      amountWei: input.amountWei,
+      token: input.token,
+      note: input.note,
+      ref: input.ref ?? randomKey("ref").slice(0, 10).toUpperCase(),
+      expiresAt: input.expiresAt,
+      revoked: false,
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    links.push(toStoredPaymentLink(link));
+    await this.writePaymentLinks(links);
+    return link;
+  }
+
+  async getPaymentLink(id: string): Promise<PaymentLink | null> {
+    const links = await this.readPaymentLinks();
+    const found = links.find((l) => l.id === id);
+    return found ? fromStoredPaymentLink(found) : null;
+  }
+
+  async listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]> {
+    const normalized = merchantAddress.toLowerCase();
+    const links = await this.readPaymentLinks();
+    return links
+      .filter((l) => l.merchantAddress.toLowerCase() === normalized)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(fromStoredPaymentLink);
+  }
+
+  async revokePaymentLink(id: string, merchantAddress: string): Promise<boolean> {
+    const links = await this.readPaymentLinks();
+    const link = links.find((l) => l.id === id);
+    if (!link || link.merchantAddress.toLowerCase() !== merchantAddress.toLowerCase()) return false;
+    link.revoked = true;
+    await this.writePaymentLinks(links);
+    return true;
   }
 
   async issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {

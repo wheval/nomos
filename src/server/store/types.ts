@@ -78,6 +78,33 @@ export type CreatePayoutInput = {
   mode: PayoutMode;
 };
 
+// A persisted Payment Link. Before this, everything a customer saw (the
+// recipient address, amount, token) was raw URL query params with no
+// server-side source of truth - anyone could edit a copied link before
+// sharing it, silently redirecting the payment to a different address or
+// amount. Persisting it means the checkout page fetches the canonical
+// record by id instead of trusting whatever's in the URL.
+export type PaymentLink = {
+  id: string;
+  merchantAddress: string;
+  amountWei?: bigint; // absent = open amount, customer enters their own
+  token: string;
+  note?: string;
+  ref: string;
+  expiresAt?: number; // unix seconds
+  revoked: boolean;
+  createdAt: number;
+};
+
+export type CreatePaymentLinkInput = {
+  merchantAddress: string;
+  amountWei?: bigint;
+  token: string;
+  note?: string;
+  ref?: string; // auto-generated if absent
+  expiresAt?: number;
+};
+
 export type MerchantKey = {
   publicKey: string;
   secretKeyHash: string; // sha256 hex — the plaintext secret is never stored
@@ -126,6 +153,12 @@ export interface Store {
   createPayout(input: CreatePayoutInput): Promise<Payout>;
   updatePayoutStatus(payoutId: string, status: PayoutStatus, txHash?: string): Promise<void>;
   listPayoutsFor(merchantAddress: string): Promise<Payout[]>;
+
+  // Payment Links
+  createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink>;
+  getPaymentLink(id: string): Promise<PaymentLink | null>;
+  listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]>;
+  revokePaymentLink(id: string, merchantAddress: string): Promise<boolean>;
 
   // Merchants / API keys / webhooks — surface unchanged from the pre-ledger store.
   issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }>;

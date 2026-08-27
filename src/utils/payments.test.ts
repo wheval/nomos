@@ -44,29 +44,10 @@ describe("parseStrkAmount", () => {
 describe("buildPaymentUrl", () => {
   const origin = "https://nomos.example";
 
-  it("includes only the recipient when no optional params are given", () => {
-    const url = buildPaymentUrl(origin, { to: "0xabc" });
+  it("builds a /pay URL carrying just the link id", () => {
+    const url = buildPaymentUrl(origin, "link_abc123");
     const parsed = new URL(url);
     expect(parsed.pathname).toBe("/pay");
-    expect(parsed.searchParams.get("to")).toBe("0xabc");
-    expect(parsed.searchParams.has("amount")).toBe(false);
-    expect(parsed.searchParams.has("note")).toBe(false);
-    expect(parsed.searchParams.has("ref")).toBe(false);
-    expect(parsed.searchParams.has("exp")).toBe(false);
-  });
-
-  it("includes every optional param when provided", () => {
-    const url = buildPaymentUrl(origin, {
-      to: "0xabc",
-      amount: "25",
-      note: "Invoice #1",
-      ref: "REF123",
-      exp: "1700000000",
-    });
-    const parsed = new URL(url);
-    expect(parsed.searchParams.get("amount")).toBe("25");
-    expect(parsed.searchParams.get("note")).toBe("Invoice #1");
-    expect(parsed.searchParams.get("ref")).toBe("REF123");
-    expect(parsed.searchParams.get("exp")).toBe("1700000000");
+    expect(parsed.searchParams.get("id")).toBe("link_abc123");
   });
 });

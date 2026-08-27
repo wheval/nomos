@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CallData, cairo, num, validateAndParseAddress } from "starknet";
 import type { WALLET_API } from "@starknet-io/types-js";
@@ -15,9 +15,25 @@ import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResu
 
 type Flow = "A" | "B";
 
-// Customer-facing checkout for a Payment Link. Reads {to, amount, note}
-// from the URL and settles into Nomos's own operating wallet — not the
-// merchant directly — via one of two flows the customer picks:
+type LinkData = {
+  id: string;
+  merchantAddress: string;
+  amountWei?: string;
+  token: constants.TokenSymbol;
+  note?: string;
+  ref?: string;
+  expiresAt?: number;
+  revoked: boolean;
+  expired: boolean;
+};
+
+// Customer-facing checkout for a Payment Link. Fetches the canonical link
+// record by id (GET /api/payment-links/[id]) instead of trusting raw URL
+// query params - a link is inherently shareable, so anyone could edit a
+// copied one before forwarding it; the amount/recipient a customer actually
+// pays now always comes from the server-side record, not the URL. Settles
+// into Nomos's own operating wallet — not the merchant directly — via one
+// of two flows the customer picks:
 //
 //   Flow A ("Pay privately"): a private STRK20 transfer. Requires a
 //   shielded-capable wallet (Ready, etc). Fully private end to end.
@@ -30,16 +46,44 @@ type Flow = "A" | "B";
 // not by receiving funds directly — see docs/PRD.md for why.
 export default function Checkout() {
   const params = useSearchParams();
-  const to = params.get("to") ?? "";
-  const fixedAmount = params.get("amount");
-  const tokenParam = params.get("token");
-  const token: constants.TokenSymbol = constants.isTokenSymbol(tokenParam) ? tokenParam : "STRK";
+  const id = params.get("id") ?? "";
+
+  const [linkData, setLinkData] = useState<LinkData | null>(null);
+  const [linkError, setLinkError] = useState("");
+  const [loadingLink, setLoadingLink] = useState(true);
+
+  useEffect(() => {
+    if (!id) {
+      setLoadingLink(false);
+      return;
+    }
+    setLoadingLink(true);
+    fetch(`/api/payment-links/${id}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => setLinkData(d))
+      .catch((e) => setLinkError(e.message ?? "Could not load this payment link."))
+      .finally(() => setLoadingLink(false));
+  }, [id]);
+
+  const toValid = (() => {
+    if (!linkData) return "";
+    try {
+      return validateAndParseAddress(linkData.merchantAddress);
+    } catch {
+      return "";
+    }
+  })();
+  const fixedAmount = linkData?.amountWei;
+  const token: constants.TokenSymbol = linkData?.token ?? "STRK";
   const decimals = constants.tokenDecimals(token);
-  const note = params.get("note");
-  const ref = params.get("ref");
-  const expParam = params.get("exp");
-  const expiresAt = expParam ? Number(expParam) : null;
-  const isExpired = expiresAt !== null && Number.isFinite(expiresAt) && Date.now() / 1000 > expiresAt;
+  const note = linkData?.note ?? null;
+  const ref = linkData?.ref ?? null;
+  const expiresAt = linkData?.expiresAt ?? null;
+  const isExpired = Boolean(linkData?.expired);
+  const isRevoked = Boolean(linkData?.revoked);
 
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const myWalletAccount = useStoreWallet((state) => state.myWalletAccount);
@@ -63,21 +107,18 @@ export default function Checkout() {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [paying, setPaying] = useState(false);
 
-  let toValid = "";
-  try {
-    toValid = to ? validateAndParseAddress(to) : "";
-  } catch {
-    toValid = "";
-  }
   const shortTo = toValid ? `${toValid.slice(0, 6)}…${toValid.slice(-4)}` : "";
   const isPaid = result?.status === "ok";
 
-  if (!toValid) {
+  if (loadingLink) {
+    return <div className={styles.panel} />;
+  }
+
+  if (!id || linkError || !linkData || !toValid) {
     return (
       <div className={styles.panel}>
         <div className={styles.warn} style={{ padding: "12px 0" }}>
-          This payment link is missing or has an invalid recipient. Ask the
-          business for a fresh link.
+          {linkError || "This payment link is missing or invalid. Ask the business for a fresh link."}
         </div>
       </div>
     );
@@ -85,11 +126,16 @@ export default function Checkout() {
 
   async function handlePay() {
     setResult(null);
+    if (!linkData) return; // unreachable past the guard above, keeps TS happy
     if (isExpired) {
       setResult(errorResult("This payment link has expired."));
       return;
     }
-    const amountStr = fixedAmount ?? customAmount;
+    if (isRevoked) {
+      setResult(errorResult("This payment link has been revoked."));
+      return;
+    }
+    const amountStr = fixedAmount ? fmtTokenAmount(BigInt(fixedAmount), decimals) : customAmount;
     const amountWei = parseTokenAmount(amountStr, decimals);
     if (amountWei === null) {
       setAmountError("Enter a positive amount, e.g. 25 or 12.5");
@@ -140,8 +186,9 @@ export default function Checkout() {
       if (final.status === "ok") {
         // Best-effort order bookkeeping for the merchant dashboard - never
         // blocks or fails the payment itself, which already confirmed on-chain.
-        // Server re-verifies this on-chain before crediting anything - see
-        // src/utils/verifyTx.ts.
+        // Server re-verifies this on-chain (and re-resolves merchant/token
+        // from the link itself) before crediting anything - see
+        // src/utils/verifyTx.ts and /api/payments.
         fetch("/api/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -152,8 +199,7 @@ export default function Checkout() {
             token,
             txHash: txH,
             networkIndex: myFrontendProviderIndex,
-            note: note ?? undefined,
-            ref: ref ?? undefined,
+            linkId: linkData.id,
           }),
         }).catch(() => {});
       }
@@ -169,9 +215,9 @@ export default function Checkout() {
       <div className={styles.checkoutAmountBlock}>
         <div className={styles.checkoutAmountLabel}>You&apos;re paying</div>
         <div className={styles.checkoutAmountValue}>
-          {fixedAmount ? (
+          {fixedAmount !== undefined ? (
             <>
-              {fixedAmount}
+              {fmtTokenAmount(BigInt(fixedAmount), decimals)}
               <span>{token}</span>
             </>
           ) : (
@@ -184,7 +230,7 @@ export default function Checkout() {
         </div>
       </div>
 
-      {isPaid || isExpired ? null : (
+      {isPaid || isExpired || isRevoked ? null : (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Payment method</label>
           <div className={styles.methodGrid}>
@@ -244,11 +290,15 @@ export default function Checkout() {
               : "Settled on-chain and recorded for the business — nothing more to do here."}
           </p>
         </div>
+      ) : isRevoked ? (
+        <div className={styles.warn} style={{ padding: "0 0 12px" }}>
+          This payment link has been revoked. Ask the business for a fresh one.
+        </div>
       ) : isExpired ? (
         <div className={styles.warn} style={{ padding: "0 0 12px" }}>
           This payment link has expired. Ask the business for a fresh one.
         </div>
-      ) : !fixedAmount ? (
+      ) : fixedAmount === undefined ? (
         <div className={styles.field}>
           <label className={styles.fieldLabel} htmlFor="customAmount">
             Amount ({token})
@@ -271,7 +321,7 @@ export default function Checkout() {
         </div>
       ) : null}
 
-      {isPaid || isExpired ? null : isConnected ? (
+      {isPaid || isExpired || isRevoked ? null : isConnected ? (
         <button className={styles.btnCta} disabled={!isStrk20Network || paying} onClick={handlePay}>
           {paying ? "Confirm in your wallet…" : "Pay"}
         </button>
@@ -279,7 +329,7 @@ export default function Checkout() {
         <SelectWallet variant="ctaBig" />
       )}
 
-      {isPaid || isExpired ? null : (
+      {isPaid || isExpired || isRevoked ? null : (
         <div className={styles.trustRow}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />

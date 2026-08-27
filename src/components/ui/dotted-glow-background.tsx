@@ -204,15 +204,12 @@ export const DottedGlowBackground = ({
 
     regenDots();
 
-    let last = performance.now();
-
     const draw = (now: number) => {
       if (stopped) return;
       if (!isVisible) {
         raf = requestAnimationFrame(draw);
         return;
       }
-      last = now;
       const { width, height } = container.getBoundingClientRect();
 
       ctx.clearRect(0, 0, el.width, el.height);

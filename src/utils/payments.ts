@@ -1,19 +1,10 @@
-// Payment Link encode/decode helpers. A "link" is just the recipient, an
-// optional fixed amount, and a merchant-facing note - all carried in the URL
-// query string. Nothing is persisted server-side; the link itself is the
-// record. Amounts are human units ("5", "1.5") in whichever token the link
-// specifies, converted to the smallest unit only at submit time.
-
-import type { TokenSymbol } from "./constants";
-
-export type PaymentLinkParams = {
-  to: string;
-  amount?: string; // absent = customer enters their own amount ("open" request)
-  token?: TokenSymbol; // absent = STRK, for links created before multi-token support
-  note?: string;
-  ref?: string;
-  exp?: string; // unix seconds - absent = never expires
-};
+// Payment Link helpers. A link is a persisted record (src/server/store —
+// merchant, amount, token, note, expiry) identified by an opaque id; the
+// shareable URL just carries that id, and the checkout page fetches the
+// canonical record by id (GET /api/payment-links/[id]) rather than trusting
+// URL params directly. Amounts are human units ("5", "1.5") in whichever
+// token the link specifies, converted to the smallest unit only at submit
+// time.
 
 // Duration choices offered on the create form, in seconds.
 export const EXPIRY_CHOICES: { label: string; seconds: number | null }[] = [
@@ -45,21 +36,9 @@ export function parseStrkAmount(input: string): bigint | null {
   return parseTokenAmount(input, 18);
 }
 
-// Build a shareable /pay URL from an origin + link params.
-export function buildPaymentUrl(origin: string, params: PaymentLinkParams): string {
+// Build a shareable /pay URL for a persisted Payment Link id.
+export function buildPaymentUrl(origin: string, id: string): string {
   const url = new URL("/pay", origin);
-  url.searchParams.set("to", params.to);
-  if (params.amount) url.searchParams.set("amount", params.amount);
-  if (params.token) url.searchParams.set("token", params.token);
-  if (params.note) url.searchParams.set("note", params.note);
-  if (params.ref) url.searchParams.set("ref", params.ref);
-  if (params.exp) url.searchParams.set("exp", params.exp);
+  url.searchParams.set("id", id);
   return url.toString();
-}
-
-// Short reference id for a payment request - a UI-level note for
-// reconciliation, not an on-chain memo (STRK20 transfer actions carry no
-// memo field; see docs/architecture notes).
-export function makeRef(): string {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }

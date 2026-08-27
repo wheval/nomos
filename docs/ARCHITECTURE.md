@@ -68,7 +68,13 @@ This directly affects Phase 5. The plan as designed had the operating wallet cal
 
 Supabase (Postgres) backs the ledger, chosen over a simple key-value store because this is a financial ledger — it needs real transactions and an audit trail, not just gets/sets. A `Store` interface (`src/server/store/`) abstracts this: an in-memory implementation for tests/CI (no secrets required to run the suite), a file-based implementation (today's `.data/*.json` behavior, kept for convenient local dev, still not durable on Vercel), and the Supabase implementation for anything real. Driver selection is one env var (`NOMOS_STORE_DRIVER`).
 
-Schema: `merchants`, `deposits` (idempotent on `tx_hash`, tracks `pending_verify → verified → pending_shield → shielded` for Flow B, `verified` immediately for Flow A), `ledger_entries` (credit/debit, running balance), `payouts`. See `IMPLEMENTATION.md` for the actual DDL.
+Schema: `merchants`, `deposits` (idempotent on `tx_hash`, tracks `pending_verify → verified → pending_shield → shielded` for Flow B, `verified` immediately for Flow A), `ledger_entries` (credit/debit, running balance), `payouts`, `payment_links`. See `IMPLEMENTATION.md` for the actual DDL.
+
+## Payment Links are persisted, not just URL params
+
+Originally a Payment Link was purely client-side: the recipient, amount, and token lived in the `/pay` URL's query string, and the link *was* the record — nothing on the server had ever seen it. That meant the URL itself was the only source of truth a customer's browser had, and anyone could edit a copied link before forwarding it — change the amount, or worse, swap the recipient to their own address — with nothing to catch it.
+
+Links are now created via `POST /api/payment-links` (authenticated with the merchant's own secret key — a link can only be created "as" the merchant who controls that key) and stored in Postgres. The shareable URL carries only an opaque id (`/pay?id=...`); the checkout page resolves it via `GET /api/payment-links/[id]` (public, unauthenticated — a Payment Link is inherently shareable, there's nothing secret in it) and renders whatever the server says, not whatever's in the URL. `POST /api/payments` — the route that actually credits a merchant's ledger after an on-chain payment — treats the link's stored `merchantAddress`/`token` as authoritative whenever a `linkId` is present, ignoring the client's own claims for those fields entirely. Revoked and expired links are rejected server-side before any on-chain verification runs, not just hidden in the UI.
 
 ## Sequencing: Sepolia first, mainnet last
 

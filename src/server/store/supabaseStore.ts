@@ -11,12 +11,14 @@
 // inside a Postgres function instead of round-tripped through the client.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
+  type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
   InsufficientBalanceError,
   type LedgerEntry,
   type LedgerKind,
+  type PaymentLink,
   type Payout,
   type PayoutStatus,
   type RecordDepositInput,
@@ -89,6 +91,36 @@ function payoutFromRow(r: PayoutRow): Payout {
     createdAt: Math.floor(new Date(r.created_at).getTime() / 1000),
     completedAt: r.completed_at ? Math.floor(new Date(r.completed_at).getTime() / 1000) : undefined,
   };
+}
+
+type PaymentLinkRow = {
+  id: string;
+  merchant_address: string;
+  amount_wei: string | null;
+  token: string;
+  note: string | null;
+  ref: string;
+  expires_at: string | null;
+  revoked: boolean;
+  created_at: string;
+};
+
+function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
+  return {
+    id: r.id,
+    merchantAddress: r.merchant_address,
+    amountWei: r.amount_wei !== null ? BigInt(r.amount_wei) : undefined,
+    token: r.token,
+    note: r.note ?? undefined,
+    ref: r.ref,
+    expiresAt: r.expires_at ? Math.floor(new Date(r.expires_at).getTime() / 1000) : undefined,
+    revoked: r.revoked,
+    createdAt: Math.floor(new Date(r.created_at).getTime() / 1000),
+  };
+}
+
+function randomRef(): string {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 export class SupabaseStore implements Store {
@@ -281,6 +313,56 @@ export class SupabaseStore implements Store {
       .returns<PayoutRow[]>();
     if (error) throw new Error(`listPayoutsFor failed: ${error.message}`);
     return (data ?? []).map(payoutFromRow);
+  }
+
+  async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
+    await this.ensureMerchant(input.merchantAddress);
+    const { data, error } = await this.client
+      .from("payment_links")
+      .insert({
+        merchant_address: input.merchantAddress.toLowerCase(),
+        amount_wei: input.amountWei !== undefined ? input.amountWei.toString() : null,
+        token: input.token,
+        note: input.note ?? null,
+        ref: input.ref ?? randomRef(),
+        expires_at: input.expiresAt ? new Date(input.expiresAt * 1000).toISOString() : null,
+      })
+      .select("*")
+      .single<PaymentLinkRow>();
+    if (error || !data) throw new Error(`createPaymentLink failed: ${error?.message}`);
+    return paymentLinkFromRow(data);
+  }
+
+  async getPaymentLink(id: string): Promise<PaymentLink | null> {
+    const { data } = await this.client
+      .from("payment_links")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle<PaymentLinkRow>();
+    return data ? paymentLinkFromRow(data) : null;
+  }
+
+  async listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]> {
+    const { data, error } = await this.client
+      .from("payment_links")
+      .select("*")
+      .eq("merchant_address", merchantAddress.toLowerCase())
+      .order("created_at", { ascending: false })
+      .returns<PaymentLinkRow[]>();
+    if (error) throw new Error(`listPaymentLinksFor failed: ${error.message}`);
+    return (data ?? []).map(paymentLinkFromRow);
+  }
+
+  async revokePaymentLink(id: string, merchantAddress: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("payment_links")
+      .update({ revoked: true })
+      .eq("id", id)
+      .eq("merchant_address", merchantAddress.toLowerCase())
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(`revokePaymentLink failed: ${error.message}`);
+    return !!data;
   }
 
   async issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {
