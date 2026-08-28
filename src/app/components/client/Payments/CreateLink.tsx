@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
@@ -8,18 +8,7 @@ import { buildPaymentUrl, parseTokenAmount, EXPIRY_CHOICES } from "@/utils/payme
 import { fmtTokenAmount } from "@/utils/receipt";
 import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { useMerchantAuth } from "./useMerchantAuth";
-
-type WireLink = {
-  id: string;
-  merchantAddress: string;
-  amountWei?: string;
-  token: string;
-  note?: string;
-  ref: string;
-  expiresAt?: number;
-  revoked: boolean;
-  createdAt: number;
-};
+import { usePaymentLinks } from "./usePaymentLinks";
 
 // Merchant-facing Payment Link creation. Links are persisted server-side
 // (src/server/store) rather than encoded entirely in the URL - the
@@ -39,19 +28,9 @@ export default function CreateLink() {
   const [submitting, setSubmitting] = useState(false);
   const [link, setLink] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [links, setLinks] = useState<WireLink[] | null>(null);
+  const { links, refresh: refreshLinks } = usePaymentLinks(address ?? "", secretKey);
 
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
-
-  function refreshLinks() {
-    if (!address || !secretKey) return;
-    fetch(`/api/payment-links?to=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
-      .then((r) => (r.ok ? r.json() : { links: [] }))
-      .then((d) => setLinks(d.links ?? []))
-      .catch(() => {});
-  }
-
-  useEffect(refreshLinks, [address, secretKey]);
 
   async function handleGenerate() {
     setLink("");

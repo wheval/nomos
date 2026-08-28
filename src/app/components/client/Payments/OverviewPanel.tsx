@@ -9,11 +9,14 @@ import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
+import { usePaymentLinks, paymentLinkStatusLabel } from "./usePaymentLinks";
+import { buildPaymentUrl } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals } from "@/utils/constants";
 
 export default function OverviewPanel() {
   const { isConnected, address, secretKey } = useMerchantAuth();
   const { deposits, balances, loadError } = useLedger(address, secretKey);
+  const { links, loadError: linksLoadError } = usePaymentLinks(address, secretKey);
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const [webhookUrl, setWebhookUrl] = useState("");
 
@@ -37,6 +40,7 @@ export default function OverviewPanel() {
   }
 
   const recent = (deposits ?? []).slice(0, 5);
+  const recentLinks = (links ?? []).slice(0, 5);
 
   return (
     <div className={styles.consolePage}>
@@ -117,6 +121,67 @@ export default function OverviewPanel() {
                     rel="noreferrer"
                   >
                     {shortHex(d.txHash)} ↗
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>Recent Payment Links</span>
+          <Link href="/create" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
+            Create a link →
+          </Link>
+        </div>
+
+        {!secretKey ? (
+          <div className={styles.emptyState}>
+            <p>Generate an API key in Settings to unlock this list.</p>
+            <Link href="/dashboard/settings" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
+              Go to Settings →
+            </Link>
+          </div>
+        ) : linksLoadError ? (
+          <div className={styles.errorText}>{linksLoadError}</div>
+        ) : recentLinks.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No Payment Links yet.</p>
+            <div className={styles.nextSteps} style={{ maxWidth: 260, margin: "0 auto" }}>
+              <Link href="/create">Create a Payment Link →</Link>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.txTable}>
+            {recentLinks.map((l) => {
+              const badge = paymentLinkStatusLabel(l);
+              const url = buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", l.id);
+              return (
+                <div key={l.id} className={styles.txRow}>
+                  <div className={styles.txMain}>
+                    <div className={styles.txTitle}>
+                      {l.note ?? l.ref}
+                      {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
+                    </div>
+                    <div className={styles.txTime}>{new Date(l.createdAt * 1000).toLocaleString()}</div>
+                  </div>
+                  <div className={styles.txAmount}>
+                    {l.amountWei !== undefined
+                      ? `${fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as "STRK" | "USDC"))} ${l.token}`
+                      : "Open"}
+                  </div>
+                  <a
+                    className={styles.txLink}
+                    href={url}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigator.clipboard.writeText(url).catch(() => {});
+                    }}
+                    title="Copy link"
+                  >
+                    Copy ↗
                   </a>
                 </div>
               );
