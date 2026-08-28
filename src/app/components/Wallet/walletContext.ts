@@ -44,7 +44,20 @@ export const useStoreWallet = create<WalletState>()(set => ({
     provider: undefined,
     setProvider: (provider: ProviderInterface) => { set(state => ({ provider: provider })) },
     isConnected: false,
-    setConnected: (isConnected: boolean) => { set(state => ({ isConnected })) },
+    setConnected: (isConnected: boolean) => {
+      if (isConnected) {
+        set(() => ({ isConnected: true }));
+        return;
+      }
+      set(() => ({
+        isConnected: false,
+        address: "",
+        chain: "",
+        StarknetWalletObject: undefined,
+        myWalletAccount: undefined,
+        account: undefined,
+      }));
+    },
     displaySelectWalletUI: false,
     setSelectWalletUI: (displaySelectWalletUI: boolean) => { set(state => ({ displaySelectWalletUI })) },
     walletApiList: [],

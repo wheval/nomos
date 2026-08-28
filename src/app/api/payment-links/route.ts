@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
+import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
-import { isTokenSymbol, tokenDecimals, TokenSymbols } from "@/utils/constants";
+import { isTokenSymbol, isValidNetworkIndex, tokenDecimals, TokenSymbols } from "@/utils/constants";
 import { parseTokenAmount } from "@/utils/payments";
 
 // Creates a persisted Payment Link. Before this, a "link" was just URL
 // query params the merchant's browser built client-side - nothing checked
 // that the amount/recipient a customer eventually saw matched what the
 // merchant actually intended, since there was no server-side record to
-// compare against. Requires the merchant's own secret key, same auth model
-// as every other write in this API - so a link can only ever be created
-// "as" the merchant who controls that key.
+// compare against. Auth is the dashboard wallet session *or* a secret
+// API key (programmatic). Wallet connect is enough to create a link.
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -19,12 +19,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { merchantAddress, secretKey, amount, token, note, expiresIn } = body ?? {};
-  if (typeof merchantAddress !== "string" || typeof secretKey !== "string") {
-    return NextResponse.json({ error: "merchantAddress and secretKey are required." }, { status: 400 });
+  const { merchantAddress, secretKey, amount, token, note, expiresIn, networkIndex, logoDataUrl } = body ?? {};
+  if (typeof merchantAddress !== "string") {
+    return NextResponse.json({ error: "merchantAddress is required." }, { status: 400 });
   }
   if (!isTokenSymbol(token)) {
     return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
+  }
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "networkIndex is required and must be a supported network." }, { status: 400 });
   }
 
   let normalizedMerchant: string;
@@ -50,18 +53,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "expiresIn must be a positive number of seconds." }, { status: 400 });
   }
 
-  const store = getStore();
-  const ok = await store.verifyMerchantSecret(normalizedMerchant, secretKey);
-  if (!ok) {
-    return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
+  const denied = await unauthorizedUnlessMerchant({
+    request,
+    address: normalizedMerchant,
+    networkIndex,
+    secretKey: typeof secretKey === "string" ? secretKey : null,
+  });
+  if (denied) return denied;
+
+  let logo: string | undefined;
+  if (logoDataUrl !== undefined && logoDataUrl !== null && logoDataUrl !== "") {
+    if (typeof logoDataUrl !== "string" || !/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(logoDataUrl)) {
+      return NextResponse.json({ error: "logoDataUrl must be a PNG, JPEG, WebP, or GIF data URL." }, { status: 400 });
+    }
+    if (logoDataUrl.length > 180_000) {
+      return NextResponse.json({ error: "Logo is too large — keep it under ~120KB." }, { status: 400 });
+    }
+    logo = logoDataUrl;
   }
 
+  const store = getStore();
   const link = await store.createPaymentLink({
     merchantAddress: normalizedMerchant,
+    networkIndex,
     amountWei,
     token,
     note: typeof note === "string" && note.trim() ? note.trim() : undefined,
     expiresAt: expiresIn ? Math.floor(Date.now() / 1000) + expiresIn : undefined,
+    logoDataUrl: logo,
   });
 
   return NextResponse.json(
@@ -78,15 +97,17 @@ export async function POST(request: NextRequest) {
   );
 }
 
-// Lists a merchant's own Payment Links. Same bearer-secret auth as every
-// other GET in this API.
+// Lists a merchant's own Payment Links. Dashboard session or bearer secret.
 export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to");
-  const auth = request.headers.get("authorization") ?? "";
-  const secretKey = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const networkRaw = request.nextUrl.searchParams.get("network");
 
   if (!to) {
     return NextResponse.json({ error: "Missing ?to=<address>." }, { status: 400 });
+  }
+  const networkIndex = networkRaw !== null ? Number(networkRaw) : NaN;
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "Missing or invalid ?network=." }, { status: 400 });
   }
   let normalizedTo: string;
   try {
@@ -94,17 +115,12 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "to is not a valid Starknet address." }, { status: 400 });
   }
-  if (!secretKey) {
-    return NextResponse.json({ error: "Missing Authorization: Bearer <secret key>." }, { status: 401 });
-  }
+  const denied = await unauthorizedUnlessMerchant({ request, address: normalizedTo, networkIndex });
+  if (denied) return denied;
 
   const store = getStore();
-  const ok = await store.verifyMerchantSecret(normalizedTo, secretKey);
-  if (!ok) {
-    return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
-  }
 
-  const links = await store.listPaymentLinksFor(normalizedTo);
+  const links = await store.listPaymentLinksFor(normalizedTo, networkIndex);
   return NextResponse.json({
     links: links.map((l) => ({ ...l, amountWei: l.amountWei?.toString() })),
   });

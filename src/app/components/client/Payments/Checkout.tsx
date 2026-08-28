@@ -9,6 +9,8 @@ import * as constants from "@/utils/constants";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 import SelectWallet from "../WalletHandle/SelectWallet";
+import { switchConnectedWalletNetwork } from "../WalletHandle/connectWallet";
+import { networkLabel } from "@/utils/networks";
 import ReceiptCard from "../ReceiptCard";
 import { parseTokenAmount } from "@/utils/payments";
 import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResult } from "@/utils/receipt";
@@ -18,6 +20,7 @@ type Flow = "A" | "B";
 type LinkData = {
   id: string;
   merchantAddress: string;
+  networkIndex: number;
   amountWei?: string;
   token: constants.TokenSymbol;
   note?: string;
@@ -25,6 +28,7 @@ type LinkData = {
   expiresAt?: number;
   revoked: boolean;
   expired: boolean;
+  logoDataUrl?: string;
 };
 
 // Customer-facing checkout for a Payment Link. Fetches the canonical link
@@ -91,6 +95,13 @@ export default function Checkout() {
 
   const networkName = constants.Strk20Networks[myFrontendProviderIndex];
   const isStrk20Network = networkName !== undefined;
+  // The link's own network is authoritative (see /api/payments, which
+  // re-resolves it server-side too) - a customer's wallet connected to a
+  // different network than the link would build the transaction against
+  // the wrong operating wallet/token address entirely, and the server
+  // would reject it after the fact. Catch that here instead.
+  const linkNetworkName = linkData ? constants.Strk20Networks[linkData.networkIndex] : undefined;
+  const networkMismatch = linkData !== null && myFrontendProviderIndex !== linkData.networkIndex;
   const operatingWallet = constants.operatingWalletAddress;
   const tokenAddress = constants.tokenAddressFor(token, myFrontendProviderIndex);
   const hasOperatingWallet = (() => {
@@ -106,6 +117,7 @@ export default function Checkout() {
   const [amountError, setAmountError] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [paying, setPaying] = useState(false);
+  const [switchingWallet, setSwitchingWallet] = useState(false);
 
   const shortTo = toValid ? `${toValid.slice(0, 6)}…${toValid.slice(-4)}` : "";
   const isPaid = result?.status === "ok";
@@ -144,6 +156,10 @@ export default function Checkout() {
     setAmountError("");
     if (!myWalletAccount) {
       setResult(errorResult("No wallet connected."));
+      return;
+    }
+    if (networkMismatch) {
+      setResult(errorResult(`Switch your wallet to ${linkNetworkName ?? "the right network"} to pay this link.`));
       return;
     }
     if (!hasOperatingWallet) {
@@ -210,8 +226,25 @@ export default function Checkout() {
     }
   }
 
+  async function handleSwitchToLinkNetwork() {
+    if (!linkData) return;
+    setSwitchingWallet(true);
+    try {
+      await switchConnectedWalletNetwork(linkData.networkIndex);
+      useFrontendProvider.getState().setCurrentFrontendProviderIndex(linkData.networkIndex);
+    } catch (e: any) {
+      setResult(errorResult(e?.message ?? "Could not switch wallet network."));
+    } finally {
+      setSwitchingWallet(false);
+    }
+  }
+
   return (
     <div className={styles.panel}>
+      {linkData?.logoDataUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.checkoutLogo} src={linkData.logoDataUrl} alt="" />
+      ) : null}
       <div className={styles.checkoutAmountBlock}>
         <div className={styles.checkoutAmountLabel}>You&apos;re paying</div>
         <div className={styles.checkoutAmountValue}>
@@ -317,12 +350,25 @@ export default function Checkout() {
 
       {!isPaid && !isStrk20Network && isConnected ? (
         <div className={styles.warn}>
-          Nomos requires Mainnet or Sepolia - switch your wallet network.
+          Nomos requires Mainnet or Sepolia — switch your wallet network.
+        </div>
+      ) : !isPaid && networkMismatch && isConnected ? (
+        <div className={styles.warn}>
+          This link expects {networkLabel(linkData?.networkIndex ?? 2)} ({linkNetworkName?.toLowerCase()}).
+          <button
+            type="button"
+            className={styles.testBannerAction}
+            style={{ marginLeft: 8 }}
+            disabled={switchingWallet}
+            onClick={() => void handleSwitchToLinkNetwork()}
+          >
+            {switchingWallet ? "Switching…" : "Switch wallet network →"}
+          </button>
         </div>
       ) : null}
 
       {isPaid || isExpired || isRevoked ? null : isConnected ? (
-        <button className={styles.btnCta} disabled={!isStrk20Network || paying} onClick={handlePay}>
+        <button className={styles.btnCta} disabled={!isStrk20Network || networkMismatch || paying} onClick={handlePay}>
           {paying ? "Confirm in your wallet…" : "Pay"}
         </button>
       ) : (

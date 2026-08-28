@@ -18,6 +18,7 @@ import {
   type LedgerEntry,
   type LedgerKind,
   type MerchantKey,
+  type NetworkIndex,
   type PaymentLink,
   type Payout,
   type PayoutStatus,
@@ -64,6 +65,10 @@ function sha256(input: string): string {
 
 function randomKey(prefix: string): string {
   return `${prefix}_${crypto.randomBytes(18).toString("hex")}`;
+}
+
+function merchantKey(address: string, networkIndex: NetworkIndex): string {
+  return `${address.toLowerCase()}:${networkIndex}`;
 }
 
 function toStoredDeposit(d: Deposit): StoredDeposit {
@@ -120,9 +125,9 @@ export class FileStore implements Store {
     await writeJson(PAYMENT_LINKS_FILE, l);
   }
 
-  private async ensureMerchant(address: string) {
+  private async ensureMerchant(address: string, networkIndex: NetworkIndex) {
     const merchants = await this.readMerchants();
-    const key = address.toLowerCase();
+    const key = merchantKey(address, networkIndex);
     if (!merchants[key]) {
       merchants[key] = { publicKey: "", secretKeyHash: "", createdAt: Math.floor(Date.now() / 1000) };
       await this.writeMerchants(merchants);
@@ -134,11 +139,12 @@ export class FileStore implements Store {
     const existing = deposits.find((d) => d.txHash === input.txHash);
     if (existing) return { deposit: fromStoredDeposit(existing), alreadyExisted: true };
 
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const status: DepositStatus = input.status ?? "pending_verify";
     const deposit: Deposit = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       flow: input.flow,
       txHash: input.txHash,
       amountWei: input.amountWei,
@@ -181,22 +187,30 @@ export class FileStore implements Store {
     return deposits.filter((d) => d.status === "pending_shield").map(fromStoredDeposit);
   }
 
-  async listDepositsFor(merchantAddress: string): Promise<Deposit[]> {
+  async listDepositsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Deposit[]> {
     const normalized = merchantAddress.toLowerCase();
     const deposits = await this.readDeposits();
     return deposits
-      .filter((d) => d.merchantAddress.toLowerCase() === normalized)
+      .filter((d) => d.merchantAddress.toLowerCase() === normalized && d.networkIndex === networkIndex)
       .sort((a, b) => b.recordedAt - a.recordedAt)
       .map(fromStoredDeposit);
   }
 
-  async creditLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
-    await this.ensureMerchant(input.merchantAddress);
+  async creditLedger(input: {
+    merchantAddress: string;
+    networkIndex: NetworkIndex;
+    amountWei: bigint;
+    token: string;
+    kind: LedgerKind;
+    depositId?: string;
+  }): Promise<LedgerEntry> {
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const ledger = await this.readLedger();
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
     const entry: LedgerEntry = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       direction: "credit",
       amountWei: input.amountWei,
       token: input.token,
@@ -210,8 +224,15 @@ export class FileStore implements Store {
     return entry;
   }
 
-  async debitLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
+  async debitLedger(input: {
+    merchantAddress: string;
+    networkIndex: NetworkIndex;
+    amountWei: bigint;
+    token: string;
+    kind: LedgerKind;
+    payoutId?: string;
+  }): Promise<LedgerEntry> {
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }
@@ -219,6 +240,7 @@ export class FileStore implements Store {
     const entry: LedgerEntry = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       direction: "debit",
       amountWei: input.amountWei,
       token: input.token,
@@ -232,21 +254,24 @@ export class FileStore implements Store {
     return entry;
   }
 
-  async getLedgerBalance(merchantAddress: string, token: string): Promise<bigint> {
+  async getLedgerBalance(merchantAddress: string, token: string, networkIndex: NetworkIndex): Promise<bigint> {
     const normalized = merchantAddress.toLowerCase();
     const ledger = await this.readLedger();
-    const mine = ledger.filter((e) => e.merchantAddress.toLowerCase() === normalized && e.token === token);
+    const mine = ledger.filter(
+      (e) => e.merchantAddress.toLowerCase() === normalized && e.token === token && e.networkIndex === networkIndex
+    );
     if (mine.length === 0) return 0n;
     mine.sort((a, b) => a.createdAt - b.createdAt);
     return BigInt(mine[mine.length - 1].runningBalanceWei);
   }
 
   async createPayout(input: CreatePayoutInput): Promise<Payout> {
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const payouts = await this.readPayouts();
     const payout: Payout = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       destination: input.destination,
       amountWei: input.amountWei,
       token: input.token,
@@ -269,21 +294,22 @@ export class FileStore implements Store {
     await this.writePayouts(payouts);
   }
 
-  async listPayoutsFor(merchantAddress: string): Promise<Payout[]> {
+  async listPayoutsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Payout[]> {
     const normalized = merchantAddress.toLowerCase();
     const payouts = await this.readPayouts();
     return payouts
-      .filter((p) => p.merchantAddress.toLowerCase() === normalized)
+      .filter((p) => p.merchantAddress.toLowerCase() === normalized && p.networkIndex === networkIndex)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(fromStoredPayout);
   }
 
   async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const links = await this.readPaymentLinks();
     const link: PaymentLink = {
       id: crypto.randomUUID(),
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       amountWei: input.amountWei,
       token: input.token,
       note: input.note,
@@ -291,6 +317,7 @@ export class FileStore implements Store {
       expiresAt: input.expiresAt,
       revoked: false,
       createdAt: Math.floor(Date.now() / 1000),
+      logoDataUrl: input.logoDataUrl,
     };
     links.push(toStoredPaymentLink(link));
     await this.writePaymentLinks(links);
@@ -303,11 +330,11 @@ export class FileStore implements Store {
     return found ? fromStoredPaymentLink(found) : null;
   }
 
-  async listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]> {
+  async listPaymentLinksFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<PaymentLink[]> {
     const normalized = merchantAddress.toLowerCase();
     const links = await this.readPaymentLinks();
     return links
-      .filter((l) => l.merchantAddress.toLowerCase() === normalized)
+      .filter((l) => l.merchantAddress.toLowerCase() === normalized && l.networkIndex === networkIndex)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(fromStoredPaymentLink);
   }
@@ -321,9 +348,9 @@ export class FileStore implements Store {
     return true;
   }
 
-  async issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {
+  async issueMerchantKey(address: string, networkIndex: NetworkIndex): Promise<{ publicKey: string; secretKey: string }> {
     const merchants = await this.readMerchants();
-    const key = address.toLowerCase();
+    const key = merchantKey(address, networkIndex);
     const publicKey = randomKey("pk");
     const secretKey = randomKey("sk");
     merchants[key] = {
@@ -331,31 +358,34 @@ export class FileStore implements Store {
       secretKeyHash: sha256(secretKey),
       createdAt: merchants[key]?.createdAt ?? Math.floor(Date.now() / 1000),
       webhookUrl: merchants[key]?.webhookUrl,
+      displayName: merchants[key]?.displayName,
+      allowedIps: merchants[key]?.allowedIps,
+      logoDataUrl: merchants[key]?.logoDataUrl,
     };
     await this.writeMerchants(merchants);
     return { publicKey, secretKey };
   }
 
-  async getMerchantPublicKey(address: string): Promise<string | null> {
+  async getMerchantPublicKey(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const merchants = await this.readMerchants();
-    return merchants[address.toLowerCase()]?.publicKey || null;
+    return merchants[merchantKey(address, networkIndex)]?.publicKey || null;
   }
 
-  async verifyMerchantSecret(address: string, secretKey: string): Promise<boolean> {
+  async verifyMerchantSecret(address: string, secretKey: string, networkIndex: NetworkIndex): Promise<boolean> {
     const merchants = await this.readMerchants();
-    const record = merchants[address.toLowerCase()];
+    const record = merchants[merchantKey(address, networkIndex)];
     if (!record || !record.secretKeyHash) return false;
     return record.secretKeyHash === sha256(secretKey);
   }
 
-  async getMerchantWebhookUrl(address: string): Promise<string | null> {
+  async getMerchantWebhookUrl(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const merchants = await this.readMerchants();
-    return merchants[address.toLowerCase()]?.webhookUrl ?? null;
+    return merchants[merchantKey(address, networkIndex)]?.webhookUrl ?? null;
   }
 
-  async setMerchantWebhookUrl(address: string, secretKey: string, url: string): Promise<boolean> {
+  async setMerchantWebhookUrl(address: string, secretKey: string, url: string, networkIndex: NetworkIndex): Promise<boolean> {
     const merchants = await this.readMerchants();
-    const key = address.toLowerCase();
+    const key = merchantKey(address, networkIndex);
     const record = merchants[key];
     if (!record || record.secretKeyHash !== sha256(secretKey)) return false;
     record.webhookUrl = url || undefined;
@@ -363,8 +393,40 @@ export class FileStore implements Store {
     return true;
   }
 
-  async getWebhookSigningKey(address: string): Promise<string | null> {
+  async getWebhookSigningKey(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const merchants = await this.readMerchants();
-    return merchants[address.toLowerCase()]?.secretKeyHash || null;
+    return merchants[merchantKey(address, networkIndex)]?.secretKeyHash || null;
+  }
+
+  async getMerchantProfile(address: string, networkIndex: NetworkIndex) {
+    const merchants = await this.readMerchants();
+    const record = merchants[merchantKey(address, networkIndex)];
+    return {
+      displayName: record?.displayName?.trim() ? record.displayName : null,
+      allowedIps: record?.allowedIps ?? [],
+      logoDataUrl: record?.logoDataUrl ?? null,
+    };
+  }
+
+  async setMerchantDisplayName(address: string, networkIndex: NetworkIndex, displayName: string): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const merchants = await this.readMerchants();
+    const record = merchants[merchantKey(address, networkIndex)];
+    record.displayName = displayName.trim() || undefined;
+    await this.writeMerchants(merchants);
+  }
+
+  async setMerchantAllowedIps(address: string, networkIndex: NetworkIndex, allowedIps: string[]): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const merchants = await this.readMerchants();
+    merchants[merchantKey(address, networkIndex)].allowedIps = allowedIps;
+    await this.writeMerchants(merchants);
+  }
+
+  async setMerchantLogo(address: string, networkIndex: NetworkIndex, logoDataUrl: string | null): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const merchants = await this.readMerchants();
+    merchants[merchantKey(address, networkIndex)].logoDataUrl = logoDataUrl || undefined;
+    await this.writeMerchants(merchants);
   }
 }

@@ -5,16 +5,16 @@
    var names kept as --pink/--pink-* for continuity with every consumer. */
 
 .page {
-  --ink: #ffffff;
-  --ink-soft: #6b7280;
-  --muted: #6b7280;
-  --muted-2: #6b7280;
-  --bg: #000000;
-  --card: #161616;
-  --line: #2a2a2a;
-  --line-soft: #2a2a2a;
-  --inset: #1a1a1a;
-  --inset-2: #1a1a1a;
+  --ink: #f4f4f5;
+  --ink-soft: #a1a1aa;
+  --muted: #a1a1aa;
+  --muted-2: #8a8a93;
+  --bg: #1a1a1a;
+  --card: #242424;
+  --line: #3a3a3a;
+  --line-soft: #3a3a3a;
+  --inset: #2c2c2c;
+  --inset-2: #333333;
   --pink: #e56b43;
   --pink-hover: #f07c53;
   --pink-soft: rgba(229, 107, 67, 0.14);
@@ -336,8 +336,30 @@
 
 .errorText { color: var(--danger); font-size: 13px; margin-top: 12px; font-weight: 500; }
 
-/* --- Wallet picker modal ------------------------------------------------ */
+/* --- Wallet picker / confirm modal --------------------------------------
+   Overlay is a sibling of .console (position:fixed, rendered next to the
+   shell, not inside it). Without its own tokens it inherits shadcn's
+   :root --card (white) and --muted (near-white), which is how the live-mode
+   confirm shipped as a blank white box. */
 .modalOverlay {
+  --ink: #f4f4f5;
+  --ink-soft: #a1a1aa;
+  --muted: #a1a1aa;
+  --muted-2: #8a8a93;
+  --bg: #1a1a1a;
+  --card: #242424;
+  --line: #3a3a3a;
+  --line-soft: #3a3a3a;
+  --inset: #2c2c2c;
+  --inset-2: #333333;
+  --pink: #e56b43;
+  --pink-hover: #f07c53;
+  --pink-soft: rgba(229, 107, 67, 0.14);
+  --green: #34d399;
+  --green-soft: rgba(52, 211, 153, 0.12);
+  --r-md: 10px;
+  --r-lg: 14px;
+
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -345,24 +367,60 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(13, 14, 14, 0.32);
-  backdrop-filter: blur(3px);
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.64);
+  backdrop-filter: blur(8px);
 }
 .modal {
-  width: min(400px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   background: var(--card);
+  color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 18px;
+  padding: 20px;
+  transform-origin: center;
+  animation: modalIn 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none; }
 }
 .modalHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
-.modalTitle { font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.modalTitle {
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.modalBody {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.modalActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.modalActions .btn,
+.modalActions .btnCta {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+  text-align: center;
+}
+.modalActions .btnGhost {
+  background: var(--inset);
+}
 .modalClose {
   display: grid;
   place-items: center;
@@ -375,9 +433,10 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition: background 140ms;
+  transition: background 140ms, color 140ms, transform 120ms;
 }
 .modalClose:not(:disabled):hover { background: var(--inset-2); color: var(--ink); }
+.modalClose:not(:disabled):active { transform: scale(0.97); }
 .modalClose:disabled { opacity: 0.5; cursor: not-allowed; }
 .walletList { display: flex; flex-direction: column; gap: 8px; }
 .walletRow {
@@ -542,6 +601,15 @@
 .navLink:hover { color: var(--ink); }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.fieldRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.9fr) minmax(180px, 1.3fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .fieldRow { grid-template-columns: 1fr; }
+}
 .fieldLabel { font-size: 13px; font-weight: 600; color: var(--muted); }
 .textInput {
   width: 100%;
@@ -1275,17 +1343,30 @@
    product's one identity, not a preference. (The light/dark/system
    toggle this used to have was removed for the same reason.)
    ======================================================================== */
+.consoleFrame {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.consoleFrame > .testBanner,
+.consoleFrame > .walletMismatchBanner,
+.consoleFrame > .networkErrorBanner {
+  flex: none;
+}
+
 .console {
-  --ink: #ffffff;
-  --ink-soft: #6b7280;
-  --muted: #6b7280;
-  --muted-2: #6b7280;
-  --bg: #000000;
-  --card: #161616;
-  --line: #2a2a2a;
-  --line-soft: #2a2a2a;
-  --inset: #1a1a1a;
-  --inset-2: #1a1a1a;
+  --ink: #f4f4f5;
+  --ink-soft: #a1a1aa;
+  --muted: #a1a1aa;
+  --muted-2: #8a8a93;
+  --bg: #1a1a1a;
+  --card: #242424;
+  --line: #3a3a3a;
+  --line-soft: #3a3a3a;
+  --inset: #2c2c2c;
+  --inset-2: #333333;
   --pink: #e56b43;
   --pink-hover: #f07c53;
   --pink-soft: rgba(229, 107, 67, 0.14);
@@ -1305,13 +1386,15 @@
   --r-xl: 20px;
   --sidebar-w: 240px;
 
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
   background: var(--bg);
   color: var(--ink);
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   font-family: var(--font-body), system-ui, sans-serif;
   transition: grid-template-columns 180ms ease;
+  overflow: hidden;
 }
 
 .console.collapsed { --sidebar-w: 68px; }
@@ -1322,9 +1405,8 @@
   display: flex;
   flex-direction: column;
   padding: 20px 14px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   transition: padding 180ms ease;
 }
@@ -1340,6 +1422,34 @@
   padding: 6px 10px 22px;
   white-space: nowrap;
 }
+.consoleMerchant {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.consoleMerchant:hover { border-color: var(--pink-soft-2); }
+.consoleMerchantName {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.consoleMerchantAddr {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.console.collapsed .consoleMerchant { display: none; }
 .consoleBrand .brandBadge {
   font-family: var(--font-mono-ui), monospace;
   font-weight: 600;
@@ -1401,7 +1511,11 @@
 .consoleSidebarFoot a:hover { color: var(--muted); }
 .console.collapsed .consoleSidebarFoot { display: none; }
 
-.consoleMain { min-width: 0; }
+.consoleMain {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
 .consoleTopbar {
   display: flex;
   align-items: center;
@@ -1512,6 +1626,85 @@
   padding: 0;
   font-size: 13px;
 }
+.walletMismatchBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  background: rgba(229, 107, 67, 0.16);
+  color: #f0916e;
+  border-bottom: 1px solid rgba(229, 107, 67, 0.32);
+}
+.walletMismatchBanner strong { font-weight: 700; }
+.walletMismatchBanner .testBannerAction { color: #f0916e; }
+.networkErrorBanner {
+  padding: 8px 20px;
+  font-size: 12.5px;
+  text-align: center;
+  background: rgba(196, 181, 253, 0.14);
+  color: #c4b5fd;
+}
+
+.logoPicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.logoPicker label.btn {
+  margin: 0;
+  display: inline-flex;
+}
+.logoPreview {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--inset);
+}
+.checkoutLogo {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  margin: 0 auto 14px;
+  display: block;
+}
+.ipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ipChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.ipChip button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+.ipChip button:hover { color: var(--ink); }
 
 /* Settings: label-left / control-right rows, matching the API
    configuration pattern from the design reference. */
@@ -1594,7 +1787,10 @@
 
 @media (max-width: 860px) {
   .console,
-  .console.collapsed { grid-template-columns: 1fr; }
+  .console.collapsed {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
   .consoleSidebar {
     position: static;
     height: auto;

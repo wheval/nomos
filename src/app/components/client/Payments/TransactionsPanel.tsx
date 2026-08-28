@@ -4,16 +4,15 @@ import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
-import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
 import { tokenDecimals } from "@/utils/constants";
 
 export default function TransactionsPanel() {
-  const { isConnected, address, secretKey } = useMerchantAuth();
-  const { deposits, loadError } = useLedger(address, secretKey);
-  const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
+  const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
+  const { deposits, loadError } = useLedger(address, secretKey, networkIndex, sessionReady);
+  const myFrontendProviderIndex = networkIndex;
 
   if (!isConnected) {
     return (
@@ -39,20 +38,18 @@ export default function TransactionsPanel() {
           {deposits?.length ? <span className={styles.sectionMeta}>{deposits.length} total</span> : null}
         </div>
 
-        {!secretKey ? (
-          <div className={styles.emptyState}>
-            <p>Generate an API key in Settings to unlock this list.</p>
-          </div>
-        ) : loadError ? (
+        {loadError ? (
           <div className={styles.errorText}>{loadError}</div>
-        ) : deposits && deposits.length === 0 ? (
+        ) : deposits === null ? (
+          <p className={styles.sectionSub}>Loading…</p>
+        ) : deposits.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No deposits recorded yet — they&apos;ll appear here as your Payment Links get paid.</p>
             <div className={styles.nextSteps} style={{ maxWidth: 260, margin: "0 auto" }}>
               <Link href="/create">Create a Payment Link →</Link>
             </div>
           </div>
-        ) : deposits ? (
+        ) : (
           <div className={styles.txTable}>
             {deposits.map((d) => {
               const badge = depositStatusLabel(d.status);
@@ -80,7 +77,7 @@ export default function TransactionsPanel() {
               );
             })}
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

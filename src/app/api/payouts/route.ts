@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
+import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
 import { getPayoutExecutor } from "@/server/signer/payoutExecutor";
-import { isTokenSymbol, TokenSymbols } from "@/utils/constants";
+import { isTokenSymbol, isValidNetworkIndex, TokenSymbols } from "@/utils/constants";
 
 // POST: merchant-initiated withdrawal against their ledger balance.
 // Checks the balance but does NOT debit until execution actually succeeds
@@ -16,21 +17,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { merchantAddress, secretKey, destination, amountWei, token, mode } = body ?? {};
+  const { merchantAddress, secretKey, destination, amountWei, token, mode, networkIndex } = body ?? {};
   if (
     typeof merchantAddress !== "string" ||
-    typeof secretKey !== "string" ||
     typeof destination !== "string" ||
     typeof amountWei !== "string" ||
     (mode !== "withdraw" && mode !== "transfer")
   ) {
     return NextResponse.json(
-      { error: "merchantAddress, secretKey, destination, amountWei, and mode ('withdraw'|'transfer') are required." },
+      { error: "merchantAddress, destination, amountWei, and mode ('withdraw'|'transfer') are required." },
       { status: 400 }
     );
   }
   if (!isTokenSymbol(token)) {
     return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
+  }
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "networkIndex is required and must be a supported network." }, { status: 400 });
   }
 
   let normalizedMerchant: string;
@@ -50,13 +53,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "amountWei must be a positive integer string (wei)." }, { status: 400 });
   }
 
-  const store = getStore();
-  const ok = await store.verifyMerchantSecret(normalizedMerchant, secretKey);
-  if (!ok) {
-    return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
-  }
+  const denied = await unauthorizedUnlessMerchant({
+    request,
+    address: normalizedMerchant,
+    networkIndex,
+    secretKey: typeof secretKey === "string" ? secretKey : null,
+  });
+  if (denied) return denied;
 
-  const balance = await store.getLedgerBalance(normalizedMerchant, token);
+  const store = getStore();
+
+  const balance = await store.getLedgerBalance(normalizedMerchant, token, networkIndex);
   if (balance < requestedWei) {
     return NextResponse.json(
       { error: `Insufficient balance: requested ${requestedWei}, available ${balance}.` },
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
 
   const payout = await store.createPayout({
     merchantAddress: normalizedMerchant,
+    networkIndex,
     destination: normalizedDestination,
     amountWei: requestedWei,
     token,
@@ -74,7 +82,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await store.updatePayoutStatus(payout.id, "broadcasting");
-    const executor = getPayoutExecutor();
+    const executor = getPayoutExecutor(networkIndex);
     const { txHash } =
       mode === "withdraw"
         ? await executor.executeWithdraw({ amountWei: requestedWei, token, destination: normalizedDestination })
@@ -82,6 +90,7 @@ export async function POST(request: NextRequest) {
 
     await store.debitLedger({
       merchantAddress: normalizedMerchant,
+      networkIndex,
       amountWei: requestedWei,
       token,
       kind: "payout",
@@ -98,14 +107,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET: payout history for a merchant. Same bearer-secret auth as /api/payments.
+// GET: payout history for a merchant. Dashboard session or bearer secret.
 export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to");
-  const auth = request.headers.get("authorization") ?? "";
-  const secretKey = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const networkRaw = request.nextUrl.searchParams.get("network");
 
   if (!to) {
     return NextResponse.json({ error: "Missing ?to=<address>." }, { status: 400 });
+  }
+  const networkIndex = networkRaw !== null ? Number(networkRaw) : NaN;
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "Missing or invalid ?network=." }, { status: 400 });
   }
   let normalizedTo: string;
   try {
@@ -113,17 +125,12 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "to is not a valid Starknet address." }, { status: 400 });
   }
-  if (!secretKey) {
-    return NextResponse.json({ error: "Missing Authorization: Bearer <secret key>." }, { status: 401 });
-  }
+  const denied = await unauthorizedUnlessMerchant({ request, address: normalizedTo, networkIndex });
+  if (denied) return denied;
 
   const store = getStore();
-  const ok = await store.verifyMerchantSecret(normalizedTo, secretKey);
-  if (!ok) {
-    return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
-  }
 
-  const payouts = await store.listPayoutsFor(normalizedTo);
+  const payouts = await store.listPayoutsFor(normalizedTo, networkIndex);
   return NextResponse.json({
     payouts: payouts.map((p) => ({ ...p, amountWei: p.amountWei.toString() })),
   });

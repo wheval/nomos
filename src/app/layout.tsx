@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Funnel_Display, Funnel_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils";
+import WalletSession from "./components/WalletSession";
 
 // Ferro-derived type system: Funnel Display for headings, Funnel Sans for
 // everything else, IBM Plex Mono for hex addresses / hashes / code. Tailwind's
@@ -42,7 +43,10 @@ export default function RootLayout({
       className={cn(funnelSans.variable, funnelDisplay.variable, plexMono.variable, "font-sans")}
       suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body>
+        <WalletSession />
+        {children}
+      </body>
     </html>
   )
 }

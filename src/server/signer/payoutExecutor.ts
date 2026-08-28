@@ -17,14 +17,17 @@ export interface PayoutExecutor {
 }
 
 // Sepolia only for now — the operating wallet isn't deployed on Mainnet yet
-// (see docs/ARCHITECTURE.md "Sequencing"). Mainnet cutover needs this
-// parameterized the same way payments/route.ts threads networkIndex today.
-const NETWORK_INDEX = 2;
-
-export function getPayoutExecutor(): PayoutExecutor {
-  const provider = myFrontendProviders[NETWORK_INDEX];
+// (see docs/ARCHITECTURE.md "Sequencing"), and privacyClient.ts's pool
+// address/chain-id are still hardcoded to Sepolia. networkIndex is already
+// threaded through from the caller so mainnet cutover is a privacyClient.ts
+// change, not a call-site one.
+export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
+  if (networkIndex !== 2) {
+    throw new Error(`Payouts are only wired for Sepolia (network index 2) so far, not network index ${networkIndex}.`);
+  }
+  const provider = myFrontendProviders[networkIndex];
   if (!provider) {
-    throw new Error(`No RPC provider configured for network index ${NETWORK_INDEX}.`);
+    throw new Error(`No RPC provider configured for network index ${networkIndex}.`);
   }
 
   async function run(

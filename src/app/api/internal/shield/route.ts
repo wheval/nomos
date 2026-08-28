@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
       await store.markDepositShielded(depositId, shieldTxHash);
       await store.creditLedger({
         merchantAddress: deposit.merchantAddress,
+        networkIndex: deposit.networkIndex,
         amountWei: deposit.amountWei,
         token: deposit.token,
         kind: "flow_b_deposit",

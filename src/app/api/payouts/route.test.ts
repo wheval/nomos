@@ -16,6 +16,7 @@ const createPayout = vi.fn(async () => ({
 const updatePayoutStatus = vi.fn(async () => {});
 const debitLedger = vi.fn(async () => ({}) as any);
 const listPayoutsFor = vi.fn(async () => []);
+const getMerchantProfile = vi.fn(async () => ({ displayName: null, allowedIps: [] as string[], logoDataUrl: null }));
 
 vi.mock("@/server/store", () => ({
   getStore: () => ({
@@ -25,6 +26,7 @@ vi.mock("@/server/store", () => ({
     updatePayoutStatus,
     debitLedger,
     listPayoutsFor,
+    getMerchantProfile,
   }),
 }));
 
@@ -59,6 +61,7 @@ describe("POST /api/payouts", () => {
   const validBody = {
     merchantAddress: VALID_ADDR_1,
     secretKey: "sk_test",
+    networkIndex: 2,
     destination: VALID_ADDR_2,
     amountWei: "100",
     token: "STRK",
@@ -115,7 +118,7 @@ describe("POST /api/payouts", () => {
 
 describe("GET /api/payouts", () => {
   it("requires a bearer secret", async () => {
-    const res = await GET(req("GET", undefined, `?to=${VALID_ADDR_1}`));
+    const res = await GET(req("GET", undefined, `?to=${VALID_ADDR_1}&network=2`));
     expect(res.status).toBe(401);
   });
 
@@ -131,7 +134,7 @@ describe("GET /api/payouts", () => {
         createdAt: 1700000000,
       },
     ] as any);
-    const res = await GET(req("GET", undefined, `?to=${VALID_ADDR_1}`, "Bearer sk_test"));
+    const res = await GET(req("GET", undefined, `?to=${VALID_ADDR_1}&network=2`, "Bearer sk_test"));
     const data = await res.json();
     expect(data.payouts).toHaveLength(1);
     expect(data.payouts[0].amountWei).toBe("42");

@@ -40,6 +40,7 @@ export type {
   LedgerEntry,
   LedgerKind,
   MerchantKey,
+  NetworkIndex,
   PaymentLink,
   Payout,
   PayoutMode,

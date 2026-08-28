@@ -14,10 +14,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   const expired = link.expiresAt !== undefined && Date.now() / 1000 > link.expiresAt;
+  const profile = await store.getMerchantProfile(link.merchantAddress, link.networkIndex);
 
   return NextResponse.json({
     id: link.id,
     merchantAddress: link.merchantAddress,
+    networkIndex: link.networkIndex,
     amountWei: link.amountWei?.toString(),
     token: link.token,
     note: link.note,
@@ -25,5 +27,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     expiresAt: link.expiresAt,
     revoked: link.revoked,
     expired,
+    logoDataUrl: profile.logoDataUrl ?? link.logoDataUrl,
   });
 }

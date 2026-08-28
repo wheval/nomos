@@ -1,6 +1,6 @@
 // Supabase (Postgres) Store implementation — the durable, real-deployment
 // driver. Only instantiated when NOMOS_STORE_DRIVER=supabase; see index.ts.
-// Schema: supabase/migrations/0001_init.sql.
+// Schema: supabase/migrations/0001_init.sql onward.
 //
 // Note on concurrency: creditLedger/debitLedger read the current balance
 // then insert a new entry, same read-then-write shape as the file/memory
@@ -18,6 +18,7 @@ import {
   InsufficientBalanceError,
   type LedgerEntry,
   type LedgerKind,
+  type NetworkIndex,
   type PaymentLink,
   type Payout,
   type PayoutStatus,
@@ -38,6 +39,7 @@ function requireEnv(name: string): string {
 type DepositRow = {
   id: string;
   merchant_address: string;
+  network_index: number;
   flow: "A" | "B";
   tx_hash: string;
   amount_wei: string;
@@ -53,6 +55,7 @@ function depositFromRow(r: DepositRow): Deposit {
   return {
     id: r.id,
     merchantAddress: r.merchant_address,
+    networkIndex: r.network_index,
     flow: r.flow,
     txHash: r.tx_hash,
     amountWei: BigInt(r.amount_wei),
@@ -68,6 +71,7 @@ function depositFromRow(r: DepositRow): Deposit {
 type PayoutRow = {
   id: string;
   merchant_address: string;
+  network_index: number;
   destination: string;
   amount_wei: string;
   token: string;
@@ -82,6 +86,7 @@ function payoutFromRow(r: PayoutRow): Payout {
   return {
     id: r.id,
     merchantAddress: r.merchant_address,
+    networkIndex: r.network_index,
     destination: r.destination,
     amountWei: BigInt(r.amount_wei),
     token: r.token,
@@ -96,6 +101,7 @@ function payoutFromRow(r: PayoutRow): Payout {
 type PaymentLinkRow = {
   id: string;
   merchant_address: string;
+  network_index: number;
   amount_wei: string | null;
   token: string;
   note: string | null;
@@ -103,12 +109,14 @@ type PaymentLinkRow = {
   expires_at: string | null;
   revoked: boolean;
   created_at: string;
+  logo_data_url: string | null;
 };
 
 function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
   return {
     id: r.id,
     merchantAddress: r.merchant_address,
+    networkIndex: r.network_index,
     amountWei: r.amount_wei !== null ? BigInt(r.amount_wei) : undefined,
     token: r.token,
     note: r.note ?? undefined,
@@ -116,6 +124,7 @@ function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
     expiresAt: r.expires_at ? Math.floor(new Date(r.expires_at).getTime() / 1000) : undefined,
     revoked: r.revoked,
     createdAt: Math.floor(new Date(r.created_at).getTime() / 1000),
+    logoDataUrl: r.logo_data_url ?? undefined,
   };
 }
 
@@ -132,11 +141,13 @@ export class SupabaseStore implements Store {
     this.client = createClient(url, serviceKey);
   }
 
-  private async ensureMerchant(address: string) {
-    const key = address.toLowerCase();
+  private async ensureMerchant(address: string, networkIndex: NetworkIndex) {
     const { error } = await this.client
       .from("merchants")
-      .upsert({ address: key, public_key: "", secret_key_hash: "" }, { onConflict: "address", ignoreDuplicates: true });
+      .upsert(
+        { address: address.toLowerCase(), network_index: networkIndex, public_key: "", secret_key_hash: "" },
+        { onConflict: "address,network_index", ignoreDuplicates: true }
+      );
     if (error) throw new Error(`ensureMerchant failed: ${error.message}`);
   }
 
@@ -148,11 +159,12 @@ export class SupabaseStore implements Store {
       .maybeSingle<DepositRow>();
     if (existing) return { deposit: depositFromRow(existing), alreadyExisted: true };
 
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const { data, error } = await this.client
       .from("deposits")
       .insert({
         merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
         flow: input.flow,
         tx_hash: input.txHash,
         amount_wei: input.amountWei.toString(),
@@ -191,37 +203,47 @@ export class SupabaseStore implements Store {
     return (data ?? []).map(depositFromRow);
   }
 
-  async listDepositsFor(merchantAddress: string): Promise<Deposit[]> {
+  async listDepositsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Deposit[]> {
     const { data, error } = await this.client
       .from("deposits")
       .select("*")
       .eq("merchant_address", merchantAddress.toLowerCase())
+      .eq("network_index", networkIndex)
       .order("recorded_at", { ascending: false })
       .returns<DepositRow[]>();
     if (error) throw new Error(`listDepositsFor failed: ${error.message}`);
     return (data ?? []).map(depositFromRow);
   }
 
-  async getLedgerBalance(merchantAddress: string, token: string): Promise<bigint> {
+  async getLedgerBalance(merchantAddress: string, token: string, networkIndex: NetworkIndex): Promise<bigint> {
     const { data } = await this.client
       .from("ledger_entries")
       .select("running_balance_wei")
       .eq("merchant_address", merchantAddress.toLowerCase())
       .eq("token", token)
+      .eq("network_index", networkIndex)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ running_balance_wei: string }>();
     return data ? BigInt(data.running_balance_wei) : 0n;
   }
 
-  async creditLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; depositId?: string }): Promise<LedgerEntry> {
-    await this.ensureMerchant(input.merchantAddress);
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
+  async creditLedger(input: {
+    merchantAddress: string;
+    networkIndex: NetworkIndex;
+    amountWei: bigint;
+    token: string;
+    kind: LedgerKind;
+    depositId?: string;
+  }): Promise<LedgerEntry> {
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
     const runningBalanceWei = balance + input.amountWei;
     const { data, error } = await this.client
       .from("ledger_entries")
       .insert({
         merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
         direction: "credit",
         amount_wei: input.amountWei.toString(),
         token: input.token,
@@ -235,6 +257,7 @@ export class SupabaseStore implements Store {
     return {
       id: data.id,
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       direction: "credit",
       amountWei: input.amountWei,
       token: input.token,
@@ -245,8 +268,15 @@ export class SupabaseStore implements Store {
     };
   }
 
-  async debitLedger(input: { merchantAddress: string; amountWei: bigint; token: string; kind: LedgerKind; payoutId?: string }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token);
+  async debitLedger(input: {
+    merchantAddress: string;
+    networkIndex: NetworkIndex;
+    amountWei: bigint;
+    token: string;
+    kind: LedgerKind;
+    payoutId?: string;
+  }): Promise<LedgerEntry> {
+    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }
@@ -255,6 +285,7 @@ export class SupabaseStore implements Store {
       .from("ledger_entries")
       .insert({
         merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
         direction: "debit",
         amount_wei: input.amountWei.toString(),
         token: input.token,
@@ -268,6 +299,7 @@ export class SupabaseStore implements Store {
     return {
       id: data.id,
       merchantAddress: input.merchantAddress,
+      networkIndex: input.networkIndex,
       direction: "debit",
       amountWei: input.amountWei,
       token: input.token,
@@ -279,11 +311,12 @@ export class SupabaseStore implements Store {
   }
 
   async createPayout(input: CreatePayoutInput): Promise<Payout> {
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const { data, error } = await this.client
       .from("payouts")
       .insert({
         merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
         destination: input.destination,
         amount_wei: input.amountWei.toString(),
         token: input.token,
@@ -304,11 +337,12 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(`updatePayoutStatus failed: ${error.message}`);
   }
 
-  async listPayoutsFor(merchantAddress: string): Promise<Payout[]> {
+  async listPayoutsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Payout[]> {
     const { data, error } = await this.client
       .from("payouts")
       .select("*")
       .eq("merchant_address", merchantAddress.toLowerCase())
+      .eq("network_index", networkIndex)
       .order("created_at", { ascending: false })
       .returns<PayoutRow[]>();
     if (error) throw new Error(`listPayoutsFor failed: ${error.message}`);
@@ -316,16 +350,18 @@ export class SupabaseStore implements Store {
   }
 
   async createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink> {
-    await this.ensureMerchant(input.merchantAddress);
+    await this.ensureMerchant(input.merchantAddress, input.networkIndex);
     const { data, error } = await this.client
       .from("payment_links")
       .insert({
         merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
         amount_wei: input.amountWei !== undefined ? input.amountWei.toString() : null,
         token: input.token,
         note: input.note ?? null,
         ref: input.ref ?? randomRef(),
         expires_at: input.expiresAt ? new Date(input.expiresAt * 1000).toISOString() : null,
+        logo_data_url: input.logoDataUrl ?? null,
       })
       .select("*")
       .single<PaymentLinkRow>();
@@ -342,11 +378,12 @@ export class SupabaseStore implements Store {
     return data ? paymentLinkFromRow(data) : null;
   }
 
-  async listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]> {
+  async listPaymentLinksFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<PaymentLink[]> {
     const { data, error } = await this.client
       .from("payment_links")
       .select("*")
       .eq("merchant_address", merchantAddress.toLowerCase())
+      .eq("network_index", networkIndex)
       .order("created_at", { ascending: false })
       .returns<PaymentLinkRow[]>();
     if (error) throw new Error(`listPaymentLinksFor failed: ${error.message}`);
@@ -365,7 +402,7 @@ export class SupabaseStore implements Store {
     return !!data;
   }
 
-  async issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }> {
+  async issueMerchantKey(address: string, networkIndex: NetworkIndex): Promise<{ publicKey: string; secretKey: string }> {
     const crypto = await import("crypto");
     const key = address.toLowerCase();
     const publicKey = `pk_${crypto.randomBytes(18).toString("hex")}`;
@@ -373,56 +410,108 @@ export class SupabaseStore implements Store {
     const secretKeyHash = crypto.createHash("sha256").update(secretKey).digest("hex");
     const { error } = await this.client
       .from("merchants")
-      .upsert({ address: key, public_key: publicKey, secret_key_hash: secretKeyHash }, { onConflict: "address" });
+      .upsert(
+        { address: key, network_index: networkIndex, public_key: publicKey, secret_key_hash: secretKeyHash },
+        { onConflict: "address,network_index" }
+      );
     if (error) throw new Error(`issueMerchantKey failed: ${error.message}`);
     return { publicKey, secretKey };
   }
 
-  async getMerchantPublicKey(address: string): Promise<string | null> {
+  async getMerchantPublicKey(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const { data } = await this.client
       .from("merchants")
       .select("public_key")
       .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex)
       .maybeSingle<{ public_key: string }>();
     return data?.public_key || null;
   }
 
-  async verifyMerchantSecret(address: string, secretKey: string): Promise<boolean> {
+  async verifyMerchantSecret(address: string, secretKey: string, networkIndex: NetworkIndex): Promise<boolean> {
     const crypto = await import("crypto");
     const { data } = await this.client
       .from("merchants")
       .select("secret_key_hash")
       .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex)
       .maybeSingle<{ secret_key_hash: string }>();
     if (!data?.secret_key_hash) return false;
     return data.secret_key_hash === crypto.createHash("sha256").update(secretKey).digest("hex");
   }
 
-  async getMerchantWebhookUrl(address: string): Promise<string | null> {
+  async getMerchantWebhookUrl(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const { data } = await this.client
       .from("merchants")
       .select("webhook_url")
       .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex)
       .maybeSingle<{ webhook_url: string | null }>();
     return data?.webhook_url ?? null;
   }
 
-  async setMerchantWebhookUrl(address: string, secretKey: string, url: string): Promise<boolean> {
-    const ok = await this.verifyMerchantSecret(address, secretKey);
+  async setMerchantWebhookUrl(address: string, secretKey: string, url: string, networkIndex: NetworkIndex): Promise<boolean> {
+    const ok = await this.verifyMerchantSecret(address, secretKey, networkIndex);
     if (!ok) return false;
     const { error } = await this.client
       .from("merchants")
       .update({ webhook_url: url || null })
-      .eq("address", address.toLowerCase());
+      .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex);
     return !error;
   }
 
-  async getWebhookSigningKey(address: string): Promise<string | null> {
+  async getWebhookSigningKey(address: string, networkIndex: NetworkIndex): Promise<string | null> {
     const { data } = await this.client
       .from("merchants")
       .select("secret_key_hash")
       .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex)
       .maybeSingle<{ secret_key_hash: string }>();
     return data?.secret_key_hash || null;
+  }
+
+  async getMerchantProfile(address: string, networkIndex: NetworkIndex) {
+    const { data } = await this.client
+      .from("merchants")
+      .select("display_name, allowed_ips, logo_data_url")
+      .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex)
+      .maybeSingle<{ display_name: string | null; allowed_ips: string[] | null; logo_data_url: string | null }>();
+    return {
+      displayName: data?.display_name?.trim() ? data.display_name : null,
+      allowedIps: data?.allowed_ips ?? [],
+      logoDataUrl: data?.logo_data_url ?? null,
+    };
+  }
+
+  async setMerchantDisplayName(address: string, networkIndex: NetworkIndex, displayName: string): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const { error } = await this.client
+      .from("merchants")
+      .update({ display_name: displayName.trim() || null })
+      .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex);
+    if (error) throw new Error(`setMerchantDisplayName failed: ${error.message}`);
+  }
+
+  async setMerchantAllowedIps(address: string, networkIndex: NetworkIndex, allowedIps: string[]): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const { error } = await this.client
+      .from("merchants")
+      .update({ allowed_ips: allowedIps })
+      .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex);
+    if (error) throw new Error(`setMerchantAllowedIps failed: ${error.message}`);
+  }
+
+  async setMerchantLogo(address: string, networkIndex: NetworkIndex, logoDataUrl: string | null): Promise<void> {
+    await this.ensureMerchant(address, networkIndex);
+    const { error } = await this.client
+      .from("merchants")
+      .update({ logo_data_url: logoDataUrl })
+      .eq("address", address.toLowerCase())
+      .eq("network_index", networkIndex);
+    if (error) throw new Error(`setMerchantLogo failed: ${error.message}`);
   }
 }

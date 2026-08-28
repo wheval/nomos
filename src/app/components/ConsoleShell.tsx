@@ -9,6 +9,9 @@ import Switch from "./Switch";
 import { useStoreWallet } from "./Wallet/walletContext";
 import { useFrontendProvider } from "./client/provider/providerContext";
 import * as constants from "@/utils/constants";
+import { MAINNET_INDEX, SEPOLIA_INDEX, indexForChainId, networkLabel, writeStoredNetworkIndex } from "@/utils/networks";
+import { forgetWallet, switchConnectedWalletNetwork } from "./client/WalletHandle/connectWallet";
+import { merchantFetchInit, useMerchantAuth } from "./client/Payments/useMerchantAuth";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: OverviewIcon },
@@ -18,12 +21,6 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-// The only two real, connectable STRK20 networks (constants.Strk20Networks).
-// 0 = Mainnet ("live"), 2 = Sepolia ("test") — a plain boolean toggle, same
-// as the Test/Live switch in the design reference, not a multi-option menu.
-const MAINNET_INDEX = 0;
-const SEPOLIA_INDEX = 2;
-
 const COLLAPSE_STORAGE_KEY = "nomos:sidebar-collapsed";
 
 // The merchant console shell: collapsible sidebar + topbar, wrapping every
@@ -32,18 +29,45 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
-  const setConnected = useStoreWallet((state) => state.setConnected);
+  const walletChain = useStoreWallet((state) => state.chain);
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const setCurrentFrontendProviderIndex = useFrontendProvider((state) => state.setCurrentFrontendProviderIndex);
+  const { secretKey, sessionReady } = useMerchantAuth();
   const networkName = constants.Strk20Networks[myFrontendProviderIndex] ?? "Unsupported";
   const isLive = myFrontendProviderIndex === MAINNET_INDEX;
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+  const walletNetworkIndex = walletChain ? indexForChainId(walletChain) : null;
+  const walletMismatch = Boolean(isConnected && walletNetworkIndex !== null && walletNetworkIndex !== myFrontendProviderIndex);
 
   const [collapsed, setCollapsed] = useState(false);
+  const [confirmingLive, setConfirmingLive] = useState(false);
+  const [switchingNetwork, setSwitchingNetwork] = useState(false);
+  const [networkError, setNetworkError] = useState("");
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1");
   }, []);
+
+  useEffect(() => {
+    if (!confirmingLive) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfirmingLive(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmingLive]);
+
+  useEffect(() => {
+    if (!address || !sessionReady) {
+      setDisplayName(null);
+      return;
+    }
+    fetch(`/api/merchant-profile?address=${address}&network=${myFrontendProviderIndex}`, merchantFetchInit(secretKey))
+      .then((r) => (r.ok ? r.json() : { displayName: null }))
+      .then((d) => setDisplayName(typeof d.displayName === "string" ? d.displayName : null))
+      .catch(() => setDisplayName(null));
+  }, [address, secretKey, sessionReady, myFrontendProviderIndex]);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -53,16 +77,58 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
     });
   }
 
+  // Switching to live moves real STRK/USDC - confirm first, same as
+  // Blockradar's mainnet-switch modal. Switching back to test is always safe,
+  // no confirmation needed.
+  async function applyNetwork(index: number) {
+    setNetworkError("");
+    setSwitchingNetwork(true);
+    try {
+      if (isConnected) {
+        await switchConnectedWalletNetwork(index);
+      }
+      setCurrentFrontendProviderIndex(index);
+      writeStoredNetworkIndex(index);
+      setConfirmingLive(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not switch the wallet network.";
+      setNetworkError(message);
+    } finally {
+      setSwitchingNetwork(false);
+    }
+  }
+
+  function requestGoLive() {
+    setConfirmingLive(true);
+  }
+  function confirmGoLive() {
+    void applyNetwork(MAINNET_INDEX);
+  }
+
   return (
     <>
-      {!isLive ? (
+    <div className={styles.consoleFrame}>
+      {walletMismatch ? (
+        <div className={styles.walletMismatchBanner}>
+          {isLive ? "Live mode" : "Test mode"} needs {networkLabel(myFrontendProviderIndex)}, but your wallet is on{" "}
+          <strong>{networkLabel(walletNetworkIndex ?? SEPOLIA_INDEX)}</strong>.{" "}
+          <button
+            className={styles.testBannerAction}
+            disabled={switchingNetwork}
+            onClick={() => void applyNetwork(myFrontendProviderIndex)}
+          >
+            {switchingNetwork ? "Switching…" : `Switch wallet to ${networkLabel(myFrontendProviderIndex)} →`}
+          </button>
+        </div>
+      ) : !isLive ? (
         <div className={styles.testBanner}>
           You&apos;re currently on <strong>test mode</strong> ({networkName.toLowerCase()}). Payments here don&apos;t move real funds.{" "}
-          <button className={styles.testBannerAction} onClick={() => setCurrentFrontendProviderIndex(MAINNET_INDEX)}>
+          <button className={styles.testBannerAction} onClick={requestGoLive}>
             Switch to live mode →
           </button>
         </div>
       ) : null}
+      {networkError ? <div className={styles.networkErrorBanner}>{networkError}</div> : null}
       <div className={`${styles.console} ${collapsed ? styles.collapsed : ""}`}>
       <aside className={styles.consoleSidebar}>
         <Link href="/" className={styles.consoleBrand} style={{ textDecoration: "none" }}>
@@ -70,6 +136,12 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
           <span>Nomos</span>
           <span className={styles.brandBadge}>on STRK20</span>
         </Link>
+        {isConnected && address ? (
+          <Link href="/dashboard/settings" className={styles.consoleMerchant} title="Business settings">
+            <span className={styles.consoleMerchantName}>{displayName || shortAddr}</span>
+            {displayName ? <span className={styles.consoleMerchantAddr}>{shortAddr}</span> : <span className={styles.consoleMerchantAddr}>Set a business name</span>}
+          </Link>
+        ) : null}
         <nav className={styles.consoleNav}>
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -111,7 +183,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
               </span>
               <Switch
                 checked={isLive}
-                onChange={(next) => setCurrentFrontendProviderIndex(next ? MAINNET_INDEX : SEPOLIA_INDEX)}
+                onChange={(next) => (next ? requestGoLive() : void applyNetwork(SEPOLIA_INDEX))}
                 ariaLabel="Toggle test/live mode"
               />
               <span className={`${styles.netSwitchLabel} ${isLive ? styles.netSwitchLabelLive : ""}`}>Live</span>
@@ -120,7 +192,7 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
 
           <div className={styles.consoleTopbarRight}>
             {isConnected && address ? (
-              <button className={styles.consoleAddrPill} onClick={() => setConnected(false)} title="Disconnect">
+              <button className={styles.consoleAddrPill} onClick={() => forgetWallet()} title="Disconnect">
                 <span className={styles.netDot} style={{ background: "var(--green)" }} />
                 {shortAddr}
               </button>
@@ -130,6 +202,32 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
         {children}
       </div>
       </div>
+    </div>
+
+      {confirmingLive ? (
+        <div className={styles.modalOverlay} onClick={() => setConfirmingLive(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="live-mode-title">
+            <div className={styles.modalHead}>
+              <span className={styles.modalTitle} id="live-mode-title">Switch to live mode?</span>
+              <button className={styles.modalClose} onClick={() => setConfirmingLive(false)} aria-label="Stay on test">
+                ×
+              </button>
+            </div>
+            <p className={styles.modalBody}>
+              Live mode uses Starknet Mainnet. Payments and payouts move real STRK and USDC and
+              cannot be reversed. Test mode (Sepolia) stays available whenever you switch back.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={`${styles.btn} ${styles.btnGhost}`} onClick={() => setConfirmingLive(false)}>
+                Stay on test
+              </button>
+              <button type="button" className={styles.btnCta} disabled={switchingNetwork} onClick={confirmGoLive}>
+                {switchingNetwork ? "Switching wallet…" : "Switch to live"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

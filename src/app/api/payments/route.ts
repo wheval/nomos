@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
+import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
 import { getNoteDiscoveryClient } from "@/server/signer/noteDiscovery";
 import { deliverPaymentWebhook } from "@/utils/webhook";
 import { verifyFlowADeposit, verifyFlowBDeposit } from "@/utils/verifyTx";
-import { isTokenSymbol, tokenAddressFor, TokenSymbols } from "@/utils/constants";
+import { isTokenSymbol, isValidNetworkIndex, tokenAddressFor, TokenSymbols } from "@/utils/constants";
 
 function operatingWalletAddress(): string {
   const addr = process.env.NOMOS_OPERATING_WALLET_ADDRESS;
@@ -26,13 +27,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex, note, ref, linkId } = body ?? {};
+  const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex: networkIndexClaim, note, ref, linkId } = body ?? {};
   if (
     (flow !== "A" && flow !== "B") ||
     typeof merchantAddress !== "string" ||
     typeof amountWei !== "string" ||
     typeof txHash !== "string" ||
-    typeof networkIndex !== "number"
+    !isValidNetworkIndex(networkIndexClaim)
   ) {
     return NextResponse.json(
       { error: "flow ('A'|'B'), merchantAddress, amountWei, txHash, and networkIndex are required." },
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
   // a real on-chain payment credited to the wrong account.
   let normalizedMerchant = normalizedMerchantClaim;
   let token = tokenClaim;
+  let networkIndex = networkIndexClaim;
   let linkNote: string | undefined = typeof note === "string" ? note : undefined;
   let linkRef: string | undefined = typeof ref === "string" ? ref : undefined;
   if (linkId !== undefined) {
@@ -83,6 +85,10 @@ export async function POST(request: NextRequest) {
     }
     normalizedMerchant = link.merchantAddress;
     token = link.token;
+    // The link's own network is authoritative, not whatever the client
+    // claims - a test-mode link must always verify against Sepolia, a
+    // live-mode link always against Mainnet, regardless of client input.
+    networkIndex = link.networkIndex;
     linkNote = link.note;
     linkRef = link.ref;
   }
@@ -132,6 +138,7 @@ export async function POST(request: NextRequest) {
 
   const { deposit } = await store.recordDeposit({
     merchantAddress: normalizedMerchant,
+    networkIndex,
     flow,
     txHash,
     amountWei: verified.amountWei,
@@ -144,6 +151,7 @@ export async function POST(request: NextRequest) {
   if (flow === "A") {
     await store.creditLedger({
       merchantAddress: normalizedMerchant,
+      networkIndex,
       amountWei: verified.amountWei,
       token,
       kind: "flow_a_deposit",
@@ -158,15 +166,17 @@ export async function POST(request: NextRequest) {
 }
 
 // Lists recorded deposits + the current ledger balance for a merchant.
-// Requires the merchant's own secret key as a bearer token, same auth
-// model as before.
+// Dashboard session (connected wallet) or bearer secret API key.
 export async function GET(request: NextRequest) {
   const to = request.nextUrl.searchParams.get("to");
-  const auth = request.headers.get("authorization") ?? "";
-  const secretKey = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const networkRaw = request.nextUrl.searchParams.get("network");
 
   if (!to) {
     return NextResponse.json({ error: "Missing ?to=<address>." }, { status: 400 });
+  }
+  const networkIndex = networkRaw !== null ? Number(networkRaw) : NaN;
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "Missing or invalid ?network=." }, { status: 400 });
   }
   let normalizedTo: string;
   try {
@@ -174,19 +184,14 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "to is not a valid Starknet address." }, { status: 400 });
   }
-  if (!secretKey) {
-    return NextResponse.json({ error: "Missing Authorization: Bearer <secret key>." }, { status: 401 });
-  }
+  const denied = await unauthorizedUnlessMerchant({ request, address: normalizedTo, networkIndex });
+  if (denied) return denied;
 
   const store = getStore();
-  const ok = await store.verifyMerchantSecret(normalizedTo, secretKey);
-  if (!ok) {
-    return NextResponse.json({ error: "Invalid secret key for this address." }, { status: 401 });
-  }
 
   const [deposits, balances] = await Promise.all([
-    store.listDepositsFor(normalizedTo),
-    Promise.all(TokenSymbols.map(async (t) => [t, await store.getLedgerBalance(normalizedTo, t)] as const)),
+    store.listDepositsFor(normalizedTo, networkIndex),
+    Promise.all(TokenSymbols.map(async (t) => [t, await store.getLedgerBalance(normalizedTo, t, networkIndex)] as const)),
   ]);
 
   return NextResponse.json({

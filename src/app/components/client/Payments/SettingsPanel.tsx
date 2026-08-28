@@ -64,21 +64,46 @@ function CopyButton({ value }: { value: string }) {
 }
 
 export default function SettingsPanel() {
-  const { isConnected, address, publicKey, secretKey, justIssued, issuing, issueKey } = useMerchantAuth();
+  const { isConnected, address, publicKey, secretKey, justIssued, issuing, issueKey, networkIndex, sessionReady } = useMerchantAuth();
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSaved, setWebhookSaved] = useState(false);
   const [webhookError, setWebhookError] = useState("");
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [secretRevealed, setSecretRevealed] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [nameSaved, setNameSaved] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState("");
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState("");
+  const [savingLogo, setSavingLogo] = useState(false);
+  const [allowedIps, setAllowedIps] = useState<string[]>([]);
+  const [ipDraft, setIpDraft] = useState("");
+  const [ipError, setIpError] = useState("");
+  const [savingIps, setSavingIps] = useState(false);
 
   useEffect(() => {
-    if (!address || !secretKey) return;
-    fetch(`/api/merchant-webhook?address=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+    if (!address || !sessionReady) return;
+    fetch(`/api/merchant-webhook?address=${address}&network=${networkIndex}`, {
+      credentials: "include",
+      headers: secretKey ? { Authorization: `Bearer ${secretKey}` } : {},
+    })
       .then((r) => (r.ok ? r.json() : { webhookUrl: null }))
       .then((d) => setWebhookUrl(d.webhookUrl ?? ""))
       .catch(() => {});
-  }, [address, secretKey]);
+    fetch(`/api/merchant-profile?address=${address}&network=${networkIndex}`, {
+      credentials: "include",
+      headers: secretKey ? { Authorization: `Bearer ${secretKey}` } : {},
+    })
+      .then((r) => (r.ok ? r.json() : { displayName: null, allowedIps: [] }))
+      .then((d) => {
+        setDisplayName(d.displayName ?? "");
+        setLogoDataUrl(d.logoDataUrl ?? null);
+        setAllowedIps(Array.isArray(d.allowedIps) ? d.allowedIps : []);
+      })
+      .catch(() => {});
+  }, [address, secretKey, networkIndex, sessionReady]);
 
   async function handleSaveWebhook() {
     if (!address || !secretKey) return;
@@ -89,7 +114,7 @@ export default function SettingsPanel() {
       const r = await fetch("/api/merchant-webhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, secretKey, url: webhookUrl.trim() }),
+        body: JSON.stringify({ address, secretKey, url: webhookUrl.trim(), networkIndex }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
@@ -99,6 +124,52 @@ export default function SettingsPanel() {
       setWebhookError(e.message ?? "Could not save webhook URL.");
     } finally {
       setSavingWebhook(false);
+    }
+  }
+
+  async function handleSaveName() {
+    if (!address) return;
+    setSavingName(true);
+    setNameError("");
+    setNameSaved(false);
+    try {
+      const r = await fetch("/api/merchant-profile", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, networkIndex, displayName, ...(secretKey ? { secretKey } : {}) }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
+      setDisplayName(d.displayName ?? "");
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 1800);
+    } catch (e: any) {
+      setNameError(e.message ?? "Could not save business name.");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function saveIps(next: string[]) {
+    if (!address) return;
+    setSavingIps(true);
+    setIpError("");
+    try {
+      const r = await fetch("/api/merchant-profile", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, networkIndex, allowedIps: next, ...(secretKey ? { secretKey } : {}) }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
+      setAllowedIps(d.allowedIps ?? []);
+      setIpDraft("");
+    } catch (e: any) {
+      setIpError(e.message ?? "Could not save IP allowlist.");
+    } finally {
+      setSavingIps(false);
     }
   }
 
@@ -119,13 +190,123 @@ export default function SettingsPanel() {
     <div className={styles.consolePage}>
       <div className={styles.consoleHead}>
         <h1 className={styles.consoleTitle}>Settings</h1>
-        <p className={styles.consoleSub}>API keys and webhook configuration for your own backend.</p>
+        <p className={styles.consoleSub}>
+          Optional. Generate keys only if you want to call Nomos from your own server — the dashboard
+          works from your connected wallet alone.
+        </p>
       </div>
 
       <div className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <span className={styles.sectionTitle}>API configuration</span>
+          <span className={styles.sectionTitle}>Business</span>
         </div>
+        <p className={styles.sectionSub} style={{ marginTop: -8 }}>
+          Name is for your sidebar. Logo shows on checkout when a customer opens a Payment Link.
+        </p>
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>Name</label>
+            <input
+              className={styles.textInput}
+              placeholder="e.g. Sendpay"
+              maxLength={80}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+            {nameError ? <div className={styles.errorText}>{nameError}</div> : null}
+          </div>
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>Checkout logo</label>
+            <div className={styles.logoPicker}>
+              {logoDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.logoPreview} src={logoDataUrl} alt="" />
+              ) : null}
+              <label className={`${styles.btn} ${styles.btnGhost}`}>
+                {savingLogo ? "Saving…" : logoDataUrl ? "Replace" : "Upload"}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    setLogoError("");
+                    if (!file) return;
+                    if (file.size > 120_000) {
+                      setLogoError("Keep the image under 120KB.");
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      const result = typeof reader.result === "string" ? reader.result : "";
+                      if (!address || !result) return;
+                      setSavingLogo(true);
+                      try {
+                        const r = await fetch("/api/merchant-profile", {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ address, networkIndex, logoDataUrl: result, ...(secretKey ? { secretKey } : {}) }),
+                        });
+                        const d = await r.json();
+                        if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
+                        setLogoDataUrl(d.logoDataUrl ?? result);
+                      } catch (err: any) {
+                        setLogoError(err.message ?? "Could not save logo.");
+                      } finally {
+                        setSavingLogo(false);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+              {logoDataUrl ? (
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                  onClick={async () => {
+                    if (!address) return;
+                    setSavingLogo(true);
+                    setLogoError("");
+                    try {
+                      const r = await fetch("/api/merchant-profile", {
+                        method: "POST",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ address, networkIndex, logoDataUrl: null, ...(secretKey ? { secretKey } : {}) }),
+                      });
+                      if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
+                      setLogoDataUrl(null);
+                    } catch (err: any) {
+                      setLogoError(err.message ?? "Could not remove logo.");
+                    } finally {
+                      setSavingLogo(false);
+                    }
+                  }}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            {logoError ? <div className={styles.errorText}>{logoError}</div> : null}
+          </div>
+        </div>
+        <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={savingName} onClick={handleSaveName}>
+          {savingName ? "Saving…" : nameSaved ? "Saved ✓" : "Save business name"}
+        </button>
+      </div>
+
+      <div className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>API configuration — {networkIndex === 0 ? "Live" : "Test"} mode</span>
+        </div>
+        <p className={styles.sectionSub} style={{ marginTop: -8 }}>
+          {networkIndex === 0
+            ? "Live keys authenticate Mainnet requests from your backend. They are not required to use this dashboard."
+            : "Test keys authenticate Sepolia requests from your backend. They are not required to use this dashboard."}
+        </p>
 
         <div className={styles.settingsRow}>
           <div className={styles.settingsRowLeft}>
@@ -148,7 +329,7 @@ export default function SettingsPanel() {
           <div className={styles.settingsRow}>
             <div className={styles.settingsRowLeft}>
               <div className={styles.settingsRowLabel}>Secret key</div>
-              <div className={styles.settingsRowDesc}>Bearer auth for GET /api/payments — never share this</div>
+              <div className={styles.settingsRowDesc}>Bearer token for your server — never share this, never paste it into the dashboard</div>
             </div>
             <div className={styles.settingsRowRight}>
               <div className={styles.secretField}>
@@ -179,7 +360,7 @@ export default function SettingsPanel() {
           onClick={issueKey}
           style={{ marginTop: 14 }}
         >
-          {issuing ? "Generating…" : publicKey ? "Rotate API key" : "Generate API key"}
+          {issuing ? "Generating…" : publicKey ? "Rotate API key" : "Generate API key for my server"}
         </button>
       </div>
 
@@ -188,7 +369,10 @@ export default function SettingsPanel() {
           <div className={styles.sectionHead}>
             <span className={styles.sectionTitle}>Webhook</span>
           </div>
-          <p className={styles.sectionSub}>POSTed the moment a Payment Link is paid, signed with HMAC-SHA256.</p>
+          <p className={styles.sectionSub}>
+            For your backend. POSTed the moment a Payment Link is paid, signed with HMAC-SHA256 using
+            your secret key.
+          </p>
 
           <div className={styles.field} style={{ marginBottom: 10 }}>
             <input
@@ -207,6 +391,55 @@ export default function SettingsPanel() {
             Verify by computing <code>sha256(secret key)</code>, HMAC-ing the raw request body
             with it, and comparing to <code>X-Nomos-Signature</code>.
           </p>
+        </div>
+      ) : null}
+
+      {secretKey ? (
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHead}>
+            <span className={styles.sectionTitle}>IP allowlist</span>
+          </div>
+          <p className={styles.sectionSub} style={{ marginTop: -8 }}>
+            Optional. Restrict this secret key to your server IPs. Leave empty to allow any IP — the
+            dashboard itself is never blocked by this.
+          </p>
+          {allowedIps.length ? (
+            <div className={styles.ipList}>
+              {allowedIps.map((ip) => (
+                <span key={ip} className={styles.ipChip}>
+                  {ip}
+                  <button type="button" aria-label={`Remove ${ip}`} onClick={() => void saveIps(allowedIps.filter((x) => x !== ip))}>
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.sectionSub}>No IPs listed — any IP can use this key.</p>
+          )}
+          <div className={styles.field} style={{ marginBottom: 10 }}>
+            <input
+              className={styles.textInput}
+              placeholder="e.g. 203.0.113.10"
+              value={ipDraft}
+              onChange={(e) => setIpDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const next = ipDraft.trim();
+                  if (next) void saveIps([...allowedIps, next]);
+                }
+              }}
+            />
+            {ipError ? <div className={styles.errorText}>{ipError}</div> : null}
+          </div>
+          <button
+            className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`}
+            disabled={savingIps || !ipDraft.trim()}
+            onClick={() => void saveIps([...allowedIps, ipDraft])}
+          >
+            {savingIps ? "Saving…" : "Add IP"}
+          </button>
         </div>
       ) : null}
     </div>

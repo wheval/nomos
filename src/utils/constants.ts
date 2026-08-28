@@ -85,6 +85,10 @@ export function echoHelperForIndex(index: number): string {
 // display name. Used to gate the WalletAccountV6 STRK20 actions.
 export const Strk20Networks: Record<number, string> = { 0: "MAINNET", 2: "SEPOLIA" };
 
+export function isValidNetworkIndex(value: unknown): value is number {
+  return typeof value === "number" && value in Strk20Networks;
+}
+
 // ─── Operating wallet (custodial hold-until-payout model) ──────────────────
 // Nomos's own account — the recipient of both checkout flows. Deployed on
 // Sepolia; see cairo/address.md and docs/ARCHITECTURE.md "Custody & signing".

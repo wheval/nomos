@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { merchantFetchInit } from "./useMerchantAuth";
 
 export type WirePaymentLink = {
   id: string;
   merchantAddress: string;
+  networkIndex: number;
   amountWei?: string;
   token: string;
   note?: string;
@@ -16,14 +18,16 @@ export type WirePaymentLink = {
 
 // Shared Payment Link fetch for CreateLink/Overview — both need the same
 // GET /api/payment-links response, just render different slices of it.
-export function usePaymentLinks(address: string, secretKey: string | null) {
+// Scoped by network - a link created in test mode never shows up in live
+// mode's list, and vice versa.
+export function usePaymentLinks(address: string, secretKey: string | null, networkIndex: number, sessionReady = true) {
   const [links, setLinks] = useState<WirePaymentLink[] | null>(null);
   const [loadError, setLoadError] = useState("");
 
   function refresh() {
-    if (!address || !secretKey) return;
+    if (!address || !sessionReady) return;
     setLoadError("");
-    fetch(`/api/payment-links?to=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+    fetch(`/api/payment-links?to=${address}&network=${networkIndex}`, merchantFetchInit(secretKey))
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
         return r.json();
@@ -32,7 +36,7 @@ export function usePaymentLinks(address: string, secretKey: string | null) {
       .catch((e) => setLoadError(e.message ?? "Could not load payment links."));
   }
 
-  useEffect(refresh, [address, secretKey]);
+  useEffect(refresh, [address, secretKey, networkIndex, sessionReady]);
 
   return { links, loadError, refresh };
 }

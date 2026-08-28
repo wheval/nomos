@@ -7,8 +7,8 @@ import { useLedger } from "./useLedger";
 import Payout from "./Payout";
 
 export default function PayoutsPanel() {
-  const { isConnected, address, secretKey } = useMerchantAuth();
-  const { balances, refresh } = useLedger(address, secretKey);
+  const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
+  const { balances, loadError, refresh } = useLedger(address, secretKey, networkIndex, sessionReady);
 
   if (!isConnected) {
     return (
@@ -28,9 +28,13 @@ export default function PayoutsPanel() {
         <p className={styles.consoleSub}>Withdraw from your balance, publicly or privately.</p>
       </div>
 
-      {!secretKey || balances === null ? (
+      {loadError ? (
         <div className={styles.sectionCard}>
-          <p className={styles.sectionSub}>Generate an API key in Settings first to see your balance.</p>
+          <p className={styles.errorText}>{loadError}</p>
+        </div>
+      ) : balances === null ? (
+        <div className={styles.sectionCard}>
+          <p className={styles.sectionSub}>Loading balance…</p>
         </div>
       ) : (
         <Payout merchantAddress={address} secretKey={secretKey} balances={balances} onPaidOut={refresh} />

@@ -24,7 +24,7 @@ export default function Payout({
   onPaidOut,
 }: {
   merchantAddress: string;
-  secretKey: string;
+  secretKey: string | null;
   balances: TokenBalances;
   onPaidOut: () => void;
 }) {
@@ -42,12 +42,15 @@ export default function Payout({
   const [payouts, setPayouts] = useState<WirePayout[] | null>(null);
 
   useEffect(() => {
-    if (!merchantAddress || !secretKey) return;
-    fetch(`/api/payouts?to=${merchantAddress}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+    if (!merchantAddress) return;
+    fetch(`/api/payouts?to=${merchantAddress}&network=${myFrontendProviderIndex}`, {
+      credentials: "include",
+      headers: secretKey ? { Authorization: `Bearer ${secretKey}` } : {},
+    })
       .then((r) => (r.ok ? r.json() : { payouts: [] }))
       .then((d) => setPayouts(d.payouts ?? []))
       .catch(() => {});
-  }, [merchantAddress, secretKey, lastTxHash]);
+  }, [merchantAddress, secretKey, lastTxHash, myFrontendProviderIndex]);
 
   async function handlePayout() {
     setError("");
@@ -71,9 +74,11 @@ export default function Payout({
       const r = await fetch("/api/payouts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           merchantAddress,
-          secretKey,
+          ...(secretKey ? { secretKey } : {}),
+          networkIndex: myFrontendProviderIndex,
           destination: normalizedDestination,
           amountWei: amountWei.toString(),
           token,

@@ -5,7 +5,6 @@ import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
-import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
@@ -14,19 +13,19 @@ import { buildPaymentUrl } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals } from "@/utils/constants";
 
 export default function OverviewPanel() {
-  const { isConnected, address, secretKey } = useMerchantAuth();
-  const { deposits, balances, loadError } = useLedger(address, secretKey);
-  const { links, loadError: linksLoadError } = usePaymentLinks(address, secretKey);
-  const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
+  const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
+  const { deposits, balances, loadError } = useLedger(address, secretKey, networkIndex, sessionReady);
+  const { links, loadError: linksLoadError } = usePaymentLinks(address, secretKey, networkIndex, sessionReady);
+  const myFrontendProviderIndex = networkIndex;
   const [webhookUrl, setWebhookUrl] = useState("");
 
   useEffect(() => {
-    if (!address || !secretKey) return;
-    fetch(`/api/merchant-webhook?address=${address}`, { headers: { Authorization: `Bearer ${secretKey}` } })
+    if (!address || !sessionReady) return;
+    fetch(`/api/merchant-webhook?address=${address}&network=${networkIndex}`, { credentials: "include", headers: secretKey ? { Authorization: `Bearer ${secretKey}` } : {} })
       .then((r) => (r.ok ? r.json() : { webhookUrl: null }))
       .then((d) => setWebhookUrl(d.webhookUrl ?? ""))
       .catch(() => {});
-  }, [address, secretKey]);
+  }, [address, secretKey, networkIndex, sessionReady]);
 
   if (!isConnected) {
     return (
@@ -82,15 +81,10 @@ export default function OverviewPanel() {
           </Link>
         </div>
 
-        {!secretKey ? (
-          <div className={styles.emptyState}>
-            <p>Generate an API key in Settings to unlock this list.</p>
-            <Link href="/dashboard/settings" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
-              Go to Settings →
-            </Link>
-          </div>
-        ) : loadError ? (
+        {loadError ? (
           <div className={styles.errorText}>{loadError}</div>
+        ) : deposits === null ? (
+          <p className={styles.sectionSub}>Loading…</p>
         ) : recent.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No deposits recorded yet — they&apos;ll appear here as your Payment Links get paid.</p>
@@ -137,15 +131,10 @@ export default function OverviewPanel() {
           </Link>
         </div>
 
-        {!secretKey ? (
-          <div className={styles.emptyState}>
-            <p>Generate an API key in Settings to unlock this list.</p>
-            <Link href="/dashboard/settings" className={styles.consoleSub} style={{ color: "var(--pink-text)" }}>
-              Go to Settings →
-            </Link>
-          </div>
-        ) : linksLoadError ? (
+        {linksLoadError ? (
           <div className={styles.errorText}>{linksLoadError}</div>
+        ) : links === null ? (
+          <p className={styles.sectionSub}>Loading…</p>
         ) : recentLinks.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No Payment Links yet.</p>

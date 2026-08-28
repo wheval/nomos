@@ -17,7 +17,7 @@ import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePa
 // merchant's own links recoverable and auditable instead of living only in
 // whatever chat thread they were shared through.
 export default function CreateLink() {
-  const { isConnected, address, secretKey } = useMerchantAuth();
+  const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
 
   const [token, setToken] = useState<TokenSymbol>("STRK");
   const [amount, setAmount] = useState("");
@@ -28,7 +28,7 @@ export default function CreateLink() {
   const [submitting, setSubmitting] = useState(false);
   const [link, setLink] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const { links, refresh: refreshLinks } = usePaymentLinks(address ?? "", secretKey);
+  const { links, refresh: refreshLinks } = usePaymentLinks(address ?? "", secretKey, networkIndex, sessionReady);
 
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
 
@@ -46,9 +46,11 @@ export default function CreateLink() {
       const r = await fetch("/api/payment-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           merchantAddress: address,
-          secretKey,
+          ...(secretKey ? { secretKey } : {}),
+          networkIndex,
           amount: amount.trim() || undefined,
           token,
           note: note.trim() || undefined,
@@ -90,21 +92,6 @@ export default function CreateLink() {
     );
   }
 
-  if (!secretKey) {
-    return (
-      <div className={styles.sectionCard} style={{ textAlign: "center" }}>
-        <p className={styles.sectionSub}>
-          Generate an API key in Settings first — Payment Links are created
-          under your merchant account, the same key that authenticates your
-          dashboard and webhooks.
-        </p>
-        <Link href="/dashboard/settings" className={styles.btnCta} style={{ display: "inline-block", width: "auto", textDecoration: "none" }}>
-          Go to Settings →
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.sectionCard}>
       <div className={styles.sectionHead}>
@@ -129,33 +116,34 @@ export default function CreateLink() {
         </div>
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.fieldLabel} htmlFor="amount">
-          Amount ({token}) - leave blank to let the customer enter one
-        </label>
-        <input
-          id="amount"
-          className={styles.textInput}
-          placeholder="e.g. 25"
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        {amountError ? <div className={styles.errorText}>{amountError}</div> : null}
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.fieldLabel} htmlFor="note">
-          Note (shown to the customer, not written on-chain)
-        </label>
-        <input
-          id="note"
-          className={styles.textInput}
-          placeholder="e.g. Invoice #104"
-          maxLength={120}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+      <div className={styles.fieldRow}>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor="amount">
+            Amount ({token})
+          </label>
+          <input
+            id="amount"
+            className={styles.textInput}
+            placeholder="Blank = customer enters"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          {amountError ? <div className={styles.errorText}>{amountError}</div> : null}
+        </div>
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor="note">
+            Note
+          </label>
+          <input
+            id="note"
+            className={styles.textInput}
+            placeholder="e.g. Invoice #104"
+            maxLength={120}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className={styles.field}>
@@ -176,7 +164,7 @@ export default function CreateLink() {
 
       {formError ? <div className={styles.errorText}>{formError}</div> : null}
 
-      <button className={styles.btnCta} disabled={submitting} onClick={handleGenerate}>
+      <button className={styles.btnCta} disabled={submitting || !sessionReady} onClick={handleGenerate}>
         {submitting ? "Generating…" : "Generate link"}
       </button>
 

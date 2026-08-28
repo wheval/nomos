@@ -3,6 +3,12 @@
 // this interface (memoryStore for tests/CI, fileStore for local dev,
 // supabaseStore for anything real); see index.ts for driver selection.
 
+// Frontend provider index, same convention as constants.ts's myFrontendProviders
+// (0 = Mainnet/"live", 2 = Sepolia/"test"). Every merchant-owned record below
+// is scoped by this - test and live never share a row, the same way a real
+// payment gateway's test/live API keys never see each other's data.
+export type NetworkIndex = number;
+
 export type Flow = "A" | "B";
 
 export type DepositStatus =
@@ -16,6 +22,7 @@ export type DepositStatus =
 export type Deposit = {
   id: string;
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   flow: Flow;
   txHash: string;
   amountWei: bigint;
@@ -29,6 +36,7 @@ export type Deposit = {
 
 export type RecordDepositInput = {
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   flow: Flow;
   txHash: string;
   amountWei: bigint;
@@ -44,6 +52,7 @@ export type LedgerDirection = "credit" | "debit";
 export type LedgerEntry = {
   id: string;
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   direction: LedgerDirection;
   amountWei: bigint;
   token: string;
@@ -60,6 +69,7 @@ export type PayoutStatus = "pending" | "broadcasting" | "confirmed" | "failed";
 export type Payout = {
   id: string;
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   destination: string;
   amountWei: bigint;
   token: string;
@@ -72,6 +82,7 @@ export type Payout = {
 
 export type CreatePayoutInput = {
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   destination: string;
   amountWei: bigint;
   token: string;
@@ -87,6 +98,7 @@ export type CreatePayoutInput = {
 export type PaymentLink = {
   id: string;
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   amountWei?: bigint; // absent = open amount, customer enters their own
   token: string;
   note?: string;
@@ -94,22 +106,37 @@ export type PaymentLink = {
   expiresAt?: number; // unix seconds
   revoked: boolean;
   createdAt: number;
+  logoDataUrl?: string; // optional branding image shown on checkout
 };
 
 export type CreatePaymentLinkInput = {
   merchantAddress: string;
+  networkIndex: NetworkIndex;
   amountWei?: bigint;
   token: string;
   note?: string;
   ref?: string; // auto-generated if absent
   expiresAt?: number;
+  logoDataUrl?: string;
 };
 
+// One MerchantKey per (address, networkIndex) — a merchant's test and live
+// API keys are entirely separate credentials, same as Paystack/Stripe: a
+// test secret key can never authenticate a live-mode request or vice versa.
 export type MerchantKey = {
   publicKey: string;
   secretKeyHash: string; // sha256 hex — the plaintext secret is never stored
   createdAt: number;
   webhookUrl?: string;
+  displayName?: string;
+  allowedIps?: string[]; // empty/absent = allow every IP
+  logoDataUrl?: string;
+};
+
+export type MerchantProfile = {
+  displayName: string | null;
+  allowedIps: string[];
+  logoDataUrl: string | null;
 };
 
 export class InsufficientBalanceError extends Error {
@@ -128,13 +155,15 @@ export interface Store {
   markDepositShielded(depositId: string, shieldTxHash: string): Promise<void>;
   markDepositShieldFailed(depositId: string): Promise<void>;
   listPendingShieldDeposits(): Promise<Deposit[]>;
-  listDepositsFor(merchantAddress: string): Promise<Deposit[]>;
+  listDepositsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Deposit[]>;
 
-  // Ledger — every balance is scoped to a single token. STRK and USDC are
-  // different assets with different decimals; summing their wei together
-  // would be meaningless, so there is no cross-token balance.
+  // Ledger — every balance is scoped to a single token AND network. STRK and
+  // USDC are different assets with different decimals (no cross-token
+  // balance); test (Sepolia) and live (Mainnet) are different money
+  // entirely (no cross-network balance either).
   creditLedger(input: {
     merchantAddress: string;
+    networkIndex: NetworkIndex;
     amountWei: bigint;
     token: string;
     kind: LedgerKind;
@@ -142,29 +171,36 @@ export interface Store {
   }): Promise<LedgerEntry>;
   debitLedger(input: {
     merchantAddress: string;
+    networkIndex: NetworkIndex;
     amountWei: bigint;
     token: string;
     kind: LedgerKind;
     payoutId?: string;
   }): Promise<LedgerEntry>; // throws InsufficientBalanceError
-  getLedgerBalance(merchantAddress: string, token: string): Promise<bigint>;
+  getLedgerBalance(merchantAddress: string, token: string, networkIndex: NetworkIndex): Promise<bigint>;
 
   // Payouts
   createPayout(input: CreatePayoutInput): Promise<Payout>;
   updatePayoutStatus(payoutId: string, status: PayoutStatus, txHash?: string): Promise<void>;
-  listPayoutsFor(merchantAddress: string): Promise<Payout[]>;
+  listPayoutsFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<Payout[]>;
 
   // Payment Links
   createPaymentLink(input: CreatePaymentLinkInput): Promise<PaymentLink>;
   getPaymentLink(id: string): Promise<PaymentLink | null>;
-  listPaymentLinksFor(merchantAddress: string): Promise<PaymentLink[]>;
+  listPaymentLinksFor(merchantAddress: string, networkIndex: NetworkIndex): Promise<PaymentLink[]>;
   revokePaymentLink(id: string, merchantAddress: string): Promise<boolean>;
 
-  // Merchants / API keys / webhooks — surface unchanged from the pre-ledger store.
-  issueMerchantKey(address: string): Promise<{ publicKey: string; secretKey: string }>;
-  getMerchantPublicKey(address: string): Promise<string | null>;
-  verifyMerchantSecret(address: string, secretKey: string): Promise<boolean>;
-  getMerchantWebhookUrl(address: string): Promise<string | null>;
-  setMerchantWebhookUrl(address: string, secretKey: string, url: string): Promise<boolean>;
-  getWebhookSigningKey(address: string): Promise<string | null>;
+  // Merchants / API keys / webhooks — one key pair + webhook URL per
+  // (address, networkIndex). See MerchantKey's comment: test and live keys
+  // are entirely separate credentials.
+  issueMerchantKey(address: string, networkIndex: NetworkIndex): Promise<{ publicKey: string; secretKey: string }>;
+  getMerchantPublicKey(address: string, networkIndex: NetworkIndex): Promise<string | null>;
+  verifyMerchantSecret(address: string, secretKey: string, networkIndex: NetworkIndex): Promise<boolean>;
+  getMerchantWebhookUrl(address: string, networkIndex: NetworkIndex): Promise<string | null>;
+  setMerchantWebhookUrl(address: string, secretKey: string, url: string, networkIndex: NetworkIndex): Promise<boolean>;
+  getWebhookSigningKey(address: string, networkIndex: NetworkIndex): Promise<string | null>;
+  getMerchantProfile(address: string, networkIndex: NetworkIndex): Promise<MerchantProfile>;
+  setMerchantDisplayName(address: string, networkIndex: NetworkIndex, displayName: string): Promise<void>;
+  setMerchantAllowedIps(address: string, networkIndex: NetworkIndex, allowedIps: string[]): Promise<void>;
+  setMerchantLogo(address: string, networkIndex: NetworkIndex, logoDataUrl: string | null): Promise<void>;
 }

@@ -14,10 +14,10 @@ function hmacSha256Hex(key: string, payload: string): string {
 
 export async function deliverPaymentWebhook(deposit: Deposit): Promise<void> {
   const store = getStore();
-  const url = await store.getMerchantWebhookUrl(deposit.merchantAddress);
+  const url = await store.getMerchantWebhookUrl(deposit.merchantAddress, deposit.networkIndex);
   if (!url) return;
 
-  const signingKey = await store.getWebhookSigningKey(deposit.merchantAddress);
+  const signingKey = await store.getWebhookSigningKey(deposit.merchantAddress, deposit.networkIndex);
   const payload = JSON.stringify({
     event: "payment.received",
     id: deposit.txHash,
