@@ -163,11 +163,11 @@
 /* Buttons */
 .btn {
   font-family: var(--font-body), sans-serif;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 17px;
   border: none;
   border-radius: 999px;
-  padding: 11px 18px;
+  padding: 6px 16px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 140ms, opacity 140ms, transform 120ms;
@@ -176,7 +176,7 @@
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btnGreen { color: var(--green); background: var(--green-soft); }
 .btnGreen:not(:disabled):hover { filter: brightness(0.97); }
-.btnBlock { width: 100%; padding: 15px; font-size: 16px; margin-top: 6px; }
+.btnBlock { width: 100%; padding: 6px 16px; font-size: 16px; margin-top: 6px; }
 
 /* --- Readable result receipt ------------------------------------------- */
 .receipt {
@@ -372,12 +372,12 @@
   backdrop-filter: blur(8px);
 }
 .modal {
-  width: min(420px, calc(100vw - 32px));
+  width: min(440px, calc(100vw - 32px));
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 20px;
+  border-radius: 16px;
+  padding: 22px;
   transform-origin: center;
   animation: modalIn 180ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -411,12 +411,17 @@
   gap: 10px;
   margin-top: 18px;
 }
+/* Modal actions sit in a 420px dialog, so the full-size button scale would
+   overflow two side-by-side labels — step it down rather than let text wrap. */
 .modalActions .btn,
 .modalActions .btnCta {
   flex: 1;
   width: auto;
   margin-top: 0;
   text-align: center;
+  font-size: 15px;
+  padding: 6px 16px;
+  white-space: nowrap;
 }
 .modalActions .btnGhost {
   background: var(--inset);
@@ -570,16 +575,17 @@
 .btnCta {
   width: 100%;
   margin-top: 10px;
-  padding: 14px 20px;
+  padding: 6px 16px;
   font-family: var(--font-body), sans-serif;
-  font-size: 15.5px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
   letter-spacing: -0.005em;
   color: #fff;
   background: var(--pink);
   border: none;
-  border-radius: var(--r-md);
+  border-radius: 999px;
   cursor: pointer;
+  white-space: nowrap;
   box-shadow: var(--shadow-sm);
   transition: background 140ms, box-shadow 140ms, transform 120ms, opacity 140ms;
 }
@@ -615,7 +621,7 @@
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 12px 14px;
+  padding: 6px 16px;
   font-family: var(--font-body), sans-serif;
   font-size: 15px;
   color: var(--ink);
@@ -770,7 +776,7 @@
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 11px 14px;
+  padding: 6px 16px;
   text-decoration: none;
   transition: background 140ms, border-color 140ms;
 }
@@ -785,27 +791,25 @@
 }
 .statCard {
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 18px 20px;
+  border-radius: 12px;
+  padding: 18px 20px 20px;
   background: var(--card);
   box-shadow: var(--shadow-sm);
 }
 .statLabel {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 400;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .statValue {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.statValue span { font-size: 14px; font-weight: 600; color: var(--muted-2); margin-left: 4px; }
+.statValue span { font-size: 14px; font-weight: 500; color: var(--muted-2); margin-left: 5px; }
 @media (max-width: 560px) {
   .statGrid { grid-template-columns: 1fr; }
 }
@@ -813,11 +817,11 @@
 /* --- Dashboard: section shell -------------------------------------------- */
 .sectionCard {
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: 16px;
   background: var(--card);
   box-shadow: var(--shadow-sm);
-  padding: 22px 22px 20px;
-  margin-bottom: 20px;
+  padding: 22px 24px 20px;
+  margin-bottom: 16px;
 }
 .sectionHead {
   display: flex;
@@ -826,7 +830,7 @@
   gap: 12px;
   margin-bottom: 4px;
 }
-.sectionTitle { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
+.sectionTitle { font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .sectionMeta { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sectionSub { font-size: 13px; color: var(--muted); margin: 4px 0 16px; line-height: 1.5; }
 
@@ -898,7 +902,7 @@
   gap: 8px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 11px 12px;
+  padding: 6px 16px;
   background: var(--inset);
   font-family: var(--font-mono-ui), monospace;
   font-size: 13px;
@@ -1344,29 +1348,25 @@
    toggle this used to have was removed for the same reason.)
    ======================================================================== */
 .consoleFrame {
+  position: relative;
   height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.consoleFrame > .testBanner,
-.consoleFrame > .walletMismatchBanner,
-.consoleFrame > .networkErrorBanner {
-  flex: none;
-}
 
 .console {
   --ink: #f4f4f5;
-  --ink-soft: #a1a1aa;
-  --muted: #a1a1aa;
-  --muted-2: #8a8a93;
-  --bg: #1a1a1a;
-  --card: #242424;
-  --line: #3a3a3a;
-  --line-soft: #3a3a3a;
-  --inset: #2c2c2c;
-  --inset-2: #333333;
+  --ink-soft: #b4b4bb;
+  --muted: #9b9ba3;
+  --muted-2: #7e7e87;
+  --bg: #151518;
+  --card: #1d1d21;
+  --line: #31313a;
+  --line-soft: #2a2a32;
+  --inset: #26262c;
+  --inset-2: #313139;
   --pink: #e56b43;
   --pink-hover: #f07c53;
   --pink-soft: rgba(229, 107, 67, 0.14);
@@ -1384,7 +1384,7 @@
   --r-md: 10px;
   --r-lg: 14px;
   --r-xl: 20px;
-  --sidebar-w: 240px;
+  --sidebar-w: 264px;
 
   flex: 1;
   min-height: 0;
@@ -1397,148 +1397,263 @@
   overflow: hidden;
 }
 
-.console.collapsed { --sidebar-w: 68px; }
+.console.collapsed { --sidebar-w: 76px; }
 
+/* Sidebar shares the page background (no card fill, no divider rule) — the
+   main content is what reads as a raised panel against it. */
 .consoleSidebar {
-  background: var(--card);
-  border-right: 1px solid var(--line);
+  background: transparent;
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
+  padding: 14px 12px 16px;
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: padding 180ms ease;
 }
-.console.collapsed .consoleSidebar { padding: 20px 10px; }
-.consoleBrand {
+.console.collapsed .consoleSidebar { padding: 14px 10px 16px; }
+/* Workspace switcher — one combined identity/business card (icon avatar +
+   name + subtitle + up/down chevron), matching the reference's Paystack-
+   style business switcher instead of a separate static brand row. */
+.consoleSwitcher {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-  padding: 6px 10px 22px;
-  white-space: nowrap;
-}
-.consoleMerchant {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 0 16px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--inset);
-  border: 1px solid var(--line);
+  gap: 11px;
+  margin: 0 0 22px;
+  padding: 8px;
+  border-radius: 12px;
   text-decoration: none;
   color: inherit;
   min-width: 0;
+  transition: background 120ms;
 }
-.consoleMerchant:hover { border-color: var(--pink-soft-2); }
-.consoleMerchantName {
-  font-weight: 600;
-  font-size: 13.5px;
+.consoleSwitcher:hover { background: var(--inset); }
+.consoleSwitcherIcon { display: flex; flex: none; }
+.consoleSwitcherIcon svg { width: 38px; height: 38px; border-radius: 11px; }
+.consoleSwitcherText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.consoleSwitcherName {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.consoleMerchantAddr {
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 11px;
+.consoleSwitcherSub {
+  font-size: 12.5px;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.console.collapsed .consoleMerchant { display: none; }
-.consoleBrand .brandBadge {
-  font-family: var(--font-mono-ui), monospace;
-  font-weight: 600;
-  font-size: 10px;
-  letter-spacing: 0.03em;
-  color: var(--muted);
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px 8px;
-}
-.console.collapsed .consoleBrand .brandBadge,
-.console.collapsed .consoleBrand span:not(.brandMark) {
+.consoleSwitcher > svg { flex: none; color: var(--muted-2); }
+.console.collapsed .consoleSwitcher { padding: 8px 0; justify-content: center; }
+.console.collapsed .consoleSwitcherText,
+.console.collapsed .consoleSwitcher > svg {
   display: none;
 }
 .consoleNav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
 }
+.consoleNavFill { flex: 1; }
 .consoleNavLink {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 13px;
   padding: 9px 12px;
-  border-radius: 10px;
-  color: var(--muted);
-  font-size: 13.5px;
+  border-radius: 9px;
+  color: var(--ink-soft);
+  font-size: 15px;
   font-weight: 500;
+  letter-spacing: -0.005em;
   text-decoration: none;
   white-space: nowrap;
-  transition: background 120ms, color 120ms;
+  transition: color 120ms, background 120ms;
 }
-.consoleNavLink svg { flex: none; opacity: 0.85; }
+.consoleNavLink svg { flex: none; opacity: 0.9; }
 .consoleNavLink span { transition: opacity 120ms; }
 .console.collapsed .consoleNavLink span { display: none; }
 .console.collapsed .consoleNavLink { justify-content: center; }
-.consoleNavLink:hover { background: var(--inset); color: var(--ink); }
+.consoleNavLink:hover { color: var(--ink); background: var(--inset); }
 .consoleNavActive {
-  background: var(--pink-soft);
+  background: transparent;
   color: var(--pink-text);
   font-weight: 600;
 }
-.consoleNavActive:hover { background: var(--pink-soft); color: var(--pink-text); }
-.consoleSidebarFoot {
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-  margin-top: 10px;
-}
-.consoleSidebarFoot a {
-  display: block;
-  font-size: 12px;
+.consoleNavActive svg { opacity: 1; }
+.consoleNavActive:hover { color: var(--pink-text); background: transparent; }
+
+/* Group heading inside the sidebar rail ("Products" in the reference). */
+.consoleNavGroup {
+  padding: 0 12px;
+  margin: 22px 0 7px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--muted-2);
-  text-decoration: none;
-  padding: 6px 12px;
   white-space: nowrap;
 }
-.consoleSidebarFoot a:hover { color: var(--muted); }
-.console.collapsed .consoleSidebarFoot { display: none; }
+.console.collapsed .consoleNavGroup { opacity: 0; height: 0; margin: 12px 0; overflow: hidden; }
+
+/* Bottom rail: secondary links, then the connected-wallet row. */
+.consoleSidebarFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+}
+.consoleUserRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: inherit;
+  transition: background 120ms;
+}
+.consoleUserRow:hover { background: var(--inset); }
+.consoleUserAvatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--pink);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.consoleUserName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.consoleUserRow svg { flex: none; color: var(--muted-2); }
+.console.collapsed .consoleUserName,
+.console.collapsed .consoleUserRow svg { display: none; }
+.console.collapsed .consoleUserRow { justify-content: center; padding: 9px 0; }
+
+/* Account menu — opens upward off the wallet row, the way the reference
+   surfaces identity + account actions instead of acting on the row itself. */
+.consoleUserWrap { position: relative; }
+.consoleUserMenu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 250px);
+  z-index: 40;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: menuIn 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .consoleUserMenu { animation: none; }
+}
+.consoleUserMenuHead {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 14px 13px;
+}
+.consoleUserMenuHead .consoleUserAvatar { width: 30px; height: 30px; font-size: 11px; }
+.consoleUserMenuIdent { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.consoleUserMenuName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.consoleUserMenuAddr {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.consoleUserMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.consoleUserMenuItem:hover { background: var(--inset); color: var(--ink); }
+.consoleUserMenuItem svg { flex: none; color: var(--muted-2); }
+.consoleUserMenuItem:hover svg { color: inherit; }
+.consoleUserMenuChevron { margin-left: auto; display: inline-flex; }
+.consoleUserMenuDanger { color: var(--pink-text); }
+.consoleUserMenuDanger:hover { color: var(--pink-text); }
 
 .consoleMain {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  padding: 0 14px 14px 2px;
 }
 .consoleTopbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 28px;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 6px;
   position: sticky;
   top: 0;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--bg);
   z-index: 10;
 }
 .consoleTopbarLeft { display: flex; align-items: center; gap: 12px; }
-.consoleTopbarRight { display: flex; align-items: center; gap: 10px; }
+.consoleTopbarRight { display: flex; align-items: center; gap: 14px; }
 .consoleCollapseBtn {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
+  width: 34px;
+  height: 34px;
+  border: none;
   border-radius: 9px;
-  background: var(--card);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition: background 120ms, color 120ms;
@@ -1582,72 +1697,89 @@
 .netSwitchWrap {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font-family: var(--font-mono-ui), monospace;
+  gap: 10px;
 }
 .netSwitchLabel {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--muted);
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ink-soft);
 }
-.netSwitchLabelLive { color: var(--green); }
-.netSwitchLabelTest { color: #fbbf6a; }
+.netSwitchLabelLive { color: var(--green); font-weight: 600; }
+.netSwitchLabelTest { color: var(--ink); font-weight: 600; }
+
+/* Square icon button in the topbar rail (settings gear, and friends). */
+.consoleIconBtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms, color 120ms;
+}
+.consoleIconBtn:hover { background: var(--inset); color: var(--ink); }
 
 /* Full-width test-mode banner — appears above the sidebar/topbar grid
    entirely, matching the reference (Blockradar/Paystack both put it at
    the very top of the page, not inside the content area). Only shown on
    a non-mainnet network. */
-.testBanner {
+/* Mode banners hang from the top edge as a centered chip (rounded bottom
+   corners only), the way the reference floats its test-mode notice over the
+   header rail instead of pushing the whole layout down. */
+.testBanner,
+.walletMismatchBanner,
+.networkErrorBanner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 20px;
-  font-size: 13px;
+  gap: 8px;
+  max-width: min(760px, calc(100% - 220px));
+  padding: 8px 17px;
+  font-size: 13.5px;
   font-weight: 500;
   text-align: center;
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf6a;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 0 0 10px 10px;
+}
+.testBanner {
+  background: #b4502f;
+  color: #fff;
 }
 .testBanner strong { font-weight: 700; }
 .testBannerAction {
-  font-weight: 700;
-  color: #fbbf6a;
+  font-weight: 600;
+  color: inherit;
   text-decoration: underline;
+  text-underline-offset: 2px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: 13.5px;
+  font-family: inherit;
 }
 .walletMismatchBanner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 20px;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-  background: rgba(229, 107, 67, 0.16);
-  color: #f0916e;
-  border-bottom: 1px solid rgba(229, 107, 67, 0.32);
+  background: #b4502f;
+  color: #fff;
 }
 .walletMismatchBanner strong { font-weight: 700; }
-.walletMismatchBanner .testBannerAction { color: #f0916e; }
+.walletMismatchBanner .testBannerAction { color: #fff; }
 .networkErrorBanner {
-  padding: 8px 20px;
+  background: #4c3f7a;
+  color: #e9e4ff;
   font-size: 12.5px;
-  text-align: center;
-  background: rgba(196, 181, 253, 0.14);
-  color: #c4b5fd;
 }
 
 .logoPicker {
@@ -1773,8 +1905,8 @@
 }
 .consoleAddrPill:hover { border-color: var(--danger); color: var(--danger); }
 
-.consolePage { padding: 28px 32px 60px; max-width: 1080px; }
-.consoleHead { margin-bottom: 24px; }
+.consolePage { padding: 0 0 20px; max-width: none; }
+.consoleHead { margin-bottom: 16px; padding: 0 4px; }
 .consoleTitle {
   font-family: var(--font-display), var(--font-body), sans-serif;
   font-size: 24px;
@@ -1784,6 +1916,467 @@
   margin: 0 0 4px;
 }
 .consoleSub { font-size: 13.5px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+/* ---------------------------------------------------------------------------
+   Panel — the big rounded container the console content lives in. Sections
+   inside are separated by full-bleed hairlines rather than floating apart as
+   individual cards, so the page reads as one surface (per the reference).
+   --------------------------------------------------------------------------- */
+.cPanel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.cPanelSection { padding: 22px 24px; }
+.cPanelSection + .cPanelSection { border-top: 1px solid var(--line); }
+.cPanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.cPanelTitle {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.cPanelLink {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--pink-text);
+  text-decoration: none;
+}
+.cPanelLink:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Filter rail — bordered pill controls, the reference's chip row. */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.filterSpacer { flex: 1; }
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+}
+.filterChip:hover { border-color: var(--inset-2); color: var(--ink); }
+.filterChipDashed { border-style: dashed; color: var(--muted); }
+.filterChipActive { border-color: var(--inset-2); color: var(--ink); background: var(--inset); }
+.filterChip svg { flex: none; opacity: 0.8; }
+.filterChipX {
+  display: grid;
+  place-items: center;
+  margin: -2px -6px -2px 0;
+  padding: 2px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filterChipX:hover { background: var(--inset-2); color: var(--ink); }
+.filterSelectWrap { position: relative; display: inline-flex; align-items: center; }
+.filterSelectWrap > svg:last-child {
+  position: absolute;
+  right: 11px;
+  pointer-events: none;
+  color: var(--muted);
+}
+.filterSelectIcon {
+  position: absolute;
+  left: 13px;
+  pointer-events: none;
+  color: var(--muted);
+}
+.filterSelect {
+  appearance: none;
+  padding: 6px 32px 6px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+.filterSelectWithIcon { padding-left: 37px; }
+.filterSelect:hover { border-color: var(--inset-2); background: var(--inset); }
+.filterSelect option { background: var(--card); color: var(--ink); }
+
+/* Metric tiles — flat bordered cells in a row, label above a large figure. */
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.metricCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px 20px;
+}
+.metricLabel {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.metricValue {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.metricValue small { font-size: 14px; font-weight: 500; color: var(--muted-2); margin-left: 5px; }
+
+/* Split footer — equal columns divided by vertical hairlines. */
+.splitRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.splitCol { padding: 22px 24px; min-height: 190px; }
+.splitCol + .splitCol { border-left: 1px solid var(--line); }
+.splitTitle {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+.splitEmpty {
+  font-size: 13.5px;
+  color: var(--muted-2);
+  line-height: 1.55;
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .splitRow { grid-template-columns: 1fr; }
+  .splitCol + .splitCol { border-left: none; border-top: 1px solid var(--line); }
+}
+
+/* ---------------------------------------------------------------------------
+   Line chart. Axis text is real HTML (crisp at any width); only the series
+   path lives in a stretched SVG, so the plot can be fluid without distorting
+   type. Hover reads the nearest bucket rather than per-point hit targets.
+   --------------------------------------------------------------------------- */
+.chartWrap { padding-top: 6px; user-select: none; }
+.chartBody { display: flex; gap: 12px; }
+.chartYAxis {
+  position: relative;
+  width: 46px;
+  height: 240px;
+  flex: none;
+}
+.chartYLabel {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 12.5px;
+  color: var(--muted-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chartPlot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 240px;
+  cursor: crosshair;
+}
+.chartGridLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line-soft);
+}
+.chartSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.chartCursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--inset-2);
+  pointer-events: none;
+}
+.chartDot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pink);
+  border: 2px solid var(--card);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.chartTooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  margin-top: -14px;
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #101014;
+  border: 1px solid var(--line);
+  pointer-events: none;
+  z-index: 2;
+}
+.chartTooltipDay {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 7px;
+  white-space: nowrap;
+}
+.chartTooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.chartTooltipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pink);
+  flex: none;
+}
+.chartTooltipVal {
+  margin-left: auto;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.chartXAxis {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0 0 58px;
+}
+.chartXLabel {
+  font-size: 12.5px;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Settings — a sub-navigation rail beside a content pane, both inside one
+   panel, rather than a stack of separate cards. The rail groups sections the
+   way the reference does; only the pane swaps as you move between them.
+   --------------------------------------------------------------------------- */
+.settingsLayout {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  align-items: start;
+}
+.settingsNav { padding: 26px 24px 32px; }
+.settingsNavTitle {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0 0 26px;
+  padding: 0 10px;
+}
+.settingsNavGroup {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 26px 0 8px;
+  padding: 0 10px;
+}
+.settingsNavGroup:first-of-type { margin-top: 0; }
+.settingsNavItem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+.settingsNavItem svg { flex: none; opacity: 0.9; }
+.settingsNavItem:hover { color: var(--ink); background: var(--inset); }
+.settingsNavItemActive { color: var(--pink-text); font-weight: 600; }
+.settingsNavItemActive:hover { color: var(--pink-text); background: transparent; }
+.settingsNavItemActive svg { opacity: 1; }
+
+.settingsPane {
+  padding: 28px 28px 40px;
+  border-left: 1px solid var(--line);
+  min-height: calc(100dvh - 132px);
+  max-width: 720px;
+}
+.settingsPaneTitle {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.settingsPaneDesc {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 28px;
+  max-width: 60ch;
+}
+.settingsField { margin-bottom: 22px; }
+.settingsFieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+.settingsLabel {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 9px;
+}
+.settingsInput {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 16px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: transparent;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.settingsInput:focus {
+  outline: none;
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3.5px var(--pink-soft);
+}
+.settingsInput::placeholder { color: var(--muted-2); }
+.settingsHint {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 9px 0 0;
+}
+.settingsDivider { height: 1px; background: var(--line); margin: 28px 0; }
+
+/* Settings actions are rounded rects with a tinted fill, not the pill CTA —
+   they sit inside a form, not at the end of a funnel. */
+.settingsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--pink-soft);
+  color: var(--pink-text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 120ms, opacity 120ms;
+}
+.settingsBtn:not(:disabled):hover { background: var(--pink-soft-2); }
+.settingsBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.settingsBtnGhost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.settingsBtnGhost:not(:disabled):hover { background: var(--inset); color: var(--ink); }
+
+.settingsLogoRow { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.settingsLogoPreview {
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.settingsLogoEmpty {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  border: 1px dashed var(--line);
+  color: var(--muted-2);
+  font-size: 12px;
+}
+.settingsLogoDelete {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+.settingsLogoDelete:hover { color: var(--pink-text); border-color: var(--pink-soft-2); }
+
+@media (max-width: 860px) {
+  .settingsLayout { grid-template-columns: 1fr; }
+  .settingsPane { border-left: none; border-top: 1px solid var(--line); min-height: 0; padding: 24px 20px 32px; }
+  .settingsNav { padding: 20px 16px; }
+}
+
+/* Donut — a single share-of-total ring with the figure in the middle. */
+.donutWrap {
+  display: grid;
+  place-items: center;
+  position: relative;
+  padding-top: 6px;
+}
+.donutValue {
+  position: absolute;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
 
 @media (max-width: 860px) {
   .console,
@@ -1801,8 +2394,9 @@
     border-bottom: 1px solid var(--line);
     padding: 14px !important;
   }
-  .consoleBrand { padding: 6px 10px; }
-  .consoleBrand span { display: inline !important; }
+  .consoleSwitcher { padding: 6px 10px; margin: 0; }
+  .consoleSwitcherText,
+  .consoleSwitcher > svg { display: flex !important; }
   .consoleNav { flex-direction: row; }
   .consoleNavLink span { display: inline !important; }
   .consoleSidebarFoot { display: none !important; }
