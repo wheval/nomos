@@ -798,6 +798,18 @@
   white-space: nowrap;
 }
 .txLink:hover { color: var(--pink-text); }
+.txExpiry { font-size: 11.5px; color: var(--muted-2); margin-top: 2px; }
+.txActions { display: flex; align-items: center; gap: 12px; }
+.txActions button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.txActions button:hover { color: var(--pink-text); }
 
 .emptyState {
   text-align: center;

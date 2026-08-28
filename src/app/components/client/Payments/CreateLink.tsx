@@ -8,7 +8,7 @@ import { buildPaymentUrl, parseTokenAmount, EXPIRY_CHOICES } from "@/utils/payme
 import { fmtTokenAmount } from "@/utils/receipt";
 import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { useMerchantAuth } from "./useMerchantAuth";
-import { usePaymentLinks } from "./usePaymentLinks";
+import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePaymentLinks";
 
 // Merchant-facing Payment Link creation. Links are persisted server-side
 // (src/server/store) rather than encoded entirely in the URL - the
@@ -202,31 +202,33 @@ export default function CreateLink() {
           <div className={styles.txTable}>
             {links.map((l) => {
               const url = buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", l.id);
-              const expired = l.expiresAt !== undefined && Date.now() / 1000 > l.expiresAt;
+              const badge = paymentLinkStatusLabel(l);
+              const expiry = expiresInLabel(l);
               return (
                 <div key={l.id} className={styles.txRow}>
                   <div className={styles.txMain}>
                     <div className={styles.txTitle}>
                       {l.note ?? l.ref}
-                      {l.revoked ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>revoked</span> : null}
-                      {!l.revoked && expired ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>expired</span> : null}
+                      {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
                     </div>
                     <div className={styles.txTime}>{new Date(l.createdAt * 1000).toLocaleString()}</div>
+                    {expiry ? <div className={styles.txExpiry}>{expiry}</div> : null}
                   </div>
                   <div className={styles.txAmount}>
                     {l.amountWei !== undefined ? `${fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as TokenSymbol))} ${l.token}` : "Open"}
                   </div>
-                  <a
-                    className={styles.txLink}
-                    href={url}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigator.clipboard.writeText(url).catch(() => {});
-                    }}
-                    title="Copy link"
-                  >
-                    Copy ↗
-                  </a>
+                  <div className={styles.txActions}>
+                    <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
+                      View ↗
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(url).catch(() => {})}
+                      title="Copy link"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
               );
             })}

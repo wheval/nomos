@@ -9,7 +9,7 @@ import { useFrontendProvider } from "../provider/providerContext";
 import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
-import { usePaymentLinks, paymentLinkStatusLabel } from "./usePaymentLinks";
+import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePaymentLinks";
 import { buildPaymentUrl } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals } from "@/utils/constants";
 
@@ -158,6 +158,7 @@ export default function OverviewPanel() {
             {recentLinks.map((l) => {
               const badge = paymentLinkStatusLabel(l);
               const url = buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", l.id);
+              const expiry = expiresInLabel(l);
               return (
                 <div key={l.id} className={styles.txRow}>
                   <div className={styles.txMain}>
@@ -166,23 +167,25 @@ export default function OverviewPanel() {
                       {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
                     </div>
                     <div className={styles.txTime}>{new Date(l.createdAt * 1000).toLocaleString()}</div>
+                    {expiry ? <div className={styles.txExpiry}>{expiry}</div> : null}
                   </div>
                   <div className={styles.txAmount}>
                     {l.amountWei !== undefined
                       ? `${fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as "STRK" | "USDC"))} ${l.token}`
                       : "Open"}
                   </div>
-                  <a
-                    className={styles.txLink}
-                    href={url}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigator.clipboard.writeText(url).catch(() => {});
-                    }}
-                    title="Copy link"
-                  >
-                    Copy ↗
-                  </a>
+                  <div className={styles.txActions}>
+                    <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
+                      View ↗
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(url).catch(() => {})}
+                      title="Copy link"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
               );
             })}
