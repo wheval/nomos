@@ -21,13 +21,22 @@ function providerForNetwork(networkIndex: number): ProviderInterface {
   return provider;
 }
 
-// Flow B: an ordinary public ERC-20 transfer. Verified by decoding the
-// standard OpenZeppelin-shape Transfer event on the claimed token — keys:
-// [selector, from, to] (both parties indexed), data: [value_low, value_high]
-// as a u256 — and confirming it paid the operating wallet at least the
-// claimed amount. This event shape matches OZ's Cairo ERC20 implementation;
-// worth a live confirmation against a real Sepolia tx once Phase 4 starts
-// sending real Flow B payments.
+// Flow B: an ordinary public ERC-20 transfer, verified by decoding the
+// Transfer event on the claimed token and confirming it paid the operating
+// wallet at least the claimed amount.
+//
+// Two Transfer event shapes exist on Starknet and BOTH are in use by tokens
+// we settle, so we have to accept either (verified against live chain data):
+//
+//   indexed (OZ Cairo ERC20) — Sepolia USDC, STRK on both networks
+//     keys: [selector, from, to]   data: [value_low, value_high]
+//
+//   legacy (older ERC20s)    — Mainnet USDC
+//     keys: [selector]             data: [from, to, value_low, value_high]
+//
+// Reading only the indexed shape silently rejects every Mainnet USDC
+// payment: the transfer succeeds on-chain and the operating wallet receives
+// the funds, but the deposit never gets credited to the merchant.
 export async function verifyFlowBDeposit(params: {
   txHash: string;
   operatingWalletAddress: string;
@@ -62,11 +71,18 @@ export async function verifyFlowBDeposit(params: {
     try {
       if (num.toBigInt(ev.from_address) !== tokenAddr) continue;
       if (!ev.keys?.length || num.toHex(ev.keys[0]) !== TRANSFER_SELECTOR) continue;
-      if (ev.keys.length < 3 || num.toBigInt(ev.keys[2]) !== expectedTo) continue;
 
-      const amountLow = num.toBigInt(ev.data[0]);
-      const amountHigh = ev.data.length > 1 ? num.toBigInt(ev.data[1]) : 0n;
-      const amount = amountLow + (amountHigh << 128n);
+      // Recipient and amount sit in different places per shape (see above).
+      const indexed = ev.keys.length >= 3;
+      const data: string[] = ev.data ?? [];
+      const to = indexed ? ev.keys[2] : data[1];
+      const low = indexed ? data[0] : data[2];
+      const high = indexed ? data[1] : data[3];
+      if (to === undefined || low === undefined) continue;
+
+      if (num.toBigInt(to) !== expectedTo) continue;
+
+      const amount = num.toBigInt(low) + (high === undefined ? 0n : num.toBigInt(high) << 128n);
 
       if (amount >= params.claimedAmountWei) {
         return { ok: true, amountWei: amount };

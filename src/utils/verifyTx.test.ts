@@ -127,6 +127,99 @@ describe("verifyFlowBDeposit", () => {
     });
     expect(result.ok).toBe(false);
   });
+
+  // Mainnet USDC emits the legacy (un-indexed) Transfer: keys hold only the
+  // selector and from/to live in data. Reading just the indexed shape
+  // rejected these, so a real Mainnet USDC payment landed in the operating
+  // wallet without ever crediting the merchant.
+  describe("legacy un-indexed Transfer shape (Mainnet USDC)", () => {
+    function legacyTransferEvent(opts: { to: string; amount: bigint }) {
+      return {
+        from_address: STRK_ADDR,
+        keys: [TRANSFER_SELECTOR],
+        data: [
+          "0x1", // from
+          opts.to,
+          num.toHex(opts.amount & ((1n << 128n) - 1n)),
+          num.toHex(opts.amount >> 128n),
+        ],
+      };
+    }
+
+    it("accepts a legacy Transfer paying the operating wallet", async () => {
+      mockReceipt = {
+        execution_status: "SUCCEEDED",
+        events: [legacyTransferEvent({ to: OPERATING_WALLET, amount: 100n })],
+      };
+      const result = await verifyFlowBDeposit({
+        txHash: "0xabc",
+        operatingWalletAddress: OPERATING_WALLET,
+        tokenAddress: STRK_ADDR,
+        claimedAmountWei: 100n,
+        networkIndex: 0,
+      });
+      expect(result).toEqual({ ok: true, amountWei: 100n });
+    });
+
+    it("rejects a legacy Transfer paying someone else", async () => {
+      mockReceipt = {
+        execution_status: "SUCCEEDED",
+        events: [legacyTransferEvent({ to: "0xdead", amount: 100n })],
+      };
+      const result = await verifyFlowBDeposit({
+        txHash: "0xabc",
+        operatingWalletAddress: OPERATING_WALLET,
+        tokenAddress: STRK_ADDR,
+        claimedAmountWei: 100n,
+        networkIndex: 0,
+      });
+      expect(result.ok).toBe(false);
+    });
+
+    it("rejects a legacy underpayment", async () => {
+      mockReceipt = {
+        execution_status: "SUCCEEDED",
+        events: [legacyTransferEvent({ to: OPERATING_WALLET, amount: 99n })],
+      };
+      const result = await verifyFlowBDeposit({
+        txHash: "0xabc",
+        operatingWalletAddress: OPERATING_WALLET,
+        tokenAddress: STRK_ADDR,
+        claimedAmountWei: 100n,
+        networkIndex: 0,
+      });
+      expect(result.ok).toBe(false);
+    });
+
+    // Verbatim from a live Mainnet USDC Transfer (getEvents, Aug 2026):
+    // keys.length 1, data.length 4, amount 0x372cc9 = 3.615945 USDC.
+    it("decodes a real Mainnet USDC event", async () => {
+      const realTo = "0x6128d8e1f4e35ff05e8264b6355dba03ceff0f665a3ac790cab04b83491aef5";
+      mockReceipt = {
+        execution_status: "SUCCEEDED",
+        events: [
+          {
+            from_address: STRK_ADDR,
+            keys: [TRANSFER_SELECTOR],
+            data: [
+              "0x1bd045134372c04c2a0478c84e637eb881bdddcf4f2b45c1a99ca654792593d",
+              realTo,
+              "0x372cc9",
+              "0x0",
+            ],
+          },
+        ],
+      };
+      const result = await verifyFlowBDeposit({
+        txHash: "0xabc",
+        operatingWalletAddress: realTo,
+        tokenAddress: STRK_ADDR,
+        claimedAmountWei: 3_615_945n,
+        networkIndex: 0,
+      });
+      expect(result).toEqual({ ok: true, amountWei: 3_615_945n });
+    });
+  });
 });
 
 describe("verifyFlowADeposit", () => {

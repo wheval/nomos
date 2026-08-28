@@ -12,6 +12,7 @@ import SelectWallet from "./SelectWallet";
 import ReceiptCard from "../ReceiptCard";
 import {
   fmtStrk,
+  fmtTokenAmount,
   shortHex,
   errorResult,
   receiptToResult,
@@ -33,33 +34,58 @@ type VerdictRow = { label: string; value: string; ok?: boolean };
 type Verdict = { ok: boolean; pending?: boolean; title: string; rows: VerdictRow[] };
 
 // Turn the shielded-balances response into a token → amount list.
-function balancesToResult(raw: any): ActionResult {
+//
+// The pool is multi-token (it keys everything by ERC-20 address), so a row
+// is only readable once we resolve that address back to a configured token:
+// the symbol for the label, and the decimals for the amount. Formatting
+// every row as 18-decimal STRK renders 6-decimal USDC off by 10^12.
+//
+// An address we don't recognise is shown in full rather than shortened —
+// truncating it hides exactly the detail needed to tell whether the pool
+// holds a token Nomos isn't configured for. See docs/ARCHITECTURE.md.
+function balancesToResult(raw: any, networkIndex: number): ActionResult {
   const r = raw?.value ?? raw;
   const arr = Array.isArray(r) ? r : null;
   if (arr && arr.length) {
-    const strk = (() => {
+    const known = constants.TokenSymbols.flatMap((symbol) => {
+      const address = constants.tokenAddressFor(symbol, networkIndex);
       try {
-        return num.toBigInt(TOKEN);
+        const key = num.toBigInt(address);
+        return key === 0n ? [] : [{ key, symbol, decimals: constants.tokenDecimals(symbol) }];
       } catch {
-        return null;
+        return [];
       }
-    })();
+    });
+
     const rows: ResultRow[] = arr.map((b: any) => {
       const token = b?.token ?? b?.token_address ?? b?.[0];
       const amount = b?.amount ?? b?.balance ?? b?.[1];
-      let amtStr = String(amount);
+
+      const match = (() => {
+        try {
+          const key = num.toBigInt(token);
+          return known.find((t) => t.key === key) ?? null;
+        } catch {
+          return null;
+        }
+      })();
+
+      let value = String(amount);
       try {
-        amtStr = `${fmtStrk(num.toBigInt(amount))} `;
+        value = match
+          ? fmtTokenAmount(num.toBigInt(amount), match.decimals)
+          : `${num.toBigInt(amount)} (raw)`;
       } catch {
         /* keep raw */
       }
+
       let label = "token";
       try {
-        label = strk !== null && num.toBigInt(token) === strk ? "STRK" : shortHex(token);
+        label = match ? match.symbol : num.toHex(token);
       } catch {
         /* keep generic */
       }
-      return { label, value: amtStr.trim() };
+      return { label, value };
     });
     return { status: "ok", title: "Shielded balances", rows };
   }
@@ -234,7 +260,7 @@ export default function WalletAccountV6Tag() {
     }
     try {
       const r = await myWalletAccount.strk20Balances([]);
-      setResultBalances(balancesToResult(r));
+      setResultBalances(balancesToResult(r, myFrontendProviderIndex));
     } catch (error: any) {
       setResultBalances(errorResult(error?.message ?? error?.toString?.() ?? String(error)));
     }

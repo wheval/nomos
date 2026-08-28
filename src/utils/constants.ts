@@ -22,11 +22,23 @@ export const Tokens: Record<TokenSymbol, { decimals: number; addresses: Record<n
   },
   USDC: {
     decimals: 6,
-    // Native USDC on Starknet — addresses from starknet-io/starknet-addresses
-    // (bridged_tokens/{mainnet,sepolia}.json), the canonical registry.
     addresses: {
+      // Mainnet: native USDC, from starknet-io/starknet-addresses
+      // (bridged_tokens/mainnet.json) — the canonical registry.
       0: "0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
-      2: "0x053b40a647cedfca6ca84f542a0fe36736031905a9639a7f19a3c1e66bfd5080",
+
+      // Sepolia deliberately does NOT use the registry's bridged USDC
+      // (0x053b40a6…5080). Two contracts on Sepolia both report
+      // name/symbol "USDC" with 6 decimals, and the registry one is
+      // reachable only by bridging from Ethereum Sepolia — so in practice
+      // nobody holds it. The one below is what Ready/Argent lists as USDC
+      // on Sepolia and what the STRK20 pool actually holds shielded
+      // balances of; pointing at the registry address instead makes every
+      // private USDC payment fail with "insufficient balance", because the
+      // payer's shielded balance sits under a different token address.
+      // Override if the pool moves to a different test token.
+      2: process.env.NEXT_PUBLIC_USDC_SEPOLIA ??
+        "0x0512feac6339ff7889822cb5aa2a86c848e9d392bb0e3e237c008674feed8343",
     },
   },
 };
