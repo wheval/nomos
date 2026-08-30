@@ -2,227 +2,205 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { buildPaymentUrl, parseTokenAmount, EXPIRY_CHOICES } from "@/utils/payments";
+import { buildPaymentUrl } from "@/utils/payments";
 import { fmtTokenAmount } from "@/utils/receipt";
-import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
+import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
+import { TokenAmount } from "../../TokenIcons";
 import { useMerchantAuth } from "./useMerchantAuth";
-import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePaymentLinks";
+import { usePaymentLinks, expiresInLabel } from "./usePaymentLinks";
+import { linkStatus, pillClass } from "./statusTone";
+import { rowNavProps } from "./rowNav";
+import CreateLinkModal from "./CreateLinkModal";
 
-// Merchant-facing Payment Link creation. Links are persisted server-side
-// (src/server/store) rather than encoded entirely in the URL - the
-// checkout page fetches the canonical record by id instead of trusting
-// whatever's in a copied/edited link, and this list is what makes a
-// merchant's own links recoverable and auditable instead of living only in
-// whatever chat thread they were shared through.
+// The Payment Links index: what exists, and a way to make another. Creation
+// moved into a dialog so the list — the thing a merchant comes here to read —
+// is not pushed below a form they only need occasionally.
+//
+// Links are persisted server-side rather than encoded in the URL: checkout
+// fetches the canonical record by id instead of trusting a copied link, and
+// this list is what makes a merchant's links recoverable and auditable.
 export default function CreateLink() {
   const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
+  const { links, loadError, refresh } = usePaymentLinks(address ?? "", secretKey, networkIndex, sessionReady);
+  const router = useRouter();
 
-  const [token, setToken] = useState<TokenSymbol>("STRK");
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [expirySeconds, setExpirySeconds] = useState<number | null>(null);
-  const [amountError, setAmountError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [link, setLink] = useState<string>("");
+  const [creating, setCreating] = useState(false);
+  const [justCreated, setJustCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const { links, refresh: refreshLinks } = usePaymentLinks(address ?? "", secretKey, networkIndex, sessionReady);
-
-  const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
-
-  async function handleGenerate() {
-    setLink("");
-    setCopied(false);
-    setFormError("");
-    if (amount.trim() && parseTokenAmount(amount, tokenDecimals(token)) === null) {
-      setAmountError("Enter a positive amount, e.g. 25 or 12.5");
-      return;
-    }
-    setAmountError("");
-    setSubmitting(true);
-    try {
-      const r = await fetch("/api/payment-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          merchantAddress: address,
-          ...(secretKey ? { secretKey } : {}),
-          networkIndex,
-          amount: amount.trim() || undefined,
-          token,
-          note: note.trim() || undefined,
-          expiresIn: expirySeconds ?? undefined,
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
-      setLink(buildPaymentUrl(window.location.origin, d.id));
-      setAmount("");
-      setNote("");
-      setExpirySeconds(null);
-      refreshLinks();
-    } catch (e: any) {
-      setFormError(e.message ?? "Could not create the payment link.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard denied - link is still selectable text */
-    }
-  }
 
   if (!isConnected) {
     return (
-      <div className={styles.sectionCard} style={{ textAlign: "center" }}>
-        <p className={styles.sectionSub}>
-          Connect the wallet you want paid into before creating a link.
-        </p>
-        <SelectWallet variant="ctaBig" />
+      <div className={styles.cPanel}>
+        <div className={styles.cPanelSection} style={{ textAlign: "center" }}>
+          <p className={styles.sectionSub}>Connect the wallet you want paid into before creating a link.</p>
+          <SelectWallet variant="ctaBig" />
+        </div>
       </div>
     );
   }
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const createdUrl = justCreated ? buildPaymentUrl(origin, justCreated) : "";
+
   return (
-    <div className={styles.sectionCard}>
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Payment Link</span>
-        <span className={styles.sectionMeta}>{shortAddr}</span>
-      </div>
-      <p className={styles.sectionSub}>Pays into your shielded balance</p>
-
-      <div className={styles.field}>
-        <label className={styles.fieldLabel}>Token</label>
-        <div className={styles.chipRow}>
-          {TokenSymbols.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
-              onClick={() => setToken(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.fieldRow}>
-        <div className={styles.field}>
-          <label className={styles.fieldLabel} htmlFor="amount">
-            Amount ({token})
-          </label>
-          <input
-            id="amount"
-            className={styles.textInput}
-            placeholder="Blank = customer enters"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          {amountError ? <div className={styles.errorText}>{amountError}</div> : null}
-        </div>
-        <div className={styles.field}>
-          <label className={styles.fieldLabel} htmlFor="note">
-            Note
-          </label>
-          <input
-            id="note"
-            className={styles.textInput}
-            placeholder="e.g. Invoice #104"
-            maxLength={120}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.fieldLabel}>Expires</label>
-        <div className={styles.chipRow}>
-          {EXPIRY_CHOICES.map((choice) => (
-            <button
-              key={choice.label}
-              type="button"
-              className={`${styles.chip} ${expirySeconds === choice.seconds ? styles.chipActive : ""}`}
-              onClick={() => setExpirySeconds(choice.seconds)}
-            >
-              {choice.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {formError ? <div className={styles.errorText}>{formError}</div> : null}
-
-      <button className={styles.btnCta} disabled={submitting || !sessionReady} onClick={handleGenerate}>
-        {submitting ? "Generating…" : "Generate link"}
-      </button>
-
-      {link ? (
-        <div className={styles.field} style={{ marginTop: 16 }}>
-          <label className={styles.fieldLabel}>Share this with your customer</label>
-          <div className={styles.linkRow}>
-            <span className={styles.linkText}>{link}</span>
-            <button className={`${styles.btn} ${styles.btnGreen}`} onClick={handleCopy}>
-              {copied ? "Copied" : "Copy"}
+    <>
+      <div className={styles.cPanel}>
+        <div className={styles.pageHead}>
+          <div>
+            <h1 className={styles.pageHeadTitle}>Payment Links</h1>
+            <p className={styles.pageHeadSub}>
+              Whoever pays, the amount and their identity stay shielded in the STRK20 pool.
+            </p>
+          </div>
+          <div className={styles.pageHeadActions}>
+            <button type="button" className={styles.settingsBtn} onClick={() => setCreating(true)}>
+              <PlusIcon />
+              Create payment link
             </button>
           </div>
-          <div className={styles.nextSteps}>
-            <a href={link} target="_blank" rel="noreferrer">Preview as customer ↗</a>
-            <Link href="/dashboard">View dashboard →</Link>
-          </div>
         </div>
-      ) : null}
 
-      {links && links.length > 0 ? (
-        <div className={styles.field} style={{ marginTop: 24 }}>
-          <label className={styles.fieldLabel}>Your Payment Links</label>
-          <div className={styles.txTable}>
-            {links.map((l) => {
-              const url = buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", l.id);
-              const badge = paymentLinkStatusLabel(l);
-              const expiry = expiresInLabel(l);
-              return (
-                <div key={l.id} className={styles.txRow}>
-                  <div className={styles.txMain}>
-                    <div className={styles.txTitle}>
-                      {l.note ?? l.ref}
-                      {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
-                    </div>
-                    <div className={styles.txTime}>{new Date(l.createdAt * 1000).toLocaleString()}</div>
-                    {expiry ? <div className={styles.txExpiry}>{expiry}</div> : null}
-                  </div>
-                  <div className={styles.txAmount}>
-                    {l.amountWei !== undefined ? `${fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as TokenSymbol))} ${l.token}` : "Open"}
-                  </div>
-                  <div className={styles.txActions}>
-                    <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
-                      View ↗
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(url).catch(() => {})}
-                      title="Copy link"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className={styles.pageBody}>
+          {justCreated ? (
+            <div className={styles.receipt} style={{ marginBottom: 18 }}>
+              <div className={styles.receiptHead}>
+                <span className={styles.receiptIcon} style={{ background: "var(--green)" }}>✓</span>
+                Link created — share this with your customer
+              </div>
+              <div className={styles.copyField} style={{ marginTop: 12 }}>
+                <a className={styles.copyFieldValue} href={createdUrl} target="_blank" rel="noreferrer">
+                  {createdUrl}
+                </a>
+                <button
+                  type="button"
+                  className={styles.iconBtn}
+                  title="Copy link"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdUrl).then(
+                      () => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1500);
+                      },
+                      () => {},
+                    );
+                  }}
+                >
+                  {copied ? "✓" : "Copy"}
+                </button>
+              </div>
+              <div className={styles.nextSteps} style={{ marginTop: 12 }}>
+                <Link href={`/dashboard/links/${justCreated}`}>Open its page →</Link>
+                <a href={createdUrl} target="_blank" rel="noreferrer">Preview as customer ↗</a>
+              </div>
+            </div>
+          ) : null}
+
+          {loadError ? (
+            <div className={styles.errorText}>{loadError}</div>
+          ) : links === null ? (
+            <div className={styles.emptyBox}><p>Loading…</p></div>
+          ) : links.length === 0 ? (
+            <div className={styles.emptyBox}>
+              <p>No payment links yet. Create one to start taking payments.</p>
+              <button
+                type="button"
+                className={styles.settingsBtn}
+                style={{ marginTop: 16 }}
+                onClick={() => setCreating(true)}
+              >
+                <PlusIcon />
+                Create payment link
+              </button>
+            </div>
+          ) : (
+            <div className={styles.tableWrap}>
+              <table className={styles.dataTable}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Expires</th>
+                    <th>Created</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {links.map((l) => {
+                    const url = buildPaymentUrl(origin, l.id);
+                    const status = linkStatus(l);
+                    return (
+                      <tr key={l.id} {...rowNavProps(router, `/dashboard/links/${l.id}`)}>
+                        <td>
+                          <Link href={`/dashboard/links/${l.id}`} className={styles.rowTitleLink}>
+                            {l.note ?? l.ref}
+                          </Link>
+                        </td>
+                        <td>
+                          <span className={styles.cellChip}>{l.singleUse ? "Invoice" : "Reusable"}</span>
+                        </td>
+                        <td className={styles.cellStrong}>
+                          {l.amountWei !== undefined ? (
+                            <TokenAmount
+                              amount={fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as TokenSymbol))}
+                              symbol={l.token}
+                            />
+                          ) : (
+                            "Customer enters"
+                          )}
+                        </td>
+                        <td>
+                          <span className={pillClass(status.tone)}>{status.label}</span>
+                        </td>
+                        <td className={styles.cellMuted}>{expiresInLabel(l) ?? "—"}</td>
+                        <td className={styles.cellMuted}>{new Date(l.createdAt * 1000).toLocaleDateString()}</td>
+                        <td>
+                          <div className={styles.txActions}>
+                            <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
+                              View ↗
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => navigator.clipboard.writeText(url).catch(() => {})}
+                              title="Copy link"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      ) : null}
-    </div>
+      </div>
+
+      <CreateLinkModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={(id) => {
+          setJustCreated(id);
+          refresh();
+        }}
+        merchantAddress={address}
+        secretKey={secretKey}
+        networkIndex={networkIndex}
+      />
+    </>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
   );
 }

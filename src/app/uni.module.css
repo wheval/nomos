@@ -681,6 +681,8 @@
   padding: 8px 14px;
   cursor: pointer;
   transition: background 140ms, color 140ms, border-color 140ms;
+  display: inline-flex;
+  align-items: center;
 }
 .chip:hover { color: var(--ink); }
 .chipActive { color: var(--pink-text); background: var(--pink-soft); border-color: var(--pink-soft-2); }
@@ -2361,6 +2363,362 @@
   .settingsPane { border-left: none; border-top: 1px solid var(--line); min-height: 0; padding: 24px 20px 32px; }
   .settingsNav { padding: 20px 16px; }
 }
+
+/* ---------------------------------------------------------------------------
+   List pages — the page title lives inside the panel with its actions, above
+   a filter rail and a real data table. Columns carry their own headers so a
+   row reads as a record rather than a free-form line of text.
+   --------------------------------------------------------------------------- */
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 24px 26px 0;
+}
+.pageHeadTitle {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+.pageHeadSub {
+  font-size: 14.5px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+.pageHeadActions { display: flex; align-items: center; gap: 10px; }
+.pageBody { padding: 18px 26px 26px; }
+
+.tableWrap {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  overflow-x: auto;
+}
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.dataTable th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.dataTable td {
+  padding: 15px 18px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.dataTable tbody tr:last-child td { border-bottom: none; }
+.dataTable tbody tr.rowLink { cursor: pointer; transition: background 120ms; }
+.dataTable tbody tr.rowLink:hover { background: var(--inset); }
+.cellStrong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cellMuted { color: var(--muted); }
+.cellMono {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13.5px;
+  color: var(--muted);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cellChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.rowTitleLink {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+.rowTitleLink:hover { color: var(--pink-text); }
+
+/* Status is a tone, not a colour picked per call site — every list maps its
+   own states onto these four so the same state reads the same everywhere. */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.statusOk { background: rgba(52, 211, 153, 0.14); color: #6ee7b7; }
+.statusWarn { background: rgba(245, 158, 11, 0.16); color: #fbbf6a; }
+.statusBad { background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
+.statusNeutral { background: var(--inset-2); color: var(--ink-soft); }
+
+.emptyBox {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 44px 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.emptyBox p { margin: 0; max-width: 42ch; }
+
+/* ---------------------------------------------------------------------------
+   Detail pages — record on the left, its properties and actions in a right
+   rail, split by a full-height hairline.
+   --------------------------------------------------------------------------- */
+.detailLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  align-items: start;
+}
+.detailMain { padding: 24px 28px 40px; min-width: 0; }
+.detailAside {
+  padding: 24px 28px 40px;
+  border-left: 1px solid var(--line);
+  min-height: calc(100dvh - 132px);
+  min-width: 0;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.breadcrumb a { color: var(--muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--ink); }
+.detailTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.detailTitle {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.detailSectionTitle {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 30px 0 14px;
+}
+.asideTitle {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+.copyField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px 6px 14px;
+}
+.copyFieldValue {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--ink);
+  text-decoration: none;
+}
+a.copyFieldValue:hover { color: var(--pink-text); }
+.defRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+}
+.defRow:first-of-type { margin-top: 18px; }
+.defLabel { font-size: 15px; color: var(--muted); white-space: nowrap; }
+.defValue {
+  font-size: 15px;
+  color: var(--ink);
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detailActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+@media (max-width: 900px) {
+  .detailLayout { grid-template-columns: 1fr; }
+  .detailAside {
+    border-left: none;
+    border-top: 1px solid var(--line);
+    min-height: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Create-flow dialog — a wider modal for forms, with a scrolling body so a
+   long form never pushes its own actions off screen.
+   --------------------------------------------------------------------------- */
+.modalWide { width: min(560px, calc(100vw - 32px)); padding: 24px 26px; }
+.modalSub {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: -4px 0 20px;
+}
+.modalScroll {
+  max-height: min(58vh, 520px);
+  overflow-y: auto;
+  margin: 0 -26px;
+  padding: 0 26px;
+}
+.modalFoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.modalFoot .settingsBtn { flex: none; }
+
+/* Type chooser — icon, what it does, and the action, one row per kind. */
+.typeChoice {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+.typeChoice + .typeChoice { border-top: 1px solid var(--line); }
+.typeChoiceIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--ink-soft);
+}
+.typeChoiceText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.typeChoiceTitle {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.typeChoiceDesc { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+/* A row that reads as a sentence with a control in it, not a bare checkbox. */
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 0;
+  cursor: pointer;
+}
+.checkRow input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 120ms, border-color 120ms;
+}
+.checkRow input:checked {
+  background: var(--pink);
+  border-color: var(--pink);
+}
+.checkRow input:checked::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+.checkRow > span:last-child { display: flex; flex-direction: column; }
+.checkRowLabel { font-size: 14.5px; color: var(--ink); line-height: 1.45; }
+.checkRowHint { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+
+.advToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 0 0;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--pink-text);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.advToggle svg { transition: transform 160ms; }
+.advOpen svg { transform: rotate(180deg); }
+.modalDivider { height: 1px; background: var(--line); margin: 18px 0; }
+
+/* A prefixed field: fixed origin, editable slug. */
+.inputPrefix {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.inputPrefixLabel {
+  padding: 6px 0 6px 14px;
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.inputPrefix input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 6px 14px 6px 6px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+}
+.inputPrefix input:focus { outline: none; }
+.inputPrefix:focus-within { border-color: var(--pink); box-shadow: 0 0 0 3.5px var(--pink-soft); }
 
 /* Donut — a single share-of-total ring with the figure in the middle. */
 .donutWrap {

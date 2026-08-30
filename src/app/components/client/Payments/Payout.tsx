@@ -5,6 +5,7 @@ import styles from "../../../uni.module.css";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
 import { parseTokenAmount } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
+import { TokenAmount } from "../../TokenIcons";
 import { useFrontendProvider } from "../provider/providerContext";
 import type { Payout as PayoutRecord, PayoutMode } from "@/server/store";
 import type { TokenBalances } from "./useLedger";
@@ -117,7 +118,7 @@ export default function Payout({
               className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
               onClick={() => setToken(t)}
             >
-              {t}
+              <TokenAmount symbol={t} />
             </button>
           ))}
         </div>

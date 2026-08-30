@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
@@ -12,6 +13,8 @@ import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePa
 import { buildPaymentUrl } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import InsightsChart, { Donut, type ChartPoint } from "./InsightsChart";
+import { rowNavProps } from "./rowNav";
+import { TokenAmount, TokenLogo } from "../../TokenIcons";
 
 const RANGES = [7, 30, 90] as const;
 const DEFAULT_RANGE = 30;
@@ -39,6 +42,7 @@ export default function OverviewPanel() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [days, setDays] = useState<number>(DEFAULT_RANGE);
   const [token, setToken] = useState<TokenSymbol>(TokenSymbols[0]);
+  const router = useRouter();
 
   useEffect(() => {
     if (!address || !sessionReady) return;
@@ -138,8 +142,11 @@ export default function OverviewPanel() {
             <span className={styles.filterSpacer} />
 
             <span className={styles.filterSelectWrap}>
+              <span className={styles.filterSelectIcon}>
+                <TokenLogo symbol={token} size={15} />
+              </span>
               <select
-                className={styles.filterSelect}
+                className={`${styles.filterSelect} ${styles.filterSelectWithIcon}`}
                 value={token}
                 onChange={(e) => setToken(e.target.value as TokenSymbol)}
                 aria-label="Token"
@@ -160,13 +167,16 @@ export default function OverviewPanel() {
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Volume</div>
               <div className={styles.metricValue}>
-                {compact(volume)} <small>{token}</small>
+                <TokenAmount amount={compact(volume)} symbol={token} />
               </div>
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Balance</div>
               <div className={styles.metricValue}>
-                {balances ? fmtTokenAmount(BigInt(balances[token]), decimals) : "—"} <small>{token}</small>
+                <TokenAmount
+                  amount={balances ? fmtTokenAmount(BigInt(balances[token]), decimals) : "—"}
+                  symbol={token}
+                />
               </div>
             </div>
             <div className={styles.metricCard}>
@@ -176,7 +186,7 @@ export default function OverviewPanel() {
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Avg. deposit value</div>
               <div className={styles.metricValue}>
-                {compact(avg)} <small>{token}</small>
+                <TokenAmount amount={compact(avg)} symbol={token} />
               </div>
             </div>
           </div>
@@ -248,16 +258,21 @@ export default function OverviewPanel() {
               {recent.map((d) => {
                 const badge = depositStatusLabel(d.status);
                 return (
-                  <div key={d.id} className={styles.txRow}>
+                  <div key={d.id} {...rowNavProps(router, `/dashboard/transactions/${d.id}`, styles.txRow)}>
                     <div className={styles.txMain}>
                       <div className={styles.txTitle}>
-                        {d.note ?? d.ref ?? "Payment"}
+                        <Link href={`/dashboard/transactions/${d.id}`} className={styles.rowTitleLink}>
+                          {d.note ?? d.ref ?? "Payment"}
+                        </Link>
                         {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
                       </div>
                       <div className={styles.txTime}>{new Date(d.recordedAt * 1000).toLocaleString()}</div>
                     </div>
                     <div className={styles.txAmount}>
-                      {fmtTokenAmount(BigInt(d.amountWei), tokenDecimals(d.token as TokenSymbol))} {d.token}
+                      <TokenAmount
+                        amount={fmtTokenAmount(BigInt(d.amountWei), tokenDecimals(d.token as TokenSymbol))}
+                        symbol={d.token}
+                      />
                     </div>
                     <a
                       className={styles.txLink}
@@ -302,19 +317,26 @@ export default function OverviewPanel() {
                 const url = buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", l.id);
                 const expiry = expiresInLabel(l);
                 return (
-                  <div key={l.id} className={styles.txRow}>
+                  <div key={l.id} {...rowNavProps(router, `/dashboard/links/${l.id}`, styles.txRow)}>
                     <div className={styles.txMain}>
                       <div className={styles.txTitle}>
-                        {l.note ?? l.ref}
+                        <Link href={`/dashboard/links/${l.id}`} className={styles.rowTitleLink}>
+                          {l.note ?? l.ref}
+                        </Link>
                         {badge ? <span className={styles.keyBadge} style={{ marginLeft: 8 }}>{badge}</span> : null}
                       </div>
                       <div className={styles.txTime}>{new Date(l.createdAt * 1000).toLocaleString()}</div>
                       {expiry ? <div className={styles.txExpiry}>{expiry}</div> : null}
                     </div>
                     <div className={styles.txAmount}>
-                      {l.amountWei !== undefined
-                        ? `${fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as TokenSymbol))} ${l.token}`
-                        : "Open"}
+                      {l.amountWei !== undefined ? (
+                        <TokenAmount
+                          amount={fmtTokenAmount(BigInt(l.amountWei), tokenDecimals(l.token as TokenSymbol))}
+                          symbol={l.token}
+                        />
+                      ) : (
+                        "Open"
+                      )}
                     </div>
                     <div className={styles.txActions}>
                       <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">

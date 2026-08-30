@@ -17,6 +17,20 @@ import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResu
 
 type Flow = "A" | "B";
 
+// Append the payment's reference to the merchant's callback, preserving any
+// query string they already set. Falls back to the bare URL if it somehow
+// won't parse, rather than dropping the return link entirely.
+function callbackWithReference(callbackUrl: string, reference: string | null): string {
+  if (!reference) return callbackUrl;
+  try {
+    const url = new URL(callbackUrl);
+    url.searchParams.set("reference", reference);
+    return url.toString();
+  } catch {
+    return callbackUrl;
+  }
+}
+
 type LinkData = {
   id: string;
   merchantAddress: string;
@@ -28,6 +42,9 @@ type LinkData = {
   expiresAt?: number;
   revoked: boolean;
   expired: boolean;
+  singleUse?: boolean;
+  paid?: boolean;
+  callbackUrl?: string;
   logoDataUrl?: string;
 };
 
@@ -88,6 +105,8 @@ export default function Checkout() {
   const expiresAt = linkData?.expiresAt ?? null;
   const isExpired = Boolean(linkData?.expired);
   const isRevoked = Boolean(linkData?.revoked);
+  // A settled invoice: payable once, and that payment already happened.
+  const isAlreadyPaid = Boolean(linkData?.paid);
 
   const myFrontendProviderIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
   const myWalletAccount = useStoreWallet((state) => state.myWalletAccount);
@@ -118,6 +137,9 @@ export default function Checkout() {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [paying, setPaying] = useState(false);
   const [switchingWallet, setSwitchingWallet] = useState(false);
+  // Returned by /api/payments once the deposit is recorded; handed to the
+  // merchant's callback URL so their server can verify it.
+  const [paidReference, setPaidReference] = useState<string | null>(null);
 
   const shortTo = toValid ? `${toValid.slice(0, 6)}…${toValid.slice(-4)}` : "";
   const isPaid = result?.status === "ok";
@@ -145,6 +167,10 @@ export default function Checkout() {
     }
     if (isRevoked) {
       setResult(errorResult("This payment link has been revoked."));
+      return;
+    }
+    if (isAlreadyPaid) {
+      setResult(errorResult("This invoice has already been paid."));
       return;
     }
     const amountStr = fixedAmount ? fmtTokenAmount(BigInt(fixedAmount), decimals) : customAmount;
@@ -217,7 +243,12 @@ export default function Checkout() {
             networkIndex: myFrontendProviderIndex,
             linkId: linkData.id,
           }),
-        }).catch(() => {});
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            if (d?.reference) setPaidReference(d.reference);
+          })
+          .catch(() => {});
       }
     } catch (error: any) {
       setResult(errorResult(error?.message ?? error?.toString?.() ?? String(error)));
@@ -263,7 +294,7 @@ export default function Checkout() {
         </div>
       </div>
 
-      {isPaid || isExpired || isRevoked ? null : (
+      {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Payment method</label>
           <div className={styles.methodGrid}>
@@ -322,6 +353,20 @@ export default function Checkout() {
               ? "Shielded and settled on-chain. The business has been notified — nothing more to do here."
               : "Settled on-chain and recorded for the business — nothing more to do here."}
           </p>
+          {linkData.callbackUrl ? (
+            <div className={styles.nextSteps} style={{ maxWidth: 280, margin: "14px auto 0" }}>
+              {/* The reference travels with the payer so the merchant's server
+                  can verify it, the same shape as Paystack's callback. */}
+              <a href={callbackWithReference(linkData.callbackUrl, paidReference)}>
+                Return to the business →
+              </a>
+            </div>
+          ) : null}
+        </div>
+      ) : isAlreadyPaid ? (
+        <div className={styles.warn} style={{ padding: "0 0 12px" }}>
+          This invoice has already been paid. Nothing to do here — check with the business if
+          you think that&apos;s wrong.
         </div>
       ) : isRevoked ? (
         <div className={styles.warn} style={{ padding: "0 0 12px" }}>
@@ -367,7 +412,7 @@ export default function Checkout() {
         </div>
       ) : null}
 
-      {isPaid || isExpired || isRevoked ? null : isConnected ? (
+      {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : isConnected ? (
         <button className={styles.btnCta} disabled={!isStrk20Network || networkMismatch || paying} onClick={handlePay}>
           {paying ? "Confirm in your wallet…" : "Pay"}
         </button>
@@ -375,7 +420,7 @@ export default function Checkout() {
         <SelectWallet variant="ctaBig" />
       )}
 
-      {isPaid || isExpired || isRevoked ? null : (
+      {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (
         <div className={styles.trustRow}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
