@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { merchantFetchInit } from "./useMerchantAuth";
+import { useResource } from "./resourceCache";
 
 export type WirePaymentLink = {
   id: string;
@@ -14,31 +14,28 @@ export type WirePaymentLink = {
   expiresAt?: number;
   revoked: boolean;
   createdAt: number;
+  singleUse?: boolean;
+  callbackUrl?: string;
 };
 
 // Shared Payment Link fetch for CreateLink/Overview — both need the same
 // GET /api/payment-links response, just render different slices of it.
 // Scoped by network - a link created in test mode never shows up in live
 // mode's list, and vice versa.
+export function paymentLinksCacheKey(address: string, networkIndex: number) {
+  return `payment-links:${address}:${networkIndex}`;
+}
+
 export function usePaymentLinks(address: string, secretKey: string | null, networkIndex: number, sessionReady = true) {
-  const [links, setLinks] = useState<WirePaymentLink[] | null>(null);
-  const [loadError, setLoadError] = useState("");
+  const key = address && sessionReady ? paymentLinksCacheKey(address, networkIndex) : null;
 
-  function refresh() {
-    if (!address || !sessionReady) return;
-    setLoadError("");
-    fetch(`/api/payment-links?to=${address}&network=${networkIndex}`, merchantFetchInit(secretKey))
-      .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d) => setLinks(d.links ?? []))
-      .catch((e) => setLoadError(e.message ?? "Could not load payment links."));
-  }
+  const { data, error, refresh } = useResource<WirePaymentLink[]>(key, async () => {
+    const r = await fetch(`/api/payment-links?to=${address}&network=${networkIndex}`, merchantFetchInit(secretKey));
+    if (!r.ok) throw new Error((await r.json())?.error ?? `HTTP ${r.status}`);
+    return (await r.json()).links ?? [];
+  });
 
-  useEffect(refresh, [address, secretKey, networkIndex, sessionReady]);
-
-  return { links, loadError, refresh };
+  return { links: data ?? null, loadError: error ?? "", refresh };
 }
 
 export function paymentLinkStatusLabel(link: Pick<WirePaymentLink, "revoked" | "expiresAt">): string | null {
