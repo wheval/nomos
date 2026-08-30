@@ -29,6 +29,12 @@ export type Deposit = {
   token: string;
   note?: string;
   ref?: string;
+  // Unique per payment, unlike `ref` which is the Payment Link's own and is
+  // therefore shared by every payment made through it. This is what lets two
+  // people paying the same link be told apart, and what a merchant passes to
+  // the verify endpoint. Merchant-supplied when given, generated otherwise.
+  reference: string;
+  linkId?: string;
   status: DepositStatus;
   shieldTxHash?: string;
   recordedAt: number; // unix seconds
@@ -43,6 +49,8 @@ export type RecordDepositInput = {
   token?: string;
   note?: string;
   ref?: string;
+  reference?: string; // generated when absent
+  linkId?: string;
   status?: DepositStatus;
 };
 
@@ -107,6 +115,12 @@ export type PaymentLink = {
   revoked: boolean;
   createdAt: number;
   logoDataUrl?: string; // optional branding image shown on checkout
+  // An invoice: payable exactly once. A reusable page (the default) takes any
+  // number of payments; an invoice closes as soon as one is recorded, and
+  // checkout tells the next visitor it has already been paid.
+  singleUse: boolean;
+  // Where to send the payer once they're done, like Paystack's callback_url.
+  callbackUrl?: string;
 };
 
 export type CreatePaymentLinkInput = {
@@ -118,6 +132,8 @@ export type CreatePaymentLinkInput = {
   ref?: string; // auto-generated if absent
   expiresAt?: number;
   logoDataUrl?: string;
+  singleUse?: boolean;
+  callbackUrl?: string;
 };
 
 // One MerchantKey per (address, networkIndex) — a merchant's test and live
@@ -152,6 +168,19 @@ export interface Store {
   // Deposits
   recordDeposit(input: RecordDepositInput): Promise<{ deposit: Deposit; alreadyExisted: boolean }>;
   getDepositByTxHash(txHash: string): Promise<Deposit | null>;
+  // Claim a shielded note for a deposit, exactly once, ever.
+  //
+  // Flow A cannot be verified from public calldata, so settlement rests on
+  // matching an incoming note in the operating wallet. That wallet is shared
+  // custody for every merchant, so without a claim record the same note
+  // satisfies the check repeatedly and the ledger can be credited for money
+  // nobody paid. Returns false when the note is already spoken for; the
+  // caller must then refuse the deposit. Implementations MUST make this
+  // atomic — two concurrent callers cannot both win the same note.
+  claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean>;
+  // Backs the verify endpoint, and the "has this invoice been paid?" check.
+  getDepositByReference(reference: string): Promise<Deposit | null>;
+  listDepositsForLink(linkId: string): Promise<Deposit[]>;
   markDepositShielded(depositId: string, shieldTxHash: string): Promise<void>;
   markDepositShieldFailed(depositId: string): Promise<void>;
   listPendingShieldDeposits(): Promise<Deposit[]>;

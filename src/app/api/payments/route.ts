@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
   let networkIndex = networkIndexClaim;
   let linkNote: string | undefined = typeof note === "string" ? note : undefined;
   let linkRef: string | undefined = typeof ref === "string" ? ref : undefined;
+  let paidLinkId: string | undefined;
   if (linkId !== undefined) {
     if (typeof linkId !== "string") {
       return NextResponse.json({ error: "linkId must be a string." }, { status: 400 });
@@ -83,6 +84,20 @@ export async function POST(request: NextRequest) {
     if (!isTokenSymbol(link.token)) {
       return NextResponse.json({ error: "Payment link has an invalid token." }, { status: 500 });
     }
+    // An invoice is payable once. Reject a second payer before they spend
+    // gas, rather than silently accepting money against a settled invoice.
+    // A failed attempt (rejected/shield_failed) must not close it.
+    if (link.singleUse) {
+      const already = await store.listDepositsForLink(link.id);
+      const settled = already.filter((d) => d.status !== "rejected" && d.status !== "shield_failed");
+      if (settled.length > 0) {
+        return NextResponse.json(
+          { error: "This invoice has already been paid.", alreadyPaid: true },
+          { status: 409 }
+        );
+      }
+    }
+    paidLinkId = link.id;
     normalizedMerchant = link.merchantAddress;
     token = link.token;
     // The link's own network is authoritative, not whatever the client
@@ -103,7 +118,10 @@ export async function POST(request: NextRequest) {
 
   const existing = await store.getDepositByTxHash(txHash);
   if (existing) {
-    return NextResponse.json({ ok: true, status: existing.status, alreadyRecorded: true }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, status: existing.status, reference: existing.reference, alreadyRecorded: true },
+      { status: 200 }
+    );
   }
 
   const tokenAddress = tokenAddressFor(token, networkIndex);
@@ -128,7 +146,12 @@ export async function POST(request: NextRequest) {
       txHash,
       claimedAmountWei,
       tokenAddress,
+      networkIndex,
       discovery: getNoteDiscoveryClient(networkIndex),
+      // Claiming before the deposit is recorded is deliberate: if recording
+      // then failed we would leave a note locked, which is recoverable, where
+      // the reverse order risks crediting the same note twice.
+      claimNote: (noteId) => store.claimShieldedNote(noteId, networkIndex),
     });
   }
 
@@ -145,6 +168,8 @@ export async function POST(request: NextRequest) {
     token,
     note: linkNote,
     ref: linkRef,
+    reference: typeof body?.reference === "string" && body.reference.trim() ? body.reference.trim() : undefined,
+    linkId: paidLinkId,
     status: flow === "A" ? "verified" : "pending_shield",
   });
 
@@ -162,7 +187,10 @@ export async function POST(request: NextRequest) {
   // Flow B is credited (and its webhook fired) by the shield-step worker
   // once shielding is confirmed — see Phase 5.
 
-  return NextResponse.json({ ok: true, status: deposit.status }, { status: 201 });
+  return NextResponse.json(
+    { ok: true, status: deposit.status, reference: deposit.reference },
+    { status: 201 }
+  );
 }
 
 // Lists recorded deposits + the current ledger balance for a merchant.

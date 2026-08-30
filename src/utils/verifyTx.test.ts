@@ -1,5 +1,5 @@
 import { hash, num } from "starknet";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const STRK_ADDR = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const OPERATING_WALLET = "0x00000000000000000000000000000000000000000000000000000000000abc";
@@ -223,23 +223,127 @@ describe("verifyFlowBDeposit", () => {
 });
 
 describe("verifyFlowADeposit", () => {
-  it("passes through the discovery client's positive result", async () => {
-    const result = await verifyFlowADeposit({
-      txHash: "0xabc",
-      claimedAmountWei: 100n,
-      tokenAddress: STRK_ADDR,
-      discovery: { hasReceivedDeposit: async () => true },
+  // The regression this whole rewrite exists for: matching on amount alone let
+  // a fabricated txHash be credited against somebody else's note.
+  const NOTE_BLOCK = 900;
+
+  function notes(list: Array<{ id: string; amount: bigint; createdBlock?: number }>) {
+    return { listNotes: async () => list };
+  }
+
+  function claims() {
+    const seen = new Set<string>();
+    const claimNote = vi.fn(async (id: string) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
     });
-    expect(result).toEqual({ ok: true, amountWei: 100n });
+    return { claimNote, seen };
+  }
+
+  beforeEach(() => {
+    mockReceipt = { execution_status: "SUCCEEDED", block_number: NOTE_BLOCK, events: [] };
   });
 
-  it("fails when the discovery client finds no matching note", async () => {
+  const base = {
+    txHash: "0xabc",
+    claimedAmountWei: 100n,
+    tokenAddress: STRK_ADDR,
+    networkIndex: 2,
+  };
+
+  it("credits a real transaction whose block holds a matching unspent note", async () => {
+    const { claimNote } = claims();
     const result = await verifyFlowADeposit({
-      txHash: "0xabc",
-      claimedAmountWei: 100n,
-      tokenAddress: STRK_ADDR,
-      discovery: { hasReceivedDeposit: async () => false },
+      ...base,
+      discovery: notes([{ id: "note-1", amount: 100n, createdBlock: NOTE_BLOCK }]),
+      claimNote,
+    });
+    expect(result).toEqual({ ok: true, amountWei: 100n });
+    expect(claimNote).toHaveBeenCalledWith("note-1");
+  });
+
+  it("rejects a fabricated transaction hash outright", async () => {
+    // No such transaction: the receipt lookup throws before any note is read.
+    getTransactionReceipt.mockRejectedValueOnce(new Error("Transaction hash not found"));
+    const listNotes = vi.fn(async () => [{ id: "note-1", amount: 100n, createdBlock: NOTE_BLOCK }]);
+    const { claimNote } = claims();
+
+    const result = await verifyFlowADeposit({ ...base, discovery: { listNotes }, claimNote });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/no such transaction/i);
+    expect(listNotes).not.toHaveBeenCalled();
+    expect(claimNote).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reverted transaction", async () => {
+    mockReceipt = { execution_status: "REVERTED", block_number: NOTE_BLOCK };
+    const { claimNote } = claims();
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: notes([{ id: "note-1", amount: 100n, createdBlock: NOTE_BLOCK }]),
+      claimNote,
     });
     expect(result.ok).toBe(false);
+    expect(claimNote).not.toHaveBeenCalled();
+  });
+
+  it("never credits the same note twice", async () => {
+    const { claimNote } = claims();
+    const discovery = notes([{ id: "note-1", amount: 100n, createdBlock: NOTE_BLOCK }]);
+
+    const first = await verifyFlowADeposit({ ...base, discovery, claimNote });
+    const second = await verifyFlowADeposit({ ...base, txHash: "0xdef", discovery, claimNote });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toMatch(/already been credited/i);
+  });
+
+  it("moves on to another note of the same amount rather than failing", async () => {
+    const { claimNote } = claims();
+    const discovery = notes([
+      { id: "note-1", amount: 100n, createdBlock: NOTE_BLOCK },
+      { id: "note-2", amount: 100n, createdBlock: NOTE_BLOCK },
+    ]);
+    expect((await verifyFlowADeposit({ ...base, discovery, claimNote })).ok).toBe(true);
+    // A second genuine payment of the same size settles against the other note.
+    expect((await verifyFlowADeposit({ ...base, txHash: "0xdef", discovery, claimNote })).ok).toBe(true);
+  });
+
+  it("rejects a note created in a different block from the transaction", async () => {
+    const { claimNote } = claims();
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: notes([{ id: "note-old", amount: 100n, createdBlock: NOTE_BLOCK - 50 }]),
+      claimNote,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/block/i);
+    expect(claimNote).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the amount match when discovery reports no creation blocks", async () => {
+    // Not every discovery provider populates `created`; rejecting everything
+    // in that case would break real payments. The claim still bounds it.
+    const { claimNote } = claims();
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: notes([{ id: "note-1", amount: 100n }]),
+      claimNote,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("fails when no note matches the amount", async () => {
+    const { claimNote } = claims();
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: notes([{ id: "note-1", amount: 999n, createdBlock: NOTE_BLOCK }]),
+      claimNote,
+    });
+    expect(result.ok).toBe(false);
+    expect(claimNote).not.toHaveBeenCalled();
   });
 });

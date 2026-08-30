@@ -32,6 +32,7 @@ const DEPOSITS_FILE = path.join(DATA_DIR, "deposits.json");
 const LEDGER_FILE = path.join(DATA_DIR, "ledger.json");
 const PAYOUTS_FILE = path.join(DATA_DIR, "payouts.json");
 const PAYMENT_LINKS_FILE = path.join(DATA_DIR, "payment-links.json");
+const CLAIMED_NOTES_FILE = path.join(DATA_DIR, "claimed-notes.json");
 
 type StoredDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
 type StoredLedgerEntry = Omit<LedgerEntry, "amountWei" | "runningBalanceWei"> & {
@@ -118,6 +119,23 @@ export class FileStore implements Store {
   private async writePayouts(p: StoredPayout[]) {
     await writeJson(PAYOUTS_FILE, p);
   }
+  private async readClaimedNotes(): Promise<string[]> {
+    return readJson(CLAIMED_NOTES_FILE, []);
+  }
+
+  // The file driver is local dev only and has no transactions, so this races
+  // under genuine concurrency. It is honest about that rather than pretending
+  // otherwise: Supabase (the deployed driver) enforces the guarantee with a
+  // unique index, which is where it actually matters.
+  async claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean> {
+    const key = `${networkIndex}:${noteId}`;
+    const claimed = await this.readClaimedNotes();
+    if (claimed.includes(key)) return false;
+    claimed.push(key);
+    await writeJson(CLAIMED_NOTES_FILE, claimed);
+    return true;
+  }
+
   private async readPaymentLinks(): Promise<StoredPaymentLink[]> {
     return readJson(PAYMENT_LINKS_FILE, []);
   }
@@ -151,6 +169,8 @@ export class FileStore implements Store {
       token: input.token ?? "STRK",
       note: input.note,
       ref: input.ref,
+      reference: input.reference ?? `nx_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`,
+      linkId: input.linkId,
       status,
       recordedAt: Math.floor(Date.now() / 1000),
     };
@@ -163,6 +183,17 @@ export class FileStore implements Store {
     const deposits = await this.readDeposits();
     const found = deposits.find((d) => d.txHash === txHash);
     return found ? fromStoredDeposit(found) : null;
+  }
+
+  async getDepositByReference(reference: string): Promise<Deposit | null> {
+    const deposits = await this.readDeposits();
+    const found = deposits.find((d) => d.reference === reference);
+    return found ? fromStoredDeposit(found) : null;
+  }
+
+  async listDepositsForLink(linkId: string): Promise<Deposit[]> {
+    const deposits = await this.readDeposits();
+    return deposits.filter((d) => d.linkId === linkId).map(fromStoredDeposit);
   }
 
   async markDepositShielded(depositId: string, shieldTxHash: string): Promise<void> {
@@ -318,6 +349,8 @@ export class FileStore implements Store {
       revoked: false,
       createdAt: Math.floor(Date.now() / 1000),
       logoDataUrl: input.logoDataUrl,
+      singleUse: input.singleUse ?? false,
+      callbackUrl: input.callbackUrl,
     };
     links.push(toStoredPaymentLink(link));
     await this.writePaymentLinks(links);

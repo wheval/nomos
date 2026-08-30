@@ -46,6 +46,8 @@ type DepositRow = {
   token: string;
   note: string | null;
   ref: string | null;
+  reference: string;
+  link_id: string | null;
   status: DepositStatus;
   shield_tx_hash: string | null;
   recorded_at: string;
@@ -62,6 +64,8 @@ function depositFromRow(r: DepositRow): Deposit {
     token: r.token,
     note: r.note ?? undefined,
     ref: r.ref ?? undefined,
+    reference: r.reference,
+    linkId: r.link_id ?? undefined,
     status: r.status,
     shieldTxHash: r.shield_tx_hash ?? undefined,
     recordedAt: Math.floor(new Date(r.recorded_at).getTime() / 1000),
@@ -110,6 +114,8 @@ type PaymentLinkRow = {
   revoked: boolean;
   created_at: string;
   logo_data_url: string | null;
+  single_use: boolean;
+  callback_url: string | null;
 };
 
 function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
@@ -125,7 +131,13 @@ function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
     revoked: r.revoked,
     createdAt: Math.floor(new Date(r.created_at).getTime() / 1000),
     logoDataUrl: r.logo_data_url ?? undefined,
+    singleUse: r.single_use ?? false,
+    callbackUrl: r.callback_url ?? undefined,
   };
+}
+
+function newReference(): string {
+  return `nx_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
 }
 
 function randomRef(): string {
@@ -171,6 +183,8 @@ export class SupabaseStore implements Store {
         token: input.token ?? "STRK",
         note: input.note ?? null,
         ref: input.ref ?? null,
+        reference: input.reference ?? newReference(),
+        link_id: input.linkId ?? null,
         status: input.status ?? "pending_verify",
       })
       .select("*")
@@ -182,6 +196,37 @@ export class SupabaseStore implements Store {
   async getDepositByTxHash(txHash: string): Promise<Deposit | null> {
     const { data } = await this.client.from("deposits").select("*").eq("tx_hash", txHash).maybeSingle<DepositRow>();
     return data ? depositFromRow(data) : null;
+  }
+
+  // The unique index on (network_index, note_id) is what makes this atomic:
+  // two concurrent callers both insert, and Postgres rejects the loser with
+  // 23505. Application-level "check then insert" would race.
+  async claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean> {
+    const { error } = await this.client
+      .from("claimed_notes")
+      .insert({ note_id: noteId, network_index: networkIndex });
+    if (!error) return true;
+    if (error.code === "23505") return false; // already claimed
+    throw new Error(`claimShieldedNote failed: ${error.message}`);
+  }
+
+  async getDepositByReference(reference: string): Promise<Deposit | null> {
+    const { data } = await this.client
+      .from("deposits")
+      .select("*")
+      .eq("reference", reference)
+      .maybeSingle<DepositRow>();
+    return data ? depositFromRow(data) : null;
+  }
+
+  async listDepositsForLink(linkId: string): Promise<Deposit[]> {
+    const { data } = await this.client
+      .from("deposits")
+      .select("*")
+      .eq("link_id", linkId)
+      .order("recorded_at", { ascending: false })
+      .returns<DepositRow[]>();
+    return (data ?? []).map(depositFromRow);
   }
 
   async markDepositShielded(depositId: string, shieldTxHash: string): Promise<void> {
@@ -362,6 +407,8 @@ export class SupabaseStore implements Store {
         ref: input.ref ?? randomRef(),
         expires_at: input.expiresAt ? new Date(input.expiresAt * 1000).toISOString() : null,
         logo_data_url: input.logoDataUrl ?? null,
+        single_use: input.singleUse ?? false,
+        callback_url: input.callbackUrl ?? null,
       })
       .select("*")
       .single<PaymentLinkRow>();

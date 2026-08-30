@@ -92,6 +92,68 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
       expect((await store.listPendingShieldDeposits()).some((d) => d.id === deposit.id)).toBe(false);
     });
 
+    it("gives every deposit its own reference, unique across payments to one link", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      const link = await store.createPaymentLink({
+        merchantAddress: merchant,
+        networkIndex: TEST_NET,
+        token: "USDC",
+        note: "Course",
+      });
+
+      // Two people pay the same reusable link.
+      const a = await store.recordDeposit({
+        merchantAddress: merchant, networkIndex: TEST_NET, flow: "A",
+        txHash: "0xaaa", amountWei: 1n, token: "USDC", ref: link.ref, linkId: link.id,
+      });
+      const b = await store.recordDeposit({
+        merchantAddress: merchant, networkIndex: TEST_NET, flow: "A",
+        txHash: "0xbbb", amountWei: 2n, token: "USDC", ref: link.ref, linkId: link.id,
+      });
+
+      // They share the link's ref — that is exactly why the per-payment
+      // reference has to differ, or the two are indistinguishable.
+      expect(a.deposit.ref).toBe(b.deposit.ref);
+      expect(a.deposit.reference).not.toBe(b.deposit.reference);
+      expect(a.deposit.reference).toBeTruthy();
+
+      expect((await store.getDepositByReference(a.deposit.reference))?.id).toBe(a.deposit.id);
+      expect(await store.getDepositByReference("nx_does_not_exist")).toBeNull();
+
+      const forLink = await store.listDepositsForLink(link.id);
+      expect(forLink.map((d) => d.id).sort()).toEqual([a.deposit.id, b.deposit.id].sort());
+    });
+
+    it("honours a merchant-supplied reference", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      const { deposit } = await store.recordDeposit({
+        merchantAddress: merchant, networkIndex: TEST_NET, flow: "B",
+        txHash: "0xccc", amountWei: 5n, token: "STRK", reference: "order-1041",
+      });
+      expect(deposit.reference).toBe("order-1041");
+      expect((await store.getDepositByReference("order-1041"))?.id).toBe(deposit.id);
+    });
+
+    it("records whether a payment link is single-use and where to send the payer", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      const page = await store.createPaymentLink({
+        merchantAddress: merchant, networkIndex: TEST_NET, token: "STRK",
+      });
+      expect(page.singleUse).toBe(false);
+      expect(page.callbackUrl).toBeUndefined();
+
+      const invoice = await store.createPaymentLink({
+        merchantAddress: merchant, networkIndex: TEST_NET, token: "STRK",
+        singleUse: true, callbackUrl: "https://shop.example.com/thanks",
+      });
+      expect(invoice.singleUse).toBe(true);
+      expect(invoice.callbackUrl).toBe("https://shop.example.com/thanks");
+      expect((await store.getPaymentLink(invoice.id))?.singleUse).toBe(true);
+    });
+
     it("issues a merchant key pair and verifies the secret", async () => {
       const store = makeStore();
       const merchant = randomAddress();

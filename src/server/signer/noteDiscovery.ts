@@ -13,7 +13,10 @@ import { getPrivacyClient } from "./privacyClient";
 // Mainnet cutover happens.
 export function getNoteDiscoveryClient(networkIndex = 2): NoteDiscoveryClient {
   return {
-    async hasReceivedDeposit({ claimedAmountWei, tokenAddress }) {
+    // Returns the notes themselves rather than a yes/no. Deciding *which*
+    // note settles a deposit — and marking it spent — is verification's job;
+    // an "is there one?" answer is what let the same note be credited twice.
+    async listNotes({ tokenAddress }) {
       const provider = myFrontendProviders[networkIndex];
       if (!provider) {
         throw new Error(`No RPC provider configured for network index ${networkIndex}.`);
@@ -22,7 +25,11 @@ export function getNoteDiscoveryClient(networkIndex = 2): NoteDiscoveryClient {
       const tokenKey = BigInt(tokenAddress);
       const { notes } = await transfers.discoverNotes({ tokens: [tokenKey] });
       const forToken = notes.get(tokenKey) ?? [];
-      return forToken.some((note) => note.amount === claimedAmountWei);
+      return forToken.map((note) => ({
+        id: BigInt(note.id).toString(),
+        amount: note.amount,
+        createdBlock: typeof note.created === "number" ? note.created : undefined,
+      }));
     },
   };
 }

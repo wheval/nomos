@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { merchantAddress, secretKey, amount, token, note, expiresIn, networkIndex, logoDataUrl } = body ?? {};
+  const { merchantAddress, secretKey, amount, token, note, expiresIn, networkIndex, logoDataUrl, singleUse, callbackUrl } = body ?? {};
   if (typeof merchantAddress !== "string") {
     return NextResponse.json({ error: "merchantAddress is required." }, { status: 400 });
   }
@@ -53,6 +53,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "expiresIn must be a positive number of seconds." }, { status: 400 });
   }
 
+  if (singleUse !== undefined && typeof singleUse !== "boolean") {
+    return NextResponse.json({ error: "singleUse must be true or false." }, { status: 400 });
+  }
+
+  // The payer's browser is sent here after checkout, so it has to be a real
+  // absolute http(s) URL — anything else (javascript:, data:, a bare path)
+  // would either break the redirect or hand an attacker a way to smuggle a
+  // scheme into the customer's browser.
+  let callback: string | undefined;
+  if (callbackUrl !== undefined && callbackUrl !== null && callbackUrl !== "") {
+    if (typeof callbackUrl !== "string") {
+      return NextResponse.json({ error: "callbackUrl must be a string." }, { status: 400 });
+    }
+    let parsedCallback: URL;
+    try {
+      parsedCallback = new URL(callbackUrl);
+    } catch {
+      return NextResponse.json({ error: "callbackUrl must be an absolute URL." }, { status: 400 });
+    }
+    if (parsedCallback.protocol !== "https:" && parsedCallback.protocol !== "http:") {
+      return NextResponse.json({ error: "callbackUrl must use http or https." }, { status: 400 });
+    }
+    callback = parsedCallback.toString();
+  }
+
   const denied = await unauthorizedUnlessMerchant({
     request,
     address: normalizedMerchant,
@@ -81,6 +106,8 @@ export async function POST(request: NextRequest) {
     note: typeof note === "string" && note.trim() ? note.trim() : undefined,
     expiresAt: expiresIn ? Math.floor(Date.now() / 1000) + expiresIn : undefined,
     logoDataUrl: logo,
+    singleUse: singleUse === true,
+    callbackUrl: callback,
   });
 
   return NextResponse.json(
@@ -92,6 +119,8 @@ export async function POST(request: NextRequest) {
       note: link.note,
       expiresAt: link.expiresAt,
       createdAt: link.createdAt,
+      singleUse: link.singleUse,
+      callbackUrl: link.callbackUrl,
     },
     { status: 201 }
   );

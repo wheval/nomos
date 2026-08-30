@@ -71,12 +71,33 @@ export class MemoryStore implements Store {
       token: input.token ?? "STRK",
       note: input.note,
       ref: input.ref,
+      reference: input.reference ?? `nx_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`,
+      linkId: input.linkId,
       status,
       recordedAt: Math.floor(Date.now() / 1000),
     };
     this.deposits.set(id, deposit);
     this.depositIdByTxHash.set(input.txHash, id);
     return { deposit, alreadyExisted: false };
+  }
+
+  // Single-threaded in-process: a set insert is already atomic here.
+  private claimedNotes = new Set<string>();
+
+  async claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean> {
+    const key = `${networkIndex}:${noteId}`;
+    if (this.claimedNotes.has(key)) return false;
+    this.claimedNotes.add(key);
+    return true;
+  }
+
+  async getDepositByReference(reference: string): Promise<Deposit | null> {
+    for (const d of this.deposits.values()) if (d.reference === reference) return d;
+    return null;
+  }
+
+  async listDepositsForLink(linkId: string): Promise<Deposit[]> {
+    return [...this.deposits.values()].filter((d) => d.linkId === linkId);
   }
 
   async getDepositByTxHash(txHash: string): Promise<Deposit | null> {
@@ -227,6 +248,8 @@ export class MemoryStore implements Store {
       revoked: false,
       createdAt: Math.floor(Date.now() / 1000),
       logoDataUrl: input.logoDataUrl,
+      singleUse: input.singleUse ?? false,
+      callbackUrl: input.callbackUrl,
     };
     this.paymentLinks.set(link.id, link);
     return link;
