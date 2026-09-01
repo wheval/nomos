@@ -11,6 +11,20 @@
 
 @source "../../../node_modules/fumadocs-ui/dist/**/*.js";
 
+/* globals.css sets `overflow-x: hidden` on html and body to stop the console
+   and landing page scrolling sideways. That makes both elements scroll
+   containers, which silently disables `position: sticky` on every descendant —
+   so the docs sidebar and table of contents scrolled away with the page.
+   
+   Undone only where the docs actually render. :has() keys off the wrapper the
+   docs layout sets, so this beats the globals rule on specificity rather than
+   on stylesheet order, which Next does not guarantee. */
+html:has(.nomos-docs),
+html:has(.nomos-docs) body {
+  overflow-x: visible;
+  max-width: none;
+}
+
 /* Nomos's terracotta, so the docs read as the same product rather than as
    default Fumadocs. */
 :root {
