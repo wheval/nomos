@@ -4,7 +4,6 @@ import styles from './uni.module.css';
 import Nav from './components/Nav';
 import Footer from './components/Footer';
 import { ApiDemo, WebhookDemo, NoFeeCalculator, WalletsGrid, Faq } from './components/LandingSections';
-import { DottedGlowBackground } from '@/components/ui/dotted-glow-background';
 import Link from 'next/link';
 
 export default function Page() {
@@ -12,18 +11,8 @@ export default function Page() {
     <div className={styles.page}>
       <Nav variant="merchant" />
 
-      <header className={styles.hero} style={{ position: 'relative', overflow: 'hidden' }}>
-        <DottedGlowBackground
-          className="pointer-events-none"
-          color="rgba(255,255,255,0.35)"
-          glowColor="rgba(229,107,67,0.9)"
-          gap={14}
-          radius={1.4}
-          opacity={0.7}
-          speedMin={0.3}
-          speedMax={1.1}
-        />
-        <div style={{ position: 'relative', zIndex: 1 }}>
+      <header className={styles.hero}>
+        <div>
           <span className={styles.heroBadge}>
             <span className={styles.heroBadgeDot} />
             Built for the STRK20 Private Sprint
