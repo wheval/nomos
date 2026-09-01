@@ -6,6 +6,7 @@ import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
 import { parseTokenAmount } from "@/utils/payments";
 import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { TokenAmount } from "../../TokenIcons";
+import { pillClass, type Tone } from "./statusTone";
 import { useFrontendProvider } from "../provider/providerContext";
 import type { Payout as PayoutRecord, PayoutMode } from "@/server/store";
 import type { TokenBalances } from "./useLedger";
@@ -18,6 +19,12 @@ type WirePayout = Omit<PayoutRecord, "amountWei"> & { amountWei: string };
 // own privacy wallet). See docs/ARCHITECTURE.md "Custody & signing" for
 // why this goes through Nomos's operating wallet rather than the merchant
 // signing directly.
+function payoutTone(status: string): Tone {
+  if (status === "sent" || status === "confirmed") return "ok";
+  if (status === "failed") return "bad";
+  return "warn"; // pending, submitted
+}
+
 export default function Payout({
   merchantAddress,
   secretKey,
@@ -100,16 +107,28 @@ export default function Payout({
   }
 
   return (
-    <div className={styles.sectionCard}>
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>Withdraw</span>
+    <div className={styles.cPanel}>
+      <div className={styles.pageHead}>
+        <div>
+          <h1 className={styles.pageHeadTitle}>Payouts</h1>
+          <p className={styles.pageHeadSub}>Withdraw from your balance, publicly or privately.</p>
+        </div>
+        <div className={styles.pageHeadActions}>
+          <span
+            className={styles.metricCard}
+            style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 2 }}
+          >
+            <span className={styles.metricLabel} style={{ marginBottom: 0 }}>Available</span>
+            <span className={styles.metricValue} style={{ fontSize: 18 }}>
+              <TokenAmount amount={fmtTokenAmount(BigInt(balanceWei), decimals)} symbol={token} />
+            </span>
+          </span>
+        </div>
       </div>
-      <p className={styles.sectionSub}>
-        Send from your balance ({fmtTokenAmount(BigInt(balanceWei), decimals)} {token} available) to any address.
-      </p>
 
-      <div className={styles.field} style={{ marginBottom: 10 }}>
-        <label className={styles.fieldLabel}>Token</label>
+      <div className={styles.pageBody} style={{ maxWidth: 640 }}>
+      <div className={styles.settingsField}>
+        <label className={styles.settingsLabel}>Token</label>
         <div className={styles.chipRow}>
           {TokenSymbols.map((t) => (
             <button
@@ -124,22 +143,22 @@ export default function Payout({
         </div>
       </div>
 
-      <div className={styles.field} style={{ marginBottom: 10 }}>
-        <label className={styles.fieldLabel} htmlFor="payoutDestination">Destination address</label>
+      <div className={styles.settingsField}>
+        <label className={styles.settingsLabel} htmlFor="payoutDestination">Destination address</label>
         <input
           id="payoutDestination"
-          className={styles.textInput}
+          className={styles.settingsInput}
           placeholder="0x..."
           value={destination}
           onChange={(e) => setDestination(e.target.value)}
         />
       </div>
 
-      <div className={styles.field} style={{ marginBottom: 10 }}>
-        <label className={styles.fieldLabel} htmlFor="payoutAmount">Amount ({token})</label>
+      <div className={styles.settingsField}>
+        <label className={styles.settingsLabel} htmlFor="payoutAmount">Amount ({token})</label>
         <input
           id="payoutAmount"
-          className={styles.textInput}
+          className={styles.settingsInput}
           placeholder="e.g. 25"
           inputMode="decimal"
           value={amount}
@@ -147,8 +166,8 @@ export default function Payout({
         />
       </div>
 
-      <div className={styles.field} style={{ marginBottom: 10 }}>
-        <label className={styles.fieldLabel}>How should it settle?</label>
+      <div className={styles.settingsField}>
+        <label className={styles.settingsLabel}>How should it settle?</label>
         <div className={styles.chipRow}>
           <button
             type="button"
@@ -165,7 +184,7 @@ export default function Payout({
             Private (stays shielded)
           </button>
         </div>
-        <p className={styles.sectionSub} style={{ margin: "8px 0 0" }}>
+        <p className={styles.settingsHint}>
           {mode === "withdraw"
             ? "Lands as a normal public balance at the destination — use this to cash out."
             : "Stays shielded — the destination needs its own privacy-capable wallet already registered on STRK20."}
@@ -174,12 +193,12 @@ export default function Payout({
 
       {error ? <div className={styles.errorText}>{error}</div> : null}
 
-      <button className={`${styles.btn} ${styles.btnGreen} ${styles.btnBlock}`} disabled={submitting} onClick={handlePayout}>
+      <button className={styles.settingsBtn} disabled={submitting} onClick={handlePayout}>
         {submitting ? "Sending…" : "Withdraw"}
       </button>
 
       {lastTxHash ? (
-        <p className={styles.sectionSub} style={{ margin: "12px 0 0" }}>
+        <p className={styles.settingsHint}>
           Sent —{" "}
           <a href={explorerTxUrl(myFrontendProviderIndex, lastTxHash)} target="_blank" rel="noreferrer">
             {shortHex(lastTxHash)} ↗
@@ -188,27 +207,59 @@ export default function Payout({
       ) : null}
 
       {payouts && payouts.length > 0 ? (
-        <div className={styles.txTable} style={{ marginTop: 16 }}>
-          {payouts.map((p) => (
-            <div key={p.id} className={styles.txRow}>
-              <div className={styles.txMain}>
-                <div className={styles.txTitle}>{p.mode === "withdraw" ? "Public withdrawal" : "Private transfer"}</div>
-                <div className={styles.txTime}>{new Date(p.createdAt * 1000).toLocaleString()}</div>
-              </div>
-              <div className={styles.txAmount}>
-                {fmtTokenAmount(BigInt(p.amountWei), tokenDecimals(p.token as TokenSymbol))} {p.token}
-              </div>
-              {p.txHash ? (
-                <a className={styles.txLink} href={explorerTxUrl(myFrontendProviderIndex, p.txHash)} target="_blank" rel="noreferrer">
-                  {shortHex(p.txHash)} ↗
-                </a>
-              ) : (
-                <span className={styles.txLink}>{p.status}</span>
-              )}
-            </div>
-          ))}
-        </div>
+        <>
+          <h2 className={styles.detailSectionTitle}>Payout history</h2>
+          <div className={styles.tableWrap}>
+            <table className={styles.dataTable}>
+              <thead>
+                <tr>
+                  <th>Amount</th>
+                  <th>Settlement</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.map((p) => (
+                  <tr key={p.id}>
+                    <td className={styles.cellStrong}>
+                      <TokenAmount
+                        amount={fmtTokenAmount(BigInt(p.amountWei), tokenDecimals(p.token as TokenSymbol))}
+                        symbol={p.token}
+                      />
+                    </td>
+                    <td>
+                      <span className={styles.cellChip}>
+                        {p.mode === "withdraw" ? "Public" : "Private"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={pillClass(payoutTone(p.status))}>{p.status}</span>
+                    </td>
+                    <td className={styles.cellMuted}>{new Date(p.createdAt * 1000).toLocaleString()}</td>
+                    <td>
+                      {p.txHash ? (
+                        <a
+                          className={styles.txLink}
+                          href={explorerTxUrl(myFrontendProviderIndex, p.txHash)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {shortHex(p.txHash)} ↗
+                        </a>
+                      ) : (
+                        <span className={styles.cellMuted}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : null}
+      </div>
     </div>
   );
 }

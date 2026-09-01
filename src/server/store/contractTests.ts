@@ -154,6 +154,29 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
       expect((await store.getPaymentLink(invoice.id))?.singleUse).toBe(true);
     });
 
+    it("never lets concurrent debits overdraw the same balance", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      await store.creditLedger({
+        merchantAddress: merchant, networkIndex: TEST_NET,
+        amountWei: 100n, token: "STRK", kind: "flow_a_deposit",
+      });
+
+      // Two payouts of 60 against a balance of 100. Exactly one may succeed —
+      // read-then-write lets both through and leaves the merchant at -20.
+      const results = await Promise.allSettled([
+        store.debitLedger({ merchantAddress: merchant, networkIndex: TEST_NET, amountWei: 60n, token: "STRK", kind: "payout" }),
+        store.debitLedger({ merchantAddress: merchant, networkIndex: TEST_NET, amountWei: 60n, token: "STRK", kind: "payout" }),
+      ]);
+
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      expect(ok).toBe(1);
+
+      const balance = await store.getLedgerBalance(merchant, "STRK", TEST_NET);
+      expect(balance).toBe(40n);
+      expect(balance >= 0n).toBe(true);
+    });
+
     it("issues a merchant key pair and verifies the secret", async () => {
       const store = makeStore();
       const merchant = randomAddress();

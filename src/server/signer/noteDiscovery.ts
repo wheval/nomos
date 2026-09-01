@@ -5,7 +5,7 @@
 // docs/ARCHITECTURE.md's "Resolved risk: headless STRK20 signing".
 import type { NoteDiscoveryClient } from "@/utils/verifyTx";
 import { myFrontendProviders } from "@/utils/constants";
-import { getPrivacyClient } from "./privacyClient";
+import { getDiscoveryClient } from "./privacyClient";
 
 // networkIndex defaults to Sepolia (2) — the operating wallet isn't
 // deployed on Mainnet yet (Sepolia-first build, see docs/ARCHITECTURE.md
@@ -21,7 +21,7 @@ export function getNoteDiscoveryClient(networkIndex = 2): NoteDiscoveryClient {
       if (!provider) {
         throw new Error(`No RPC provider configured for network index ${networkIndex}.`);
       }
-      const transfers = getPrivacyClient(provider);
+      const transfers = getDiscoveryClient(provider);
       const tokenKey = BigInt(tokenAddress);
       const { notes } = await transfers.discoverNotes({ tokens: [tokenKey] });
       const forToken = notes.get(tokenKey) ?? [];

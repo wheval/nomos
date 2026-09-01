@@ -5,16 +5,18 @@
    var names kept as --pink/--pink-* for continuity with every consumer. */
 
 .page {
+  /* Same neutral ramp as the console (.console below). The landing page and
+     the product a visitor lands in should not be two different greys. */
   --ink: #f4f4f5;
-  --ink-soft: #a1a1aa;
-  --muted: #a1a1aa;
-  --muted-2: #8a8a93;
-  --bg: #1a1a1a;
-  --card: #242424;
-  --line: #3a3a3a;
-  --line-soft: #3a3a3a;
-  --inset: #2c2c2c;
-  --inset-2: #333333;
+  --ink-soft: #b4b4bb;
+  --muted: #9b9ba3;
+  --muted-2: #7e7e87;
+  --bg: #151518;
+  --card: #1d1d21;
+  --line: #31313a;
+  --line-soft: #2a2a32;
+  --inset: #26262c;
+  --inset-2: #313139;
   --pink: #e56b43;
   --pink-hover: #f07c53;
   --pink-soft: rgba(229, 107, 67, 0.14);

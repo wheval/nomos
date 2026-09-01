@@ -95,6 +95,24 @@ function fromStoredPaymentLink(l: StoredPaymentLink): PaymentLink {
 }
 
 export class FileStore implements Store {
+  // The file driver has no transactions, so a debit's read-check-write can
+  // interleave with another and overdraw the balance. Chaining per
+  // (merchant, token, network) runs them one at a time; unrelated balances
+  // still proceed in parallel. Local dev only — Supabase does this properly
+  // with a locking function (migration 0009).
+  private debitQueues = new Map<string, Promise<unknown>>();
+
+  private serialiseDebit<T>(key: string, run: () => Promise<T>): Promise<T> {
+    const previous = this.debitQueues.get(key) ?? Promise.resolve();
+    // Swallow the predecessor's rejection so one failure can't poison the queue.
+    const next = previous.catch(() => {}).then(run);
+    this.debitQueues.set(
+      key,
+      next.catch(() => {}),
+    );
+    return next;
+  }
+
   private async readMerchants(): Promise<Record<string, MerchantKey>> {
     return readJson(MERCHANTS_FILE, {});
   }
@@ -256,6 +274,21 @@ export class FileStore implements Store {
   }
 
   async debitLedger(input: {
+    merchantAddress: string;
+    networkIndex: NetworkIndex;
+    amountWei: bigint;
+    token: string;
+    kind: LedgerKind;
+    payoutId?: string;
+  }): Promise<LedgerEntry> {
+    return this.serialiseDebit(
+      `${input.merchantAddress.toLowerCase()}:${input.token}:${input.networkIndex}`,
+      () => this.debitLedgerUnsafe(input),
+    );
+  }
+
+  // Only ever called through serialiseDebit.
+  private async debitLedgerUnsafe(input: {
     merchantAddress: string;
     networkIndex: NetworkIndex;
     amountWei: bigint;

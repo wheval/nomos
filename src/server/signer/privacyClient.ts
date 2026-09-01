@@ -16,6 +16,7 @@ import {
   ProvingServiceProofProvider,
   type PrivateTransfersInterface,
   type ExecuteResult,
+  type ProofProviderInterface,
 } from "@starkware-libs/starknet-privacy-sdk";
 // ContractDiscoveryProvider only ships under the /testing export path today
 // (per the SDK's own README, "Best for development and testing" — still the
@@ -30,38 +31,79 @@ import { getOperatingAccount } from "./operatingWallet";
 export const STRK20_POOL_ADDRESS_SEPOLIA =
   "0x0254a6b2997ef52e9f830ce1f543f6b29768295e8d17e2267d672c552cfe0d91";
 
-let cached: PrivateTransfersInterface | undefined;
+let cachedProving: PrivateTransfersInterface | undefined;
+let cachedDiscovery: PrivateTransfersInterface | undefined;
 
+// .typedv2(abi) is required — a plain Contract instance's methods are only
+// dynamically added (a runtime Proxy), not statically typed, so it doesn't
+// structurally satisfy PoolContractInterface on its own.
+function poolContractFor(provider: ProviderInterface) {
+  return new Contract({
+    abi: PrivacyPoolABI as unknown as import("starknet").Abi,
+    address: STRK20_POOL_ADDRESS_SEPOLIA,
+    providerOrAccount: provider,
+  }).typedv2(PrivacyPoolABI);
+}
+
+const unusableProvingProvider: ProofProviderInterface = {
+  async getDefaultDetails(): Promise<never> {
+    throw new Error("The discovery client cannot prove — use getPrivacyClient for actions that need a proof.");
+  },
+  async prove(): Promise<never> {
+    throw new Error("The discovery client cannot prove — use getPrivacyClient for actions that need a proof.");
+  },
+};
+
+function viewingKey(): bigint {
+  const raw = process.env.NOMOS_OPERATING_WALLET_VIEWING_KEY;
+  if (!raw) throw new Error("NOMOS_OPERATING_WALLET_VIEWING_KEY is not configured.");
+  return BigInt(raw);
+}
+
+/**
+ * Read-only client: discovers the operating wallet's own notes and proves
+ * nothing.
+ *
+ * Kept separate from the proving client on purpose. Discovery is pure RPC
+ * against the pool contract, but it used to be built by the same factory that
+ * demands PROVING_SERVICE_URL — so a missing or expired proving URL took down
+ * Flow A payment *verification* as well as payouts, two unrelated failures
+ * behind one variable. The proving URL is currently a loaner from StarkWare
+ * (sw-dev.io) with no mainnet equivalent published, which makes that coupling
+ * a live risk rather than a hypothetical one.
+ */
+export function getDiscoveryClient(provider: ProviderInterface): PrivateTransfersInterface {
+  if (cachedDiscovery) return cachedDiscovery;
+  cachedDiscovery = createPrivateTransfers({
+    account: getOperatingAccount(provider),
+    viewingKeyProvider: { getViewingKey: async () => viewingKey() },
+    // createPrivateTransfers requires a proving provider even when nothing
+    // will be proved. Discovery never calls it, so this stands in and fails
+    // loudly rather than silently if that assumption ever stops holding.
+    provingProvider: unusableProvingProvider,
+    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider)),
+    poolContractAddress: STRK20_POOL_ADDRESS_SEPOLIA,
+  });
+  return cachedDiscovery;
+}
+
+/** Full client, for actions that must produce a proof (payouts). */
 export function getPrivacyClient(provider: ProviderInterface): PrivateTransfersInterface {
-  if (cached) return cached;
+  if (cachedProving) return cachedProving;
 
   const provingServiceUrl = process.env.PROVING_SERVICE_URL;
   if (!provingServiceUrl) {
     throw new Error("PROVING_SERVICE_URL is not configured.");
   }
-  const viewingKeyRaw = process.env.NOMOS_OPERATING_WALLET_VIEWING_KEY;
-  if (!viewingKeyRaw) {
-    throw new Error("NOMOS_OPERATING_WALLET_VIEWING_KEY is not configured.");
-  }
 
-  const account = getOperatingAccount(provider);
-  // .typedv2(abi) is required — a plain Contract instance's methods are
-  // only dynamically added (a runtime Proxy), not statically typed, so it
-  // doesn't structurally satisfy PoolContractInterface on its own.
-  const poolContract = new Contract({
-    abi: PrivacyPoolABI as unknown as import("starknet").Abi,
-    address: STRK20_POOL_ADDRESS_SEPOLIA,
-    providerOrAccount: provider,
-  }).typedv2(PrivacyPoolABI);
-
-  cached = createPrivateTransfers({
-    account,
-    viewingKeyProvider: { getViewingKey: async () => BigInt(viewingKeyRaw) },
+  cachedProving = createPrivateTransfers({
+    account: getOperatingAccount(provider),
+    viewingKeyProvider: { getViewingKey: async () => viewingKey() },
     provingProvider: new ProvingServiceProofProvider(provingServiceUrl, constants.StarknetChainId.SN_SEPOLIA),
-    discoveryProvider: new ContractDiscoveryProvider(poolContract),
+    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider)),
     poolContractAddress: STRK20_POOL_ADDRESS_SEPOLIA,
   });
-  return cached;
+  return cachedProving;
 }
 
 // currentBlock - 10: note maturity (notes mature 10 blocks after creation)

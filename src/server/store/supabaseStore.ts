@@ -53,6 +53,20 @@ type DepositRow = {
   recorded_at: string;
 };
 
+type LedgerEntryRow = {
+  id: string;
+  merchant_address: string;
+  network_index: number;
+  direction: "credit" | "debit";
+  amount_wei: string;
+  token: string;
+  kind: string;
+  deposit_id: string | null;
+  payout_id: string | null;
+  running_balance_wei: string;
+  created_at: string;
+};
+
 function depositFromRow(r: DepositRow): Deposit {
   return {
     id: r.id,
@@ -313,6 +327,10 @@ export class SupabaseStore implements Store {
     };
   }
 
+  // Delegated to a Postgres function so the balance check and the insert
+  // happen under one lock. Doing it here — read, compare, insert — let two
+  // concurrent payouts for the same merchant both pass the check against the
+  // same balance and overdraw it.
   async debitLedger(input: {
     merchantAddress: string;
     networkIndex: NetworkIndex;
@@ -321,36 +339,42 @@ export class SupabaseStore implements Store {
     kind: LedgerKind;
     payoutId?: string;
   }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
-    if (balance < input.amountWei) {
-      throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
-    }
-    const runningBalanceWei = balance - input.amountWei;
     const { data, error } = await this.client
-      .from("ledger_entries")
-      .insert({
-        merchant_address: input.merchantAddress.toLowerCase(),
-        network_index: input.networkIndex,
-        direction: "debit",
-        amount_wei: input.amountWei.toString(),
-        token: input.token,
-        kind: input.kind,
-        payout_id: input.payoutId ?? null,
-        running_balance_wei: runningBalanceWei.toString(),
+      .rpc("debit_ledger", {
+        p_merchant_address: input.merchantAddress.toLowerCase(),
+        p_network_index: input.networkIndex,
+        p_token: input.token,
+        p_amount_wei: input.amountWei.toString(),
+        p_kind: input.kind,
+        p_payout_id: input.payoutId ?? null,
       })
-      .select("*")
-      .single();
-    if (error || !data) throw new Error(`debitLedger failed: ${error?.message}`);
+      .single<LedgerEntryRow>();
+
+    if (error) {
+      // The function raises this when the balance won't cover the debit; the
+      // caller expects the same typed error it always got.
+      if (/insufficient balance/i.test(error.message)) {
+        const have = /have (\d+)/.exec(error.message)?.[1];
+        throw new InsufficientBalanceError(
+          input.merchantAddress,
+          input.amountWei,
+          have !== undefined ? BigInt(have) : 0n,
+        );
+      }
+      throw new Error(`debitLedger failed: ${error.message}`);
+    }
+    if (!data) throw new Error("debitLedger failed: no row returned.");
+
     return {
       id: data.id,
       merchantAddress: input.merchantAddress,
       networkIndex: input.networkIndex,
       direction: "debit",
-      amountWei: input.amountWei,
-      token: input.token,
-      kind: input.kind,
-      payoutId: input.payoutId,
-      runningBalanceWei,
+      amountWei: BigInt(data.amount_wei),
+      token: data.token,
+      kind: data.kind as LedgerKind,
+      payoutId: data.payout_id ?? undefined,
+      runningBalanceWei: BigInt(data.running_balance_wei),
       createdAt: Math.floor(new Date(data.created_at).getTime() / 1000),
     };
   }

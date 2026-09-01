@@ -175,7 +175,10 @@ export class MemoryStore implements Store {
     kind: LedgerKind;
     payoutId?: string;
   }): Promise<LedgerEntry> {
-    const balance = await this.getLedgerBalance(input.merchantAddress, input.token, input.networkIndex);
+    // Read and write with no await between them. Awaiting the balance first
+    // yields to the event loop, and two concurrent debits then both check
+    // against the same figure and overdraw it.
+    const balance = this.balances.get(this.balanceKey(input.merchantAddress, input.token, input.networkIndex)) ?? 0n;
     if (balance < input.amountWei) {
       throw new InsufficientBalanceError(input.merchantAddress, input.amountWei, balance);
     }

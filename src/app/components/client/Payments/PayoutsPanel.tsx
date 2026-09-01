@@ -13,9 +13,11 @@ export default function PayoutsPanel() {
   if (!isConnected) {
     return (
       <div className={styles.consolePage}>
-        <div className={styles.sectionCard} style={{ textAlign: "center" }}>
-          <p className={styles.sectionSub}>Connect the wallet your Payment Links pay into to see its console.</p>
-          <SelectWallet variant="ctaBig" />
+        <div className={styles.cPanel}>
+          <div className={styles.cPanelSection} style={{ textAlign: "center" }}>
+            <p className={styles.sectionSub}>Connect the wallet your Payment Links pay into to see its console.</p>
+            <SelectWallet variant="ctaBig" />
+          </div>
         </div>
       </div>
     );
@@ -23,18 +25,17 @@ export default function PayoutsPanel() {
 
   return (
     <div className={styles.consolePage}>
-      <div className={styles.consoleHead}>
-        <h1 className={styles.consoleTitle}>Payouts</h1>
-        <p className={styles.consoleSub}>Withdraw from your balance, publicly or privately.</p>
-      </div>
-
       {loadError ? (
-        <div className={styles.sectionCard}>
-          <p className={styles.errorText}>{loadError}</p>
+        <div className={styles.cPanel}>
+          <div className={styles.cPanelSection}>
+            <p className={styles.errorText}>{loadError}</p>
+          </div>
         </div>
       ) : balances === null ? (
-        <div className={styles.sectionCard}>
-          <p className={styles.sectionSub}>Loading balance…</p>
+        <div className={styles.cPanel}>
+          <div className={styles.cPanelSection}>
+            <p className={styles.sectionSub}>Loading balance…</p>
+          </div>
         </div>
       ) : (
         <Payout merchantAddress={address} secretKey={secretKey} balances={balances} onPaidOut={refresh} />
