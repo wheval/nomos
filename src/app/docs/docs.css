@@ -11,6 +11,19 @@
 
 @source "../../../node_modules/fumadocs-ui/dist/**/*.js";
 
+/* docs.css imports its own Tailwind instance, so it gets Tailwind's default
+   system font stack rather than the app's. Point it at the same faces the rest
+   of Nomos uses.
+
+   Literal family names, not var(--font-body): @theme resolves at Tailwind's
+   parse time, before next/font injects its CSS variables at runtime, so a
+   var() here silently resolves to nothing. The @font-face rules are already
+   loaded app-wide by the root layout, so naming the family is enough. */
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
 /* globals.css sets `overflow-x: hidden` on html and body to stop the console
    and landing page scrolling sideways. That makes both elements scroll
    containers, which silently disables `position: sticky` on every descendant —

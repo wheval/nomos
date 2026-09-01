@@ -1,23 +1,24 @@
 import type { Metadata } from 'next'
-import { Funnel_Display, Funnel_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { DM_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils";
 import WalletSession from "./components/WalletSession";
 
-// Ferro-derived type system: Funnel Display for headings, Funnel Sans for
-// everything else, IBM Plex Mono for hex addresses / hashes / code. Tailwind's
-// font-sans utility (used by shadcn/Aceternity components) is wired to
-// Funnel Sans too - see globals.css's --font-sans mapping - so nothing
+// DM Sans throughout, at both body and display sizes — one typeface rather
+// than a display/text pair, so headings and copy read as the same voice. It is
+// a variable font, so the weight range costs nothing extra to load. IBM Plex
+// Mono stays for hex addresses, hashes and code, where the distinction between
+// 0/O and 1/l/I is functional rather than decorative.
+//
+// Tailwind's font-sans utility (used by shadcn/Aceternity components) is wired
+// to DM Sans too - see globals.css's --font-sans mapping - so nothing
 // introduces a second, competing typeface (shadcn init defaults to Geist).
-const funnelSans = Funnel_Sans({
+// One instance, not two: --font-display is aliased to it in globals.css.
+// Calling DM_Sans twice registers the family twice and puts it in the computed
+// stack twice for no benefit.
+const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-body',
-  display: 'swap',
-})
-const funnelDisplay = Funnel_Display({
-  subsets: ['latin'],
-  weight: ['500', '600'],
-  variable: '--font-display',
   display: 'swap',
 })
 const plexMono = IBM_Plex_Mono({
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(funnelSans.variable, funnelDisplay.variable, plexMono.variable, "font-sans")}
+      className={cn(dmSans.variable, plexMono.variable, "font-sans")}
       suppressHydrationWarning
     >
       <body>
