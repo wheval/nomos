@@ -2764,20 +2764,43 @@ a.copyFieldValue:hover { color: var(--pink-text); }
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
+  /* The rail becomes a scrolling strip. Everything in it is flex: none —
+     otherwise the switcher and the links shrink past their content and end up
+     drawn on top of each other. */
   .consoleSidebar {
     position: static;
     height: auto;
     flex-direction: row;
     align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     border-right: none;
     border-bottom: 1px solid var(--line);
-    padding: 14px !important;
+    padding: 12px 14px !important;
   }
-  .consoleSwitcher { padding: 6px 10px; margin: 0; }
+  /* Mark only: the business name and chevron have nowhere to go in a strip,
+     and forcing them visible is what pushed the nav over the logo. */
+  .consoleSwitcher {
+    flex: none;
+    gap: 0;
+    padding: 4px;
+    margin: 0;
+  }
   .consoleSwitcherText,
-  .consoleSwitcher > svg { display: flex !important; }
-  .consoleNav { flex-direction: row; }
+  .consoleSwitcher > svg { display: none !important; }
+  .consoleSwitcherIcon svg { width: 30px; height: 30px; }
+
+  .consoleNav {
+    flex-direction: row;
+    flex: none;
+    gap: 4px;
+  }
+  .consoleNavLink {
+    flex: none;
+    padding: 8px 10px;
+  }
   .consoleNavLink span { display: inline !important; }
   .consoleSidebarFoot { display: none !important; }
   /* A group heading is meaningless in a horizontal strip of links. */
