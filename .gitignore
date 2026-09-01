@@ -61,3 +61,6 @@ snfoundry.toml
 
 # supabase CLI local state (project link ref, CLI version cache)
 /supabase/.temp/
+
+# Fumadocs generated source map (rebuilt by `fumadocs-mdx` on dev/build)
+.source/

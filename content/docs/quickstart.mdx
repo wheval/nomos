@@ -1,0 +1,50 @@
+---
+title: Quickstart
+description: From connecting a wallet to a paid link, and where to look when it lands.
+---
+
+## 1. Connect the wallet you want paid into
+
+Open the console and connect. That wallet **is** your login — there is no
+signup, and no password. Everything you create is scoped to it, and separately
+to the network you are on: test-mode links never appear in live mode.
+
+## 2. Create a link
+
+Go to **Payment Links → Create payment link** and pick what you're making:
+
+- **Reusable link** — one URL, any number of payers. Use it for donations, a
+  product, a tip jar.
+- **Invoice** — payable once. After the first payment it closes, and anyone
+  opening it afterwards is told it has already been paid.
+
+Set a token and either a fixed amount or let the customer enter one. Under
+**advanced options** you can set a redirect so the payer returns to your site
+afterwards.
+
+## 3. Share it, and let them pay
+
+The customer opens the link and chooses:
+
+- **Pay privately** — a shielded STRK20 transfer. Needs a privacy-capable
+  wallet (Ready or Xverse).
+- **Pay with any wallet** — an ordinary public transfer. Works with any
+  Starknet wallet; the payment is public, but which business received it is not.
+
+## 4. Watch it land
+
+The payment appears under **Transactions** with its own reference. Click any row
+for the full record: amount, status, flow, the on-chain transaction, and the
+link it came from.
+
+<Callout title="Verify before you deliver value">
+If you are integrating from your own backend, do not treat the redirect as
+proof. Call the [verify endpoint](/docs/api#verify-a-payment) with the payment's
+reference and check both the status **and** the amount.
+</Callout>
+
+## 5. Cash out
+
+**Payouts** withdraws from your balance to any address, either publicly
+(unshielded, use this to cash out) or privately (stays shielded — the
+destination needs its own privacy-capable wallet already registered on STRK20).

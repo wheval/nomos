@@ -1,0 +1,84 @@
+---
+title: API
+description: Create a link from your backend, then verify the payment before you deliver value.
+---
+
+Generate an API key under **Settings → API keys**. Test and live keys are
+entirely separate credentials — a test key can never authenticate a live
+request.
+
+<Callout type="warn">
+The secret key belongs on your server. Never ship it to a browser.
+</Callout>
+
+## Create a payment link
+
+```bash
+curl https://your-nomos-host/api/payment-links \
+  -H "Authorization: Bearer sk_test_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchantAddress": "0x...",
+    "networkIndex": 2,
+    "token": "USDC",
+    "amount": "25",
+    "note": "Invoice 1041",
+    "singleUse": true,
+    "callbackUrl": "https://your-site.example.com/thanks"
+  }'
+```
+
+| Field | Notes |
+|---|---|
+| `token` | `STRK` or `USDC` |
+| `networkIndex` | `2` Sepolia, `0` Mainnet |
+| `amount` | Human units as a string. Omit to let the customer choose. |
+| `singleUse` | `true` makes it an invoice — payable once |
+| `callbackUrl` | Absolute http(s). The payer returns here with `?reference=` |
+
+Returns an `id`. Build the checkout URL from it and share that.
+
+## Verify a payment
+
+The step to run before delivering value. A redirect proves nothing — the
+customer's browser reaching your callback does not mean the payment succeeded.
+
+```bash
+curl https://your-nomos-host/api/transactions/nx_9f2a4c7e13b845d0 \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+```json
+{
+  "reference": "nx_9f2a4c7e13b845d0",
+  "status": "success",
+  "amountWei": "1000000",
+  "decimals": 6,
+  "token": "USDC",
+  "flow": "A",
+  "txHash": "0x...",
+  "linkId": "..."
+}
+```
+
+`status` is one of:
+
+| | Meaning |
+|---|---|
+| `success` | Received and credited. Deliver value. |
+| `pending` | Received on-chain but not yet credited (a Flow B payment awaiting shielding). **Do not** deliver value. |
+| `failed` | Rejected or shielding failed. |
+
+<Callout title="Check the amount too">
+Compare `amountWei` against what you charged, accounting for `decimals`. A
+matching reference with the wrong amount is not a paid order.
+</Callout>
+
+## List payments
+
+```bash
+curl "https://your-nomos-host/api/payments?to=0x...&network=2" \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+Returns deposits and the current per-token balance.

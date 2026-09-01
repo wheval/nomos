@@ -113,13 +113,20 @@
 
 * {
   box-sizing: border-box;
-  margin: 0;
 }
 
-/* Reset padding on everything EXCEPT <button>: this rule is unlayered and would
-   otherwise beat Chakra's button recipe padding (emitted in @layer recipes),
-   killing horizontal padding on every Chakra Button across the DApp. */
-*:not(button) {
+/* Reset margin and padding globally, EXCEPT on <button> and inside /docs.
+   These rules are unlayered, so they beat anything in a @layer — Chakra's
+   button recipe (@layer recipes) and Tailwind's utilities alike. The console
+   and landing page depend on that; Fumadocs does not survive it, since every
+   utility class it relies on for spacing would be flattened. `.nomos-docs` is
+   set on the docs layout's root. */
+/* :where() is used deliberately — it contributes zero specificity, so this
+   stays at (0,0,1) exactly like the `*:not(button)` it replaces. Writing the
+   exclusion as a plain :not() raises it to (0,1,1), which then beats every
+   single-class CSS-module rule and strips padding across the whole console. */
+*:not(button):where(:not(.nomos-docs, .nomos-docs *)) {
+  margin: 0;
   padding: 0;
 }
 

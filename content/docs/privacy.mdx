@@ -1,0 +1,42 @@
+---
+title: Who sees what
+description: Every party that learns something when a payment happens, including the ones the customer did not choose.
+---
+
+## The public chain
+
+| Flow | What an observer learns |
+|---|---|
+| A (private) | That a shielded transaction occurred. Not who, not whom, not how much. |
+| B (public) | The payer, the amount, and that the operating wallet was paid. Not which business. |
+
+Merchant balances never appear on-chain at all — they live in Nomos's ledger
+until a payout.
+
+## Nomos
+
+Nomos sees everything: which merchant, which amount, which token, when, and —
+for Flow A — the customer's own transaction hash, whose sender is public.
+
+**Storing that hash is what links a payer to a merchant.** It is necessary
+(it's how a payment is deduplicated and verified), and it is the single
+largest privacy liability in the design. Anyone with database access can take
+that hash, look up its sender on-chain, and learn that this customer paid this
+merchant this amount.
+
+## The payer's wallet
+
+Ready or Xverse generate the proof for a private payment client-side. Nomos
+never sees the customer's keys.
+
+## The prover
+
+Private payouts from the operating wallet are proved through a proving service.
+For the hackathon this is StarkWare-operated infrastructure; a production
+deployment is expected to run its own.
+
+## The auditor question
+
+STRK20 pool registration has its own disclosure properties. Nomos does not
+change them, and does not claim to — read the protocol's own documentation
+before assuming what registration does and does not reveal.

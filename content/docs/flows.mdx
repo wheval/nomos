@@ -1,0 +1,58 @@
+---
+title: The two payment flows
+description: What the customer picks at checkout, and how each one is verified before a merchant is credited.
+---
+
+Checkout offers the customer two ways to pay. Both settle into Nomos's
+operating wallet; they differ in what the chain reveals and in how Nomos proves
+the payment happened.
+
+## Flow A — pay privately
+
+A shielded STRK20 transfer, submitted by the customer's own wallet. The chain
+reveals neither sender, recipient, nor amount.
+
+That is also what makes it hard to verify: there is no Transfer event to read.
+Nomos instead matches an incoming note in the operating wallet, and three
+conditions all have to hold before a merchant is credited:
+
+1. **The transaction exists on-chain and succeeded.** A fabricated hash is
+   rejected before any note is looked at.
+2. **A matching note was created in that transaction's block.** This ties the
+   note to *this* payment rather than to any payment of the same size.
+3. **The note has not already settled a deposit.** Claiming is atomic, so one
+   note can never be credited twice, even under a race.
+
+<Callout type="warn">
+Matching on amount alone is not sufficient, and was the cause of a real
+vulnerability during development: because the operating wallet is shared
+custody, a note from someone else's payment satisfied an amount-only check.
+</Callout>
+
+## Flow B — pay with any wallet
+
+An ordinary public ERC-20 transfer. No privacy-capable wallet needed, so it
+works with any Starknet account.
+
+The payment itself is public, but every merchant is paid through the same
+operating wallet — so an observer sees a transfer, not which business it was
+for.
+
+Verification decodes the Transfer event on the claimed token and confirms it
+paid the operating wallet at least the claimed amount. Two event shapes exist
+on Starknet and both are accepted:
+
+```
+indexed   keys: [selector, from, to]   data: [low, high]
+legacy    keys: [selector]             data: [from, to, low, high]
+```
+
+Reading only the indexed shape silently rejects Mainnet USDC, which uses the
+legacy one.
+
+## Settlement timing
+
+Flow A credits the merchant immediately — the funds are already shielded.
+Flow B lands as `pending_shield` until shielding is confirmed, because moving a
+public payment into the pool requires a screening step that is currently
+operated manually.

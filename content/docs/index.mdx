@@ -1,0 +1,53 @@
+---
+title: What Nomos is
+description: A private payment gateway for Starknet — and a straight account of what it hides, what it doesn't, and who has to be trusted.
+---
+
+Nomos lets a business accept payments on Starknet without its revenue or its
+customers' payments appearing on the public chain. You create a Payment Link,
+share it, and the customer pays with their wallet. Settlement clears against
+the live STRK20 privacy pool.
+
+## What is actually private
+
+<Callout type="warn" title="Read this before you build on it">
+Privacy here is **from the public chain and from third parties**. It is not
+privacy from Nomos. Nomos is custodial, and the section below says exactly what
+that means.
+</Callout>
+
+| | Hidden on-chain | Visible |
+|---|---|---|
+| Pay privately (Flow A) | Sender, recipient, amount | That *a* private transaction happened |
+| Pay with any wallet (Flow B) | Which business was paid | Payer, amount, that a transfer occurred |
+| Merchant balance | Held in Nomos's ledger, never on-chain | — |
+| Payout | Optional: settle privately or publicly | — |
+
+Both flows settle into **one operating wallet** shared by every merchant. A
+merchant's balance is a claim in Nomos's ledger, not an on-chain account they
+hold. They cash out with a payout whenever they choose.
+
+## The trust you are taking on
+
+This is a deliberate trade, not an oversight. An ordinary wallet's payment has
+to land somewhere before it can be shielded, so a purely non-custodial router
+could not serve those customers at all.
+
+What follows from it:
+
+- **Nomos can link a payer to a merchant.** For private payments, the customer's
+  transaction is submitted from their own wallet, so its sender is public.
+  Nomos stores that transaction hash next to the merchant and the amount.
+  Anyone with database access could join the two — which is precisely what the
+  chain hides from everyone else.
+- **Funds sit in shared custody** between payment and payout.
+- **The operating wallet signs with a software key today.** An explicit
+  stand-in for real key-management infrastructure, not the intended end state.
+
+## What Nomos does not do
+
+Subscriptions, direct debit, recurring charges, pre-authorisation and partial
+debits are all absent, and not because they are unbuilt. Each needs to *pull*
+funds later against a standing mandate, and a shielded balance cannot be
+debited without its holder signing every time. That is a property of the
+privacy model.

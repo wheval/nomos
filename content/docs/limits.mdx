@@ -1,0 +1,49 @@
+---
+title: Limits and status
+description: What is shipped, what is partial, and what is deliberately absent — kept honest rather than aspirational.
+---
+
+## Shipped
+
+- Payment Links, both reusable and single-use invoices
+- Both payment flows, each verified on-chain before a merchant is credited
+- Per-payment references, a verify endpoint, signed webhooks with retries
+- Payouts, public or private
+- Test and live separation, down to separate API keys and separate balances
+
+## Partial
+
+**Shielding a public payment is manual.** Moving a Flow B payment into the pool
+needs an FPI screening signature that cannot be produced headlessly, so it is a
+team-operated step. Until it completes, the payment sits at `pending_shield`
+and the merchant is not credited.
+
+**Mainnet is unproven.** The token addresses are verified against the official
+registry and the pool demonstrably holds USDC, but no Nomos payment has run
+through mainnet — and cannot until a mainnet proving service is available.
+Payouts refuse outright on any network other than Sepolia rather than
+half-work.
+
+**Webhook retries are in-process.** They do not survive a restart. Reconcile
+against the verify endpoint.
+
+## Not built, and why
+
+Subscriptions, direct debit, recurring charges, pre-authorisation, partial
+debits. All of them pull funds later against a standing mandate, and a shielded
+balance cannot be debited without its holder signing each time.
+
+Refunds and disputes are possible but need a payout-back path. Split payments
+need multi-recipient settlement. Neither is in scope yet.
+
+## Known operational issues
+
+**Ready X: "enable private tokens" works once per seed phrase.** Reported by
+other teams during the hackathon — the key appears to be derived from the seed
+rather than per account, so enabling on a second account in the same wallet
+fails. The only workaround found was reinstalling the wallet. If a customer
+reports a payment failing despite holding a balance, this is the first thing to
+check.
+
+**The operating wallet signs with a software key.** An explicit stand-in for
+real key-management infrastructure.

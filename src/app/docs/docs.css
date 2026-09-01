@@ -1,0 +1,22 @@
+/* Fumadocs' theme, scoped to this route group. The console and landing page
+   keep their hand-written CSS modules; only /docs pulls this in.
+   
+   Tailwind is imported here as well as in globals.css because Fumadocs'
+   preset uses @apply, and those utilities have to exist in the same stylesheet
+   context. @source points Tailwind at the Fumadocs components so the classes
+   they use actually get generated. */
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+@source "../../../node_modules/fumadocs-ui/dist/**/*.js";
+
+/* Nomos's terracotta, so the docs read as the same product rather than as
+   default Fumadocs. */
+:root {
+  --color-fd-primary: #c4522a;
+}
+
+.dark {
+  --color-fd-primary: #e56b43;
+}

@@ -1,0 +1,43 @@
+---
+title: Webhooks
+description: How Nomos notifies you, how to verify the signature, and why you still need the verify endpoint.
+---
+
+Set your endpoint under **Settings → Webhook**. Nomos POSTs it when a payment
+is confirmed.
+
+## Verifying the signature
+
+Every delivery carries `X-Nomos-Signature`. Compute HMAC-SHA256 over the **raw
+request body**, keyed with `sha256(your secret key)`, and compare:
+
+```js
+import crypto from "crypto";
+
+const signingKey = crypto.createHash("sha256").update(SECRET_KEY).digest("hex");
+const expected = crypto.createHmac("sha256", signingKey).update(rawBody).digest("hex");
+
+if (`sha256=${expected}` !== req.headers["x-nomos-signature"]) {
+  return res.status(401).end();
+}
+```
+
+Verify before you parse or act on the payload.
+
+## Idempotency
+
+`X-Nomos-Reference` carries the payment's reference. Deliveries can repeat, so
+key your processing on it rather than crediting an order every time a request
+arrives.
+
+## Retries
+
+A failed delivery is retried on a backoff of roughly 5s, 30s, 2m, 5m. Return
+`200` quickly; do slow work after acknowledging.
+
+<Callout type="warn" title="Retries are in-process">
+They survive only as long as the server does. A restart mid-backoff loses the
+remaining attempts, so treat webhooks as the fast path and the
+[verify endpoint](/docs/api#verify-a-payment) as the source of truth. Reconcile
+against it rather than assuming every event arrived.
+</Callout>

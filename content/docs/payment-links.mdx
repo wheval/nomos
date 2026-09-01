@@ -1,0 +1,37 @@
+---
+title: Payment Links
+description: The difference between a reusable link and an invoice, and why there is no subscription.
+---
+
+A Payment Link is the unit you share with a customer. There are two kinds, and
+the choice decides how many times it can be paid.
+
+## Reusable link
+
+One URL, unlimited payments, any number of payers. It stays open until you
+revoke it or it expires.
+
+Every payment through it produces its own **reference**, so fifty people paying
+the same link produce fifty distinguishable records. The link's own `ref` is
+shared by all of them — use the per-payment reference when you need to tell
+payments apart.
+
+## Invoice
+
+Payable exactly once. As soon as a payment is recorded the invoice closes:
+checkout tells the next visitor it has already been paid, and the API refuses a
+second payment with `409`.
+
+A *failed* attempt does not close it. Only a payment that was received —
+verified, shielded, or awaiting shielding — counts.
+
+## Expiry and revocation
+
+Both kinds can carry an expiry, and both can be revoked from the link's own page
+at any time. Revoking is the way to kill a link you have already shared.
+
+## Why there is no subscription
+
+Recurring billing means pulling funds on a schedule against a standing mandate.
+A shielded balance cannot be debited without its holder signing, so there is no
+mandate to give. This is a limit of the privacy model, not a missing feature.
