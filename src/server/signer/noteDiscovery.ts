@@ -7,10 +7,10 @@ import type { NoteDiscoveryClient } from "@/utils/verifyTx";
 import { myFrontendProviders } from "@/utils/constants";
 import { getDiscoveryClient } from "./privacyClient";
 
-// networkIndex defaults to Sepolia (2) — the operating wallet isn't
-// deployed on Mainnet yet (Sepolia-first build, see docs/ARCHITECTURE.md
-// "Sequencing"). Threaded through explicitly by payments/route.ts once
-// Mainnet cutover happens.
+// networkIndex defaults to Sepolia (2) and is threaded through to the
+// discovery client, which resolves its own pool address per network — so a
+// mainnet caller discovers against the mainnet pool, not whichever one
+// happened to be built first.
 export function getNoteDiscoveryClient(networkIndex = 2): NoteDiscoveryClient {
   return {
     // Returns the notes themselves rather than a yes/no. Deciding *which*
@@ -21,7 +21,7 @@ export function getNoteDiscoveryClient(networkIndex = 2): NoteDiscoveryClient {
       if (!provider) {
         throw new Error(`No RPC provider configured for network index ${networkIndex}.`);
       }
-      const transfers = getDiscoveryClient(provider);
+      const transfers = getDiscoveryClient(provider, networkIndex);
       const tokenKey = BigInt(tokenAddress);
       const { notes } = await transfers.discoverNotes({ tokens: [tokenKey] });
       const forToken = notes.get(tokenKey) ?? [];

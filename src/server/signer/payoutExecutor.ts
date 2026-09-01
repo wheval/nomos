@@ -16,15 +16,13 @@ export interface PayoutExecutor {
   executeTransfer(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
 }
 
-// Sepolia only for now — the operating wallet isn't deployed on Mainnet yet
-// (see docs/ARCHITECTURE.md "Sequencing"), and privacyClient.ts's pool
-// address/chain-id are still hardcoded to Sepolia. networkIndex is already
-// threaded through from the caller so mainnet cutover is a privacyClient.ts
-// change, not a call-site one.
+// Network-agnostic now: pool address, chain id and proving URL are all
+// resolved per-network inside privacyClient.ts, so mainnet needs configuration
+// rather than a code change. What is still missing is config, not wiring —
+// the mainnet pool address and proving URL — and each throws a named error
+// naming the variable to set. The operating wallet must also be deployed on
+// the target network; if it isn't, the invoke fails on-chain rather than here.
 export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
-  if (networkIndex !== 2) {
-    throw new Error(`Payouts are only wired for Sepolia (network index 2) so far, not network index ${networkIndex}.`);
-  }
   const provider = myFrontendProviders[networkIndex];
   if (!provider) {
     throw new Error(`No RPC provider configured for network index ${networkIndex}.`);
@@ -34,8 +32,8 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
     mode: "withdraw" | "transfer",
     params: { amountWei: bigint; token: string; destination: string }
   ): Promise<{ txHash: string }> {
-    const account = getOperatingAccount(provider);
-    const transfers = getPrivacyClient(provider);
+    const account = getOperatingAccount(provider, networkIndex);
+    const transfers = getPrivacyClient(provider, networkIndex);
     const blockId = await provingBlockId(provider);
 
     const tokenKey = BigInt(params.token);

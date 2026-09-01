@@ -11,13 +11,20 @@
 // this module's.
 import { Account, EthSigner, type ProviderInterface } from "starknet";
 
-let cached: Account | undefined;
+// Keyed by network index, never a single slot. An Account binds the provider
+// it was built with, so one shared instance would hand whichever network
+// warmed the cache first to every caller afterwards — and with the console's
+// test/live toggle both networks are live in one process. A mainnet payout
+// signed against the Sepolia provider is the failure that buys, so the key is
+// load-bearing rather than an optimisation.
+const cache = new Map<number, Account>();
 
 // The operating wallet as a plain starknet.js Account, for ordinary
 // (non-privacy) invokes — e.g. the public leg of a Flow B settlement, or
 // any contract call that doesn't need the privacy SDK's proving flow.
-export function getOperatingAccount(provider: ProviderInterface): Account {
-  if (cached) return cached;
+export function getOperatingAccount(provider: ProviderInterface, networkIndex: number): Account {
+  const hit = cache.get(networkIndex);
+  if (hit) return hit;
   const address = process.env.NOMOS_OPERATING_WALLET_ADDRESS;
   const privateKey = process.env.NOMOS_OPERATING_WALLET_PRIVKEY;
   if (!address || !privateKey) {
@@ -25,6 +32,7 @@ export function getOperatingAccount(provider: ProviderInterface): Account {
       "NOMOS_OPERATING_WALLET_ADDRESS / NOMOS_OPERATING_WALLET_PRIVKEY are not configured."
     );
   }
-  cached = new Account({ provider, address, signer: new EthSigner(privateKey), cairoVersion: "1" });
-  return cached;
+  const account = new Account({ provider, address, signer: new EthSigner(privateKey), cairoVersion: "1" });
+  cache.set(networkIndex, account);
+  return account;
 }

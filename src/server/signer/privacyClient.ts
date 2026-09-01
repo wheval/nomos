@@ -31,16 +31,56 @@ import { getOperatingAccount } from "./operatingWallet";
 export const STRK20_POOL_ADDRESS_SEPOLIA =
   "0x0254a6b2997ef52e9f830ce1f543f6b29768295e8d17e2267d672c552cfe0d91";
 
-let cachedProving: PrivateTransfersInterface | undefined;
-let cachedDiscovery: PrivateTransfersInterface | undefined;
+/**
+ * Mainnet pool address, which StarkWare has not published anywhere we can
+ * cite. It is deliberately env-only rather than a guessed constant:
+ *
+ *  - the pool is NOT deployed at the Sepolia address on mainnet (checked:
+ *    that address has no class hash there), so it can't be derived;
+ *  - the mainnet contract circulated in the hackathon group
+ *    (0x0426dcd1…dbe5e) is AVNU's — its ABI is a single `privacy_invoke`
+ *    behind `avnu::privacy_swap_helper::IPrivacySwapHelper`, not the pool's
+ *    `nullifier_exists` / `get_screener_public_key`. It is an anonymizer for
+ *    private swaps, and wiring it here as the pool would be wrong.
+ *
+ * Set STRK20_POOL_ADDRESS_MAINNET once the real address is confirmed; every
+ * other piece of mainnet wiring below is already in place.
+ */
+export const STRK20_POOL_ADDRESS_MAINNET = process.env.STRK20_POOL_ADDRESS_MAINNET ?? "";
+
+export function poolAddressFor(networkIndex: number): string {
+  if (networkIndex === 2) return STRK20_POOL_ADDRESS_SEPOLIA;
+  if (networkIndex === 0) {
+    if (!STRK20_POOL_ADDRESS_MAINNET) {
+      throw new Error(
+        "STRK20_POOL_ADDRESS_MAINNET is not configured — the mainnet privacy pool address is still unknown. " +
+          "Do not substitute the AVNU privacy-swap helper; it is not the pool."
+      );
+    }
+    return STRK20_POOL_ADDRESS_MAINNET;
+  }
+  throw new Error(`No STRK20 privacy pool on network index ${networkIndex}.`);
+}
+
+function chainIdFor(networkIndex: number): constants.StarknetChainId {
+  if (networkIndex === 2) return constants.StarknetChainId.SN_SEPOLIA;
+  if (networkIndex === 0) return constants.StarknetChainId.SN_MAIN;
+  throw new Error(`No STRK20 chain id for network index ${networkIndex}.`);
+}
+
+// Keyed by network, for the same reason the account cache is: the console's
+// test/live toggle means both networks are live in one process, and a client
+// pinned to the wrong pool would verify Flow A deposits against it.
+const cachedProving = new Map<number, PrivateTransfersInterface>();
+const cachedDiscovery = new Map<number, PrivateTransfersInterface>();
 
 // .typedv2(abi) is required — a plain Contract instance's methods are only
 // dynamically added (a runtime Proxy), not statically typed, so it doesn't
 // structurally satisfy PoolContractInterface on its own.
-function poolContractFor(provider: ProviderInterface) {
+function poolContractFor(provider: ProviderInterface, networkIndex: number) {
   return new Contract({
     abi: PrivacyPoolABI as unknown as import("starknet").Abi,
-    address: STRK20_POOL_ADDRESS_SEPOLIA,
+    address: poolAddressFor(networkIndex),
     providerOrAccount: provider,
   }).typedv2(PrivacyPoolABI);
 }
@@ -72,38 +112,59 @@ function viewingKey(): bigint {
  * (sw-dev.io) with no mainnet equivalent published, which makes that coupling
  * a live risk rather than a hypothetical one.
  */
-export function getDiscoveryClient(provider: ProviderInterface): PrivateTransfersInterface {
-  if (cachedDiscovery) return cachedDiscovery;
-  cachedDiscovery = createPrivateTransfers({
-    account: getOperatingAccount(provider),
+export function getDiscoveryClient(
+  provider: ProviderInterface,
+  networkIndex: number
+): PrivateTransfersInterface {
+  const hit = cachedDiscovery.get(networkIndex);
+  if (hit) return hit;
+  const client = createPrivateTransfers({
+    account: getOperatingAccount(provider, networkIndex),
     viewingKeyProvider: { getViewingKey: async () => viewingKey() },
     // createPrivateTransfers requires a proving provider even when nothing
     // will be proved. Discovery never calls it, so this stands in and fails
     // loudly rather than silently if that assumption ever stops holding.
     provingProvider: unusableProvingProvider,
-    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider)),
-    poolContractAddress: STRK20_POOL_ADDRESS_SEPOLIA,
+    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider, networkIndex)),
+    poolContractAddress: poolAddressFor(networkIndex),
   });
-  return cachedDiscovery;
+  cachedDiscovery.set(networkIndex, client);
+  return client;
 }
 
 /** Full client, for actions that must produce a proof (payouts). */
-export function getPrivacyClient(provider: ProviderInterface): PrivateTransfersInterface {
-  if (cachedProving) return cachedProving;
+export function getPrivacyClient(
+  provider: ProviderInterface,
+  networkIndex: number
+): PrivateTransfersInterface {
+  const hit = cachedProving.get(networkIndex);
+  if (hit) return hit;
 
-  const provingServiceUrl = process.env.PROVING_SERVICE_URL;
+  // Per-network, because the Sepolia URL is a loaner from StarkWare with no
+  // mainnet equivalent — one shared variable would silently point mainnet
+  // proving at the testnet prover. PROVING_SERVICE_URL stays the Sepolia
+  // name it already has in .env.local rather than being renamed under us.
+  const provingServiceUrl =
+    networkIndex === 0
+      ? process.env.PROVING_SERVICE_URL_MAINNET
+      : process.env.PROVING_SERVICE_URL;
   if (!provingServiceUrl) {
-    throw new Error("PROVING_SERVICE_URL is not configured.");
+    throw new Error(
+      networkIndex === 0
+        ? "PROVING_SERVICE_URL_MAINNET is not configured."
+        : "PROVING_SERVICE_URL is not configured."
+    );
   }
 
-  cachedProving = createPrivateTransfers({
-    account: getOperatingAccount(provider),
+  const client = createPrivateTransfers({
+    account: getOperatingAccount(provider, networkIndex),
     viewingKeyProvider: { getViewingKey: async () => viewingKey() },
-    provingProvider: new ProvingServiceProofProvider(provingServiceUrl, constants.StarknetChainId.SN_SEPOLIA),
-    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider)),
-    poolContractAddress: STRK20_POOL_ADDRESS_SEPOLIA,
+    provingProvider: new ProvingServiceProofProvider(provingServiceUrl, chainIdFor(networkIndex)),
+    discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider, networkIndex)),
+    poolContractAddress: poolAddressFor(networkIndex),
   });
-  return cachedProving;
+  cachedProving.set(networkIndex, client);
+  return client;
 }
 
 // currentBlock - 10: note maturity (notes mature 10 blocks after creation)
