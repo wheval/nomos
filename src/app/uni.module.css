@@ -2764,18 +2764,24 @@ a.copyFieldValue:hover { color: var(--pink-text); }
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
-  /* The rail becomes a scrolling strip. Everything in it is flex: none —
-     otherwise the switcher and the links shrink past their content and end up
-     drawn on top of each other. */
+  /* The rail wraps rather than scrolls. It was a horizontally scrolling strip,
+     which measures as scrollable but is a poor thing to rely on: a sideways
+     swipe inside a short strip is unreliable on touch, and body carries
+     overflow-x: hidden, so anything past the edge was effectively unreachable.
+     With four destinations there is no reason to hide any — wrapping shows the
+     lot and needs no gesture to discover.
+
+     Items stay flex: none so they keep their own width; without it they shrink
+     past their content and draw on top of each other. */
   .consoleSidebar {
     position: static;
     height: auto;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    min-width: 0;
+    overflow: visible;
     border-right: none;
     border-bottom: 1px solid var(--line);
     padding: 12px 14px !important;
@@ -2794,6 +2800,7 @@ a.copyFieldValue:hover { color: var(--pink-text); }
 
   .consoleNav {
     flex-direction: row;
+    flex-wrap: wrap;
     flex: none;
     gap: 4px;
   }
