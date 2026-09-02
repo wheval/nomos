@@ -262,10 +262,13 @@ export default function Checkout() {
   }
 
   return (
-    <div className={styles.panel}>
-      {/* Merchant first, then what for, then how much. A payer needs to know
-          who they are paying before the number means anything — the page used
-          to lead with an amount and mention a truncated address underneath. */}
+    /* Two panels: who and what on the left, how to pay on the right. This is
+       what every hosted checkout converges on (Radom, Coinbase Commerce, the
+       reference designs) because the two halves answer different questions
+       and a payer reads them in that order. Stacks to one column on mobile,
+       where the order becomes context-then-payment vertically. */
+    <div className={styles.checkoutSplit}>
+      <aside className={styles.checkoutBrandPanel}>
       <div className={styles.checkoutIdentity}>
         {linkData?.logoDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -295,6 +298,25 @@ export default function Checkout() {
           )}
         </div>
       </div>
+
+      {/* Order reference sits with the order, not with the payment controls.
+          Expiry is deliberately not repeated here — the countdown states it
+          in the form a payer can actually act on. */}
+      {ref ? (
+        <div className={styles.checkoutOrderMeta}>
+          <span className={styles.summaryLabel}>Reference</span>
+          <span className={styles.summaryValue}>{ref}</span>
+        </div>
+      ) : null}
+
+      {/* Sits at the foot of the brand panel, the way a hosted checkout
+          always attributes itself — the payer is on a Nomos page, not the
+          merchant's, and should be able to see that. */}
+      <div className={styles.checkoutPoweredBy}>Checkout by Nomos</div>
+      </aside>
+
+      <div className={styles.checkoutPayPanel}>
+      <ExpiryCountdown expiresAt={expiresAt} paid={isPaid || isAlreadyPaid} />
 
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (
         <div className={styles.field}>
@@ -334,25 +356,6 @@ export default function Checkout() {
           <WalletStrip flow={flow} />
         </div>
       )}
-
-      {ref || expiresAt !== null ? (
-        <div className={styles.summaryCard}>
-          {ref ? (
-            <div className={styles.summaryRow}>
-              <span className={styles.summaryLabel}>Reference</span>
-              <span className={styles.summaryValue}>{ref}</span>
-            </div>
-          ) : null}
-          {expiresAt !== null ? (
-            <div className={styles.summaryRow}>
-              <span className={styles.summaryLabel}>Expires</span>
-              <span className={styles.summaryValue} style={isExpired ? { color: "var(--danger)" } : undefined}>
-                {isExpired ? "Expired" : new Date(expiresAt * 1000).toLocaleString()}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
 
       {isPaid ? (
         <div className={styles.successCard}>
@@ -443,6 +446,7 @@ export default function Checkout() {
       )}
 
       {result ? <ReceiptCard result={result} providerIndex={myFrontendProviderIndex} /> : null}
+      </div>
     </div>
   );
 }
@@ -461,6 +465,47 @@ export default function Checkout() {
 //
 // The QR encodes this checkout's own URL — not a payment request — so a
 // failed scan is a dead end, never a misdirected payment.
+// A Checkout Session expires in 30 minutes by default, and a payer who does
+// not know that will lose a payment part-way through. Payment Links usually
+// carry no expiry at all, so this renders nothing rather than inventing
+// urgency where none exists.
+//
+// Hidden once paid: a countdown next to a completed payment reads as though
+// something is still owed.
+function ExpiryCountdown({ expiresAt, paid }: { expiresAt: number | null; paid: boolean }) {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    if (expiresAt === null || paid) return;
+    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [expiresAt, paid]);
+
+  if (expiresAt === null || paid) return null;
+
+  const left = expiresAt - now;
+  if (left <= 0) {
+    return <div className={`${styles.checkoutTimer} ${styles.checkoutTimerLow}`}>This payment window has closed</div>;
+  }
+
+  const mins = Math.floor(left / 60);
+  const secs = left % 60;
+  const hours = Math.floor(mins / 60);
+  const clock =
+    hours > 0
+      ? `${hours}:${String(mins % 60).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+      : `${mins}:${String(secs).padStart(2, "0")}`;
+
+  // Under two minutes is when a payer needs to feel it, not before.
+  const low = left < 120;
+  return (
+    <div className={`${styles.checkoutTimer} ${low ? styles.checkoutTimerLow : ""}`}>
+      <span className={styles.checkoutTimerLabel}>Time remaining</span>
+      <span className={styles.checkoutTimerValue}>{clock}</span>
+    </div>
+  );
+}
+
 function PayOnPhone() {
   const [open, setOpen] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
