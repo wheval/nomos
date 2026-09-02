@@ -29,6 +29,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   return NextResponse.json({
     id: link.id,
     merchantAddress: link.merchantAddress,
+    // Who the payer is actually paying. Without it a checkout shows only an
+    // amount and a truncated address, which is the single biggest trust gap
+    // on the page. Falls back to null and the UI shows the address instead.
+    merchantName: profile.displayName ?? null,
     networkIndex: link.networkIndex,
     amountWei: link.amountWei?.toString(),
     token: link.token,

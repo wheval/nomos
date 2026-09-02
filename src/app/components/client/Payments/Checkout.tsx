@@ -34,6 +34,7 @@ function callbackWithReference(callbackUrl: string, reference: string | null): s
 type LinkData = {
   id: string;
   merchantAddress: string;
+  merchantName?: string | null;
   networkIndex: number;
   amountWei?: string;
   token: constants.TokenSymbol;
@@ -101,6 +102,7 @@ export default function Checkout() {
   const token: constants.TokenSymbol = linkData?.token ?? "STRK";
   const decimals = constants.tokenDecimals(token);
   const note = linkData?.note ?? null;
+  const merchantName = linkData?.merchantName ?? null;
   const ref = linkData?.ref ?? null;
   const expiresAt = linkData?.expiresAt ?? null;
   const isExpired = Boolean(linkData?.expired);
@@ -272,12 +274,22 @@ export default function Checkout() {
 
   return (
     <div className={styles.panel}>
-      {linkData?.logoDataUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.checkoutLogo} src={linkData.logoDataUrl} alt="" />
-      ) : null}
+      {/* Merchant first, then what for, then how much. A payer needs to know
+          who they are paying before the number means anything — the page used
+          to lead with an amount and mention a truncated address underneath. */}
+      <div className={styles.checkoutIdentity}>
+        {linkData?.logoDataUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className={styles.checkoutLogo} src={linkData.logoDataUrl} alt="" />
+        ) : null}
+        <div className={styles.checkoutPayee}>
+          <span className={styles.checkoutPayeeLabel}>Paying</span>
+          <span className={styles.checkoutPayeeName}>{merchantName ?? shortTo}</span>
+        </div>
+      </div>
+
       <div className={styles.checkoutAmountBlock}>
-        <div className={styles.checkoutAmountLabel}>You&apos;re paying</div>
+        {note ? <div className={styles.checkoutLineItem}>{note}</div> : null}
         <div className={styles.checkoutAmountValue}>
           {fixedAmount !== undefined ? (
             <>
@@ -288,24 +300,30 @@ export default function Checkout() {
             "Enter amount"
           )}
         </div>
-        <div className={styles.checkoutMeta}>
-          to <b>{shortTo}</b>
-          {note ? ` · ${note}` : ""}
-        </div>
+        {/* The address stays available but stops being the headline; a payer
+            who wants to verify the recipient can still read it. */}
+        {merchantName ? <div className={styles.checkoutMeta}>{shortTo}</div> : null}
       </div>
 
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (
         <div className={styles.field}>
           <label className={styles.fieldLabel}>Payment method</label>
           <div className={styles.methodGrid}>
+            {/* Private is the headline option, not the constrained one. The
+                cards used to read "Pay privately / Shielded wallet" against
+                "Any wallet", which framed privacy as the restriction and the
+                public path as the easy default — backwards for a product
+                whose whole point is that the payment stays off the ledger.
+                Each card now says what the payer gets, not what it requires. */}
             <button
               type="button"
               className={`${styles.methodCard} ${flow === "A" ? styles.methodCardActive : ""}`}
               onClick={() => setFlow("A")}
             >
+              <span className={styles.methodCardBadge}>Recommended</span>
               <ShieldIcon />
-              <span className={styles.methodCardTitle}>Pay privately</span>
-              <span className={styles.methodCardSub}>Shielded wallet</span>
+              <span className={styles.methodCardTitle}>Private payment</span>
+              <span className={styles.methodCardSub}>Nothing appears on-chain</span>
             </button>
             <button
               type="button"
@@ -313,15 +331,16 @@ export default function Checkout() {
               onClick={() => setFlow("B")}
             >
               <WalletIcon />
-              <span className={styles.methodCardTitle}>Any wallet</span>
-              <span className={styles.methodCardSub}>Public transfer</span>
+              <span className={styles.methodCardTitle}>Standard payment</span>
+              <span className={styles.methodCardSub}>Visible on-chain</span>
             </button>
           </div>
           <p className={styles.sectionSub} style={{ margin: "10px 0 0", fontSize: 12.5 }}>
             {flow === "A"
-              ? "Needs a shielded wallet (Ready, or Braavos with Private Balances)."
-              : "Works with any Starknet wallet — which business you paid still stays private."}
+              ? "The amount, and that you paid at all, stay off the public chain. Needs a shielded wallet — Ready, or Braavos with Private Balances."
+              : "An ordinary transfer, so the amount is public. Which business you paid still stays private."}
           </p>
+          <WalletStrip flow={flow} />
         </div>
       )}
 
@@ -420,6 +439,8 @@ export default function Checkout() {
         <SelectWallet variant="ctaBig" />
       )}
 
+      {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : <PayOnPhone />}
+
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (
         <div className={styles.trustRow}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -431,6 +452,108 @@ export default function Checkout() {
       )}
 
       {result ? <ReceiptCard result={result} providerIndex={myFrontendProviderIndex} /> : null}
+    </div>
+  );
+}
+
+// Wallets the payer actually has, not a hardcoded row of brand logos. A
+// payer's real question at this point is "will this work with what I've got",
+// and showing the wallets present in their browser answers it directly —
+// while an empty strip is itself the honest answer that none are installed.
+//
+// Flow A needs shielded support, which today means Ready; Flow B works with
+// anything. Filtering per flow keeps the strip from promising a wallet that
+// cannot complete the selected method.
+// Starknet wallets live in a phone's wallet app browser, so a payer on a
+// desktop often cannot complete a payment on the machine they opened the link
+// on. This hands them the page rather than asking them to retype a URL.
+//
+// The QR encodes this checkout's own URL — not a payment request — so a
+// failed scan is a dead end, never a misdirected payment.
+function PayOnPhone() {
+  const [open, setOpen] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || src) return;
+    let cancelled = false;
+    // Dynamic import: the encoder is only needed if a payer asks for it, and
+    // it has no business in the main checkout bundle.
+    import("qrcode")
+      .then((QR) =>
+        QR.toDataURL(window.location.href, { margin: 1, width: 320, errorCorrectionLevel: "M" })
+      )
+      .then((url) => {
+        if (!cancelled) setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, src]);
+
+  return (
+    <div className={styles.payOnPhone}>
+      <button type="button" className={styles.payOnPhoneToggle} onClick={() => setOpen((v) => !v)}>
+        {open ? "Hide QR code" : "Pay from your phone"}
+      </button>
+      {open ? (
+        <div className={styles.payOnPhoneBody}>
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.payOnPhoneQr} src={src} alt="QR code linking to this checkout page" />
+          ) : (
+            <div className={styles.payOnPhoneQr} aria-hidden="true" />
+          )}
+          <p className={styles.payOnPhoneHint}>
+            Scan with your phone to open this page in your wallet app.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function WalletStrip({ flow }: { flow: Flow }) {
+  const [wallets, setWallets] = useState<{ name: string; icon: string }[]>([]);
+
+  useEffect(() => {
+    // Same discovery store and options as the wallet picker — eip1193Adapters:[]
+    // keeps MetaMask's Snap probing (and its unlock popup) out of the page.
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    const toIcons = (list: readonly { name: string; icon?: unknown }[]) =>
+      list.map((w) => ({ name: w.name, icon: String(w.icon ?? "") })).filter((w) => w.icon);
+
+    import("@starknet-io/get-starknet-discovery")
+      .then(({ createStore }) => {
+        if (cancelled) return;
+        const store = createStore({ eip1193Adapters: [] });
+        setWallets(toIcons(store.getWallets()));
+        unsub = store.subscribe((next) => setWallets(toIcons(next)));
+      })
+      .catch(() => {
+        // Discovery is a nicety; the payment works without the strip.
+      });
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, []);
+
+  const shown = flow === "A" ? wallets.filter((w) => /ready|argent/i.test(w.name)) : wallets;
+  if (shown.length === 0) return null;
+
+  return (
+    <div className={styles.walletStrip}>
+      <span className={styles.walletStripLabel}>Works with</span>
+      {shown.slice(0, 4).map((w) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={w.name} className={styles.walletStripIcon} src={w.icon} alt={w.name} title={w.name} />
+      ))}
     </div>
   );
 }
