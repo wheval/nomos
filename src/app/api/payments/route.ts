@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   return NextResponse.json({
-    deposits: deposits.map((d) => ({ ...d, amountWei: d.amountWei.toString() })),
+    deposits: deposits.map((d) => ({ ...d, amountWei: d.amountWei.toString(), feeWei: (d.feeWei ?? 0n).toString() })),
     balances: Object.fromEntries(balances.map(([t, wei]) => [t, wei.toString()])),
   });
 }

@@ -5,7 +5,7 @@ import { TokenSymbols, type TokenSymbol } from "@/utils/constants";
 import { merchantFetchInit } from "./useMerchantAuth";
 import { useResource } from "./resourceCache";
 
-type WireDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
+type WireDeposit = Omit<Deposit, "amountWei" | "feeWei"> & { amountWei: string; feeWei?: string };
 export type { WireDeposit };
 export type TokenBalances = Record<TokenSymbol, string>;
 

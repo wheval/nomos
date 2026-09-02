@@ -23,7 +23,7 @@ export async function deliverPaymentWebhook(deposit: Deposit): Promise<void> {
   const payload = JSON.stringify({
     event: "payment.received",
     id: deposit.txHash,
-    data: { ...deposit, amountWei: deposit.amountWei.toString() },
+    data: { ...deposit, amountWei: deposit.amountWei.toString(), feeWei: (deposit.feeWei ?? 0n).toString() },
   });
   const signature = signingKey ? hmacSha256Hex(signingKey, payload) : "";
 

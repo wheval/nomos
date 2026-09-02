@@ -70,6 +70,9 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
 
   const status = depositStatus(deposit.status);
   const decimals = tokenDecimals(deposit.token as TokenSymbol);
+  // Absent on transactions recorded before pricing existed — those were
+  // credited in full, so 0 is the accurate history, not a default.
+  const feeWei = BigInt(deposit.feeWei ?? "0");
   // linkId is authoritative; ref is the fallback for deposits recorded before
   // the link id was stored on them.
   const link =
@@ -157,6 +160,28 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
                 />
               </span>
             </div>
+            {/* Only shown when a fee was actually charged: transactions that
+                settled before pricing existed carry none, and a "0.00 fee"
+                row on those is noise rather than information. */}
+            {feeWei > 0n ? (
+              <>
+                <div className={styles.defRow}>
+                  <span className={styles.defLabel}>Nomos fee</span>
+                  <span className={styles.defValue}>
+                    <TokenAmount amount={fmtTokenAmount(feeWei, decimals)} symbol={deposit.token} />
+                  </span>
+                </div>
+                <div className={styles.defRow}>
+                  <span className={styles.defLabel}>Credited to you</span>
+                  <span className={styles.defValue}>
+                    <TokenAmount
+                      amount={fmtTokenAmount(BigInt(deposit.amountWei) - feeWei, decimals)}
+                      symbol={deposit.token}
+                    />
+                  </span>
+                </div>
+              </>
+            ) : null}
             <div className={styles.defRow}>
               <span className={styles.defLabel}>Status</span>
               <span className={styles.defValue}>

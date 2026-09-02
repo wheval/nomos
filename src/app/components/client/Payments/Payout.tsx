@@ -1,4 +1,5 @@
 "use client";
+import { minimumPayoutWei, payoutFeeWei } from "@/utils/fees";
 
 import { useEffect, useState } from "react";
 import styles from "../../../uni.module.css";
@@ -44,6 +45,13 @@ export default function Payout({
   const [mode, setMode] = useState<PayoutMode>("withdraw");
   const balanceWei = balances[token];
   const decimals = tokenDecimals(token);
+  const feeWei = payoutFeeWei(token);
+  const minimumPayout = minimumPayoutWei(token);
+  // What actually arrives: the fee comes out of the amount requested, like a
+  // bank transfer charge, so show it before they commit rather than leaving
+  // them to work out why the destination received less.
+  const parsedAmount = parseTokenAmount(amount, decimals);
+  const receiveWei = parsedAmount !== null && parsedAmount > feeWei ? parsedAmount - feeWei : null;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
@@ -70,6 +78,12 @@ export default function Payout({
     }
     if (amountWei > BigInt(balanceWei)) {
       setError(`Amount exceeds your balance (${fmtTokenAmount(BigInt(balanceWei), decimals)} ${token}).`);
+      return;
+    }
+    // Mirrors the server's rule rather than replacing it — this is only here
+    // so the merchant learns before a round trip, not as the enforcement.
+    if (amountWei < minimumPayout) {
+      setError(`Minimum withdrawal is ${fmtTokenAmount(minimumPayout, decimals)} ${token}.`);
       return;
     }
     const normalizedDestination = destination.trim();
@@ -164,6 +178,11 @@ export default function Payout({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
+        <p className={styles.settingsHint}>
+          {receiveWei !== null
+            ? `${fmtTokenAmount(feeWei, decimals)} ${token} payout fee — ${fmtTokenAmount(receiveWei, decimals)} ${token} reaches the destination.`
+            : `Minimum ${fmtTokenAmount(minimumPayout, decimals)} ${token}, less a ${fmtTokenAmount(feeWei, decimals)} ${token} payout fee. Withdraw in batches to pay it less often.`}
+        </p>
       </div>
 
       <div className={styles.settingsField}>
