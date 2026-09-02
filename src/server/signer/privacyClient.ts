@@ -24,6 +24,7 @@ import {
 import { ContractDiscoveryProvider } from "@starkware-libs/starknet-privacy-sdk/testing";
 import { PrivacyPoolABI } from "@starkware-libs/starknet-privacy-sdk/abi";
 import { getOperatingAccount } from "./operatingWallet";
+import { StarkscanProofProvider } from "./starkscanProver";
 
 // STRK20 privacy pool on Sepolia — confirmed directly against Sepolia
 // Voyager (contract named "Starknet: Canonical Privacy Pool", matching the
@@ -48,12 +49,6 @@ export function poolAddressFor(networkIndex: number): string {
   if (networkIndex === 2) return STRK20_POOL_ADDRESS_SEPOLIA;
   if (networkIndex === 0) return STRK20_POOL_ADDRESS_MAINNET;
   throw new Error(`No STRK20 privacy pool on network index ${networkIndex}.`);
-}
-
-function chainIdFor(networkIndex: number): constants.StarknetChainId {
-  if (networkIndex === 2) return constants.StarknetChainId.SN_SEPOLIA;
-  if (networkIndex === 0) return constants.StarknetChainId.SN_MAIN;
-  throw new Error(`No STRK20 chain id for network index ${networkIndex}.`);
 }
 
 // Keyed by network, for the same reason the account cache is: the console's
@@ -120,6 +115,25 @@ export function getDiscoveryClient(
   return client;
 }
 
+function starkscanProvingProvider(): ProofProviderInterface {
+  const apiKey = process.env.STARKSCAN_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "STARKSCAN_API_KEY is not configured — Mainnet proving goes through the Starkscan relay, " +
+        "and the key must be whitelisted for the `prove` scope."
+    );
+  }
+  return new StarkscanProofProvider(apiKey, constants.StarknetChainId.SN_MAIN, {
+    baseUrl: process.env.STARKSCAN_PROVER_URL,
+  });
+}
+
+function sepoliaProvingProvider(): ProofProviderInterface {
+  const url = process.env.PROVING_SERVICE_URL;
+  if (!url) throw new Error("PROVING_SERVICE_URL is not configured.");
+  return new ProvingServiceProofProvider(url, constants.StarknetChainId.SN_SEPOLIA);
+}
+
 /** Full client, for actions that must produce a proof (payouts). */
 export function getPrivacyClient(
   provider: ProviderInterface,
@@ -128,26 +142,20 @@ export function getPrivacyClient(
   const hit = cachedProving.get(networkIndex);
   if (hit) return hit;
 
-  // Per-network, because the Sepolia URL is a loaner from StarkWare with no
-  // mainnet equivalent — one shared variable would silently point mainnet
-  // proving at the testnet prover. PROVING_SERVICE_URL stays the Sepolia
-  // name it already has in .env.local rather than being renamed under us.
-  const provingServiceUrl =
-    networkIndex === 0
-      ? process.env.PROVING_SERVICE_URL_MAINNET
-      : process.env.PROVING_SERVICE_URL;
-  if (!provingServiceUrl) {
-    throw new Error(
-      networkIndex === 0
-        ? "PROVING_SERVICE_URL_MAINNET is not configured."
-        : "PROVING_SERVICE_URL is not configured."
-    );
-  }
+  // The two networks are proved by different services speaking different
+  // protocols, so this is a branch rather than one URL variable:
+  //
+  //   Mainnet — the Starkscan relay, an async job API behind an API key.
+  //             There is no Sepolia deployment of it.
+  //   Sepolia — StarkWare's synchronous JSON-RPC prover, which the SDK's own
+  //             provider already speaks.
+  const provingProvider =
+    networkIndex === 0 ? starkscanProvingProvider() : sepoliaProvingProvider();
 
   const client = createPrivateTransfers({
     account: getOperatingAccount(provider, networkIndex),
     viewingKeyProvider: { getViewingKey: async () => viewingKey() },
-    provingProvider: new ProvingServiceProofProvider(provingServiceUrl, chainIdFor(networkIndex)),
+    provingProvider,
     discoveryProvider: new ContractDiscoveryProvider(poolContractFor(provider, networkIndex)),
     poolContractAddress: poolAddressFor(networkIndex),
   });
