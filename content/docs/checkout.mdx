@@ -1,0 +1,118 @@
+---
+title: Checkout
+description: Create a payment session per order from your backend, send the customer to a hosted page, and get them back when it is paid.
+---
+
+## Checkout or a Payment Link?
+
+They look similar and solve different problems.
+
+| | Payment Link | Checkout Session |
+| --- | --- | --- |
+| Created by | a person, in the dashboard | your server, per order |
+| Reusable | yes, by default | no — single use |
+| Expires | only if you set one | 30 minutes by default |
+| Knows your order id | no | yes, via `reference` |
+| Returns a URL to redirect to | you copy it | yes, in the response |
+
+Use a **Payment Link** for an invoice you email, a link in a bio, a fixed price
+you charge repeatedly. Use **Checkout** when a customer has a cart and your
+code needs a payable URL for that specific order, right now.
+
+## Create a session
+
+```bash
+curl -X POST https://your-nomos-host/api/checkout/sessions \
+  -H "Authorization: Bearer $NOMOS_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchantAddress": "0x...",
+    "networkIndex": 0,
+    "token": "USDC",
+    "amount": "25",
+    "reference": "order_9182",
+    "description": "One t-shirt",
+    "callbackUrl": "https://shop.example/thanks"
+  }'
+```
+
+```json
+{
+  "id": "b6f2...",
+  "url": "https://your-nomos-host/pay?id=b6f2...",
+  "status": "open",
+  "amount": "25",
+  "token": "USDC",
+  "reference": "order_9182",
+  "expiresAt": 1757458200
+}
+```
+
+Redirect the customer to `url`. When they finish, they are sent to
+`callbackUrl` with the payment's own `reference` appended as a query
+parameter.
+
+### Fields
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `merchantAddress` | yes | Your merchant address. |
+| `networkIndex` | yes | `0` mainnet, `2` sepolia. Test and live keys are separate credentials. |
+| `token` | yes | `USDC` or `STRK`. |
+| `amount` | yes | Human units, as a string. A session is always for a specific order, so unlike a Payment Link it cannot be open-amount. |
+| `reference` | no | **Your** order id, carried through to the payment so you can reconcile without a lookup table. |
+| `description` | no | Shown to the customer as the line item. |
+| `callbackUrl` | no | Where the customer returns. Must be `http(s)`. |
+| `expiresIn` | no | Seconds. Defaults to 1800, capped at 86400. |
+
+Amounts below the [minimum payment](/docs/pricing) are rejected at creation
+rather than surfacing to a customer at checkout.
+
+## Check whether it was paid
+
+Do not trust the redirect alone — a customer can close the tab before it
+happens. Either wait for the [webhook](/docs/webhooks) or poll the session:
+
+```bash
+curl https://your-nomos-host/api/checkout/sessions/b6f2... \
+  -H "Authorization: Bearer $NOMOS_SECRET_KEY"
+```
+
+```json
+{
+  "id": "b6f2...",
+  "status": "paid",
+  "reference": "order_9182",
+  "payment": {
+    "reference": "nx_7f21c9...",
+    "txHash": "0x...",
+    "flow": "A",
+    "amountWei": "25000000",
+    "feeWei": "100000",
+    "netWei": "24900000",
+    "paidAt": 1757456400
+  }
+}
+```
+
+`amountWei` is what the customer paid, `netWei` what was credited to your
+balance after the Nomos fee. `payment.reference` is the payment's own id —
+distinct from your `reference` — and is what to quote in support.
+
+### Status values
+
+| Status | Meaning |
+| --- | --- |
+| `open` | Not paid yet, still payable. |
+| `processing` | Paid publicly and being shielded. Real money, not final. |
+| `paid` | Settled and credited. Ship the order. |
+| `expired` | Lapsed unpaid. |
+| `revoked` | Cancelled. |
+| `failed` | Every attempt was rejected. |
+
+A payment that lands seconds before expiry reads as `paid`, never `expired` —
+a settled payment always outranks the clock.
+
+This endpoint is authenticated and resolves authorisation from the stored
+session's own merchant, so knowing a session id is not enough to read someone
+else's order.

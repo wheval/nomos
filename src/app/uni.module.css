@@ -1095,12 +1095,24 @@
 .methodCardActive .methodCardSub { color: var(--pink-text); }
 
 /* --- Landing page: sections ------------------------------------------------*/
+.productGroupLabel {
+  /* Matches .howItWorks so the label lines up with the first card. */
+  max-width: 1040px;
+  margin: 30px auto 12px;
+  padding: 0 20px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-2);
+}
+.productGroupLabel:first-of-type { margin-top: 4px; }
+
 .howItWorks {
   max-width: 1040px;
   margin: 0 auto;
   padding: 0 20px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 .howStep {
@@ -1124,10 +1136,34 @@
 .howStep h3 { font-size: 15px; font-weight: 500; margin: 0 0 6px; letter-spacing: -0.005em; }
 .howStep p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0; }
 @media (max-width: 860px) {
-  .howItWorks { grid-template-columns: repeat(2, 1fr); }
+  .productGroupLabel {
+  /* Matches .howItWorks so the label lines up with the first card. */
+  max-width: 1040px;
+  margin: 30px auto 12px;
+  padding: 0 20px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-2);
+}
+.productGroupLabel:first-of-type { margin-top: 4px; }
+
+.howItWorks { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 520px) {
-  .howItWorks { grid-template-columns: 1fr; }
+  .productGroupLabel {
+  /* Matches .howItWorks so the label lines up with the first card. */
+  max-width: 1040px;
+  margin: 30px auto 12px;
+  padding: 0 20px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-2);
+}
+.productGroupLabel:first-of-type { margin-top: 4px; }
+
+.howItWorks { grid-template-columns: 1fr; }
 }
 
 .sectionEyebrow {

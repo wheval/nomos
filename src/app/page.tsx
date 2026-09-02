@@ -40,29 +40,50 @@ export default function Page() {
         </div>
       </header>
 
+      {/* Grouped by who the reader is, the way every comparable gateway
+          organises its own product menu. The previous list mixed products
+          (link, invoice) with delivery mechanisms (widget, API) in one row of
+          four, which left a merchant and a developer both scanning past
+          things that were not for them. */}
       <section style={{ margin: '64px 0' }}>
-        <div className={styles.sectionEyebrow}>How it works</div>
-        <h2 className={styles.sectionHeading}>Four ways to get paid</h2>
+        <div className={styles.sectionEyebrow}>Products</div>
+        <h2 className={styles.sectionHeading}>However you want to get paid</h2>
+
+        <div className={styles.productGroupLabel}>For merchants</div>
         <div className={styles.howItWorks}>
           <div className={styles.howStep}>
             <div className={styles.howStepNum}><LinkIcon /></div>
-            <h3>Payment Link</h3>
+            <h3>Payment Links</h3>
             <p>Generate a link with a fixed or open amount. Share it anywhere — the customer pays without ever touching your dashboard.</p>
           </div>
           <div className={styles.howStep}>
+            <div className={styles.howStepNum}><CheckoutIcon /></div>
+            <h3>Checkout</h3>
+            <p>Create a session per order from your own backend and send the customer to a hosted page. They come back to your site when it&apos;s paid.</p>
+          </div>
+          <div className={styles.howStep}>
             <div className={styles.howStepNum}><InvoiceIcon /></div>
-            <h3>Invoice</h3>
-            <p>Add a note and an expiry. It reads like a real invoice, backed by a private settlement instead of a public one.</p>
+            <h3>Invoices</h3>
+            <p>Add a note and an expiry, payable once. It reads like a real invoice, backed by a private settlement instead of a public one.</p>
+          </div>
+        </div>
+
+        <div className={styles.productGroupLabel}>For developers</div>
+        <div className={styles.howItWorks}>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}><ApiIcon /></div>
+            <h3>Payments API</h3>
+            <p>Create sessions, verify a payment by reference, read balances and trigger payouts straight from your own backend — no UI required.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}><WebhookIcon /></div>
+            <h3>Webhooks</h3>
+            <p>Get a signed callback the moment a payment settles, so you can ship the order without polling for it.</p>
           </div>
           <div className={styles.howStep}>
             <div className={styles.howStepNum}><WidgetIcon /></div>
             <h3>Embedded widget</h3>
             <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
-          </div>
-          <div className={styles.howStep}>
-            <div className={styles.howStepNum}><ApiIcon /></div>
-            <h3>Direct API</h3>
-            <p>Already have a stablecoin checkout? Record payments, check balances, and trigger payouts straight from your own backend — no UI required.</p>
           </div>
         </div>
       </section>
@@ -154,6 +175,28 @@ function ApiIcon() {
     </svg>
   );
 }
+function CheckoutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 10h18" stroke="currentColor" strokeWidth="2" />
+      <path d="M7 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function WebhookIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 4a4 4 0 0 0-3.5 5.9L6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M18 12a4 4 0 0 0-6.9-2.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 19h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="6" cy="17" r="2.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="18" cy="15" r="2.5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 function ShieldIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

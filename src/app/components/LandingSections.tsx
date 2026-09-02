@@ -228,7 +228,6 @@ export function NoFeeCalculator() {
   // Read from the real schedule so the marketing number cannot drift away
   // from what the code actually charges.
   const NOMOS_FEE = Number(transactionFeeWei("USDC", "A")) / 10 ** tokenDecimals("USDC");
-  const cardFee = amount * 0.029 + 0.3;
 
   return (
     <section className={styles.demoSection}>
@@ -289,13 +288,6 @@ export function NoFeeCalculator() {
             <div className={`${styles.calcBreakdownRow} ${styles.highlight}`}>
               <span>Lands in your balance</span>
               <b>${(amount - NOMOS_FEE).toFixed(2)}</b>
-            </div>
-            {/* The comparison is the argument. A percentage processor's cut
-                grows with the payment; ours does not, and the gap is the
-                entire reason to be here rather than on a card rail. */}
-            <div className={styles.calcBreakdownRow}>
-              <span>A 2.9% + 30&cent; card processor would take</span>
-              <b>${cardFee.toFixed(2)}</b>
             </div>
             <p className={styles.calcFinePrint}>
               Private payments cost 10&cent;; public ones 20&cent;, because
