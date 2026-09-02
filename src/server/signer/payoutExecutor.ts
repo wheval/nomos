@@ -7,13 +7,40 @@
 // to pass provingBlockId explicitly — the SDK's own proving-config docs say
 // to always pass it (currentBlock - 10), since omitting it "works most of
 // the time" but causes intermittent "Note not mature" failures.
-import { myFrontendProviders } from "@/utils/constants";
+import { addrSTRK, myFrontendProviders } from "@/utils/constants";
+import { num } from "starknet";
+import type { ProviderInterface } from "starknet";
 import { getOperatingAccount } from "./operatingWallet";
-import { getPrivacyClient, provingBlockId, submitPrivateAction } from "./privacyClient";
+import { getPrivacyClient, poolFeeAmount, provingBlockId, submitPrivateAction } from "./privacyClient";
 
 export interface PayoutExecutor {
   executeWithdraw(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
   executeTransfer(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
+}
+
+// A payout costs STRK twice over: the pool's own per-apply_actions fee, and
+// v3 transaction gas. An empty operating wallet fails deep inside proving or
+// on-chain, with nothing that names the actual cause — so check first and say
+// what to top up. Read live, since the pool fee tracks a USD target and moves
+// with the STRK price.
+async function assertCanPayFees(
+  provider: ProviderInterface,
+  networkIndex: number,
+  operatingAddress: string
+): Promise<void> {
+  const [fee, balance] = await Promise.all([
+    poolFeeAmount(provider, networkIndex),
+    provider
+      .callContract({ contractAddress: addrSTRK, entrypoint: "balanceOf", calldata: [operatingAddress] })
+      .then(([low, high]) => num.toBigInt(low) + (high === undefined ? 0n : num.toBigInt(high) << 128n)),
+  ]);
+
+  if (balance >= fee) return;
+  const strk = (v: bigint) => `${Number(v) / 1e18} STRK`;
+  throw new Error(
+    `Operating wallet ${operatingAddress} holds ${strk(balance)} on network index ${networkIndex}, ` +
+      `below the pool's ${strk(fee)} fee per payout (plus gas). Top it up before retrying.`
+  );
 }
 
 // Network-agnostic now: pool address, chain id and proving URL are all
@@ -33,6 +60,7 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
     params: { amountWei: bigint; token: string; destination: string }
   ): Promise<{ txHash: string }> {
     const account = getOperatingAccount(provider, networkIndex);
+    await assertCanPayFees(provider, networkIndex, account.address);
     const transfers = getPrivacyClient(provider, networkIndex);
     const blockId = await provingBlockId(provider);
 

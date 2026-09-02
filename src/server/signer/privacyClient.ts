@@ -10,7 +10,7 @@
 // proving-config docs (strk20.starknet.io/docs/sdk/proving-config):
 // proofFacts must be omitted entirely (not passed as []) when empty, or
 // starknet.js serializes an invalid v3 transaction; tip: 0n is mandatory.
-import { constants, Contract, type Account, type ProviderInterface } from "starknet";
+import { constants, Contract, num, type Account, type ProviderInterface } from "starknet";
 import {
   createPrivateTransfers,
   ProvingServiceProofProvider,
@@ -153,6 +153,21 @@ export function getPrivacyClient(
   });
   cachedProving.set(networkIndex, client);
   return client;
+}
+
+// The pool charges a fee per apply_actions, read live rather than hardcoded:
+// it targets a constant USD value (~$0.12) and moves with the STRK price, and
+// it differs per network (6 STRK on Mainnet, 2 on Sepolia at time of writing).
+export async function poolFeeAmount(
+  provider: ProviderInterface,
+  networkIndex: number
+): Promise<bigint> {
+  const [low, high] = await provider.callContract({
+    contractAddress: poolAddressFor(networkIndex),
+    entrypoint: "get_fee_amount",
+    calldata: [],
+  });
+  return num.toBigInt(low) + (high === undefined ? 0n : num.toBigInt(high) << 128n);
 }
 
 // currentBlock - 10: note maturity (notes mature 10 blocks after creation)
