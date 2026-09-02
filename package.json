@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "shield:list": "tsx scripts/shield-reconcile.ts list",
-    "shield:mark": "tsx scripts/shield-reconcile.ts mark"
+    "shield:mark": "tsx scripts/shield-reconcile.ts mark",
+    "setup:sepolia": "node scripts/network-setup.mts --network sepolia",
+    "setup:mainnet": "node scripts/network-setup.mts --network mainnet"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
