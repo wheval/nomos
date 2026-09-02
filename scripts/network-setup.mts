@@ -62,8 +62,15 @@ const MEASURED_L2_GAS = { declare: 347_386_240n, deploy: 18_910_603n };
 // Bounds are a ceiling, not a charge: the fee paid is actual usage at the
 // actual price. Headroom covers a busier block and a price move between
 // signing and inclusion, without inflating the ceiling past the balance.
-const GAS_AMOUNT_MARGIN = 13n; // /10 → 1.3x
-const GAS_PRICE_MARGIN = 15n; // /10 → 1.5x
+// Gas consumption for these transactions is deterministic — the same sierra
+// declares for the same 347,386,240 gas on Sepolia and Mainnet, confirmed by
+// simulating against Mainnet — so the amount margin only has to absorb
+// rounding. The price margin absorbs a move between signing and inclusion;
+// exceeding it gets the transaction rejected at validation, which is free and
+// retryable, whereas an under-provisioned *amount* can burn gas on a failed
+// execution. Hence tight on price, generous where it matters.
+const GAS_AMOUNT_MARGIN = 115n; // /100 → 1.15x
+const GAS_PRICE_MARGIN = 125n; // /100 → 1.25x
 
 async function boundsFor(provider: RpcProvider, step: "declare" | "deploy") {
   // getBlockLatestAccepted returns only hash and number — the gas prices live
@@ -77,8 +84,8 @@ async function boundsFor(provider: RpcProvider, step: "declare" | "deploy") {
   const price = (v?: { price_in_fri: string }) => (v ? num.toBigInt(v.price_in_fri) : 0n);
   return {
     l2_gas: {
-      max_amount: (MEASURED_L2_GAS[step] * GAS_AMOUNT_MARGIN) / 10n,
-      max_price_per_unit: (price(raw.l2_gas_price) * GAS_PRICE_MARGIN) / 10n,
+      max_amount: (MEASURED_L2_GAS[step] * GAS_AMOUNT_MARGIN) / 100n,
+      max_price_per_unit: (price(raw.l2_gas_price) * GAS_PRICE_MARGIN) / 100n,
     },
     // These two are rounding error next to l2_gas, so they get flat headroom.
     l1_gas: { max_amount: 0n, max_price_per_unit: price(raw.l1_gas_price) * 2n },
@@ -239,16 +246,44 @@ async function main() {
 
     // Declared by the supplied bootstrap account when there is one, otherwise
     // by the operating wallet itself — which is only possible once it exists.
-    const declarer =
-      declarerKey && declarerAddress
-        ? new Account({
-            provider,
-            address: declarerAddress,
-            signer: process.env.NOMOS_DECLARER_ETH === "1" ? new EthSigner(declarerKey) : new Signer(declarerKey),
-            cairoVersion: "1",
-          })
-        : account;
-    if (declarer !== account) console.log(`  declaring from ${declarerAddress}`);
+    let declarer = account;
+    if (declarerKey && declarerAddress) {
+      declarer = new Account({
+        provider,
+        address: declarerAddress,
+        signer: process.env.NOMOS_DECLARER_ETH === "1" ? new EthSigner(declarerKey) : new Signer(declarerKey),
+        cairoVersion: "1",
+      });
+      console.log(`  declaring from ${declarerAddress}`);
+
+      // The bootstrap account is itself counterfactual on first run. Its class
+      // is one already declared on the network (that is the whole point of
+      // choosing it), so unlike the operating wallet it can deploy itself.
+      let declarerDeployed = true;
+      try {
+        await provider.getClassHashAt(declarerAddress, "latest");
+      } catch {
+        declarerDeployed = false;
+      }
+      if (!declarerDeployed) {
+        const declarerClass = requireEnv("NOMOS_DECLARER_CLASS");
+        const pub = await declarer.signer.getPubKey();
+        // Argent multi-owner: constructor(owner: Signer, guardian: Option<Signer>).
+        // Signer::Starknet(pubkey) is [0, pubkey]; Option::None is [1].
+        // Verified against the class by simulating the deploy before funding.
+        const ctor = ["0x0", num.toHex(pub), "0x1"];
+        console.log("  bootstrap account not deployed — deploying it first…");
+        const dep = await declarer.deployAccount({
+          classHash: declarerClass,
+          constructorCalldata: ctor,
+          addressSalt: num.toHex(pub),
+          contractAddress: declarerAddress,
+        });
+        console.log(`    tx ${dep.transaction_hash}`);
+        await provider.waitForTransaction(dep.transaction_hash);
+        console.log(ok(`bootstrap account deployed ${dep.contract_address}`));
+      }
+    }
 
     const res = await declarer.declareIfNot(
       { contract: sierra, casm },
