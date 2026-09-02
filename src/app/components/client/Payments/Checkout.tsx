@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CallData, cairo, num, validateAndParseAddress } from "starknet";
+import { CallData, cairo, num } from "starknet";
 import type { WALLET_API } from "@starknet-io/types-js";
 import styles from "../../../uni.module.css";
 import * as constants from "@/utils/constants";
@@ -33,7 +33,6 @@ function callbackWithReference(callbackUrl: string, reference: string | null): s
 
 type LinkData = {
   id: string;
-  merchantAddress: string;
   merchantName?: string | null;
   networkIndex: number;
   amountWei?: string;
@@ -90,14 +89,6 @@ export default function Checkout() {
       .finally(() => setLoadingLink(false));
   }, [id]);
 
-  const toValid = (() => {
-    if (!linkData) return "";
-    try {
-      return validateAndParseAddress(linkData.merchantAddress);
-    } catch {
-      return "";
-    }
-  })();
   const fixedAmount = linkData?.amountWei;
   const token: constants.TokenSymbol = linkData?.token ?? "STRK";
   const decimals = constants.tokenDecimals(token);
@@ -143,14 +134,13 @@ export default function Checkout() {
   // merchant's callback URL so their server can verify it.
   const [paidReference, setPaidReference] = useState<string | null>(null);
 
-  const shortTo = toValid ? `${toValid.slice(0, 6)}…${toValid.slice(-4)}` : "";
   const isPaid = result?.status === "ok";
 
   if (loadingLink) {
     return <div className={styles.panel} />;
   }
 
-  if (!id || linkError || !linkData || !toValid) {
+  if (!id || linkError || !linkData) {
     return (
       <div className={styles.panel}>
         <div className={styles.warn} style={{ padding: "12px 0" }}>
@@ -238,7 +228,6 @@ export default function Checkout() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             flow,
-            merchantAddress: toValid,
             amountWei: amountWei.toString(),
             token,
             txHash: txH,
@@ -284,7 +273,12 @@ export default function Checkout() {
         ) : null}
         <div className={styles.checkoutPayee}>
           <span className={styles.checkoutPayeeLabel}>Paying</span>
-          <span className={styles.checkoutPayeeName}>{merchantName ?? shortTo}</span>
+          <span className={styles.checkoutPayeeName}>{merchantName ?? "this business"}</span>
+          {/* Funds settle to Nomos, not to the business directly. Saying so
+              is the honest counterpart to hiding the merchant's wallet: a
+              payer who checks the transaction will see a Nomos address, and
+              should have been told that here rather than discovering it. */}
+          <span className={styles.checkoutPayeeVia}>Payments processed by Nomos</span>
         </div>
       </div>
 
@@ -300,9 +294,6 @@ export default function Checkout() {
             "Enter amount"
           )}
         </div>
-        {/* The address stays available but stops being the headline; a payer
-            who wants to verify the recipient can still read it. */}
-        {merchantName ? <div className={styles.checkoutMeta}>{shortTo}</div> : null}
       </div>
 
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : (

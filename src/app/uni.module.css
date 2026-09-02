@@ -964,6 +964,11 @@
   letter-spacing: 0.06em;
   color: var(--muted-2);
 }
+.checkoutPayeeVia {
+  font-size: 11.5px;
+  color: var(--muted-2);
+  margin-top: 2px;
+}
 .checkoutPayeeName {
   font-size: 15px;
   font-weight: 500;

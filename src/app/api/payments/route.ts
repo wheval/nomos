@@ -29,15 +29,19 @@ export async function POST(request: NextRequest) {
   }
 
   const { flow, merchantAddress, amountWei, token: tokenRaw, txHash, networkIndex: networkIndexClaim, note, ref, linkId } = body ?? {};
+  // merchantAddress is only required without a linkId. A link already names
+  // its merchant authoritatively, and checkout no longer receives the address
+  // at all — it is not the payer's business who the merchant's wallet is.
+  const hasLinkId = typeof linkId === "string" && linkId.length > 0;
   if (
     (flow !== "A" && flow !== "B") ||
-    typeof merchantAddress !== "string" ||
+    (!hasLinkId && typeof merchantAddress !== "string") ||
     typeof amountWei !== "string" ||
     typeof txHash !== "string" ||
     !isValidNetworkIndex(networkIndexClaim)
   ) {
     return NextResponse.json(
-      { error: "flow ('A'|'B'), merchantAddress, amountWei, txHash, and networkIndex are required." },
+      { error: "flow ('A'|'B'), amountWei, txHash, networkIndex and (without linkId) merchantAddress are required." },
       { status: 400 }
     );
   }
@@ -47,11 +51,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `token must be one of: ${TokenSymbols.join(", ")}.` }, { status: 400 });
   }
 
-  let normalizedMerchantClaim: string;
-  try {
-    normalizedMerchantClaim = validateAndParseAddress(merchantAddress);
-  } catch {
-    return NextResponse.json({ error: "merchantAddress is not a valid Starknet address." }, { status: 400 });
+  // Placeholder when a link will supply the real one below; validated
+  // strictly whenever the client is actually the source of truth.
+  let normalizedMerchantClaim = "";
+  if (typeof merchantAddress === "string") {
+    try {
+      normalizedMerchantClaim = validateAndParseAddress(merchantAddress);
+    } catch {
+      return NextResponse.json({ error: "merchantAddress is not a valid Starknet address." }, { status: 400 });
+    }
   }
 
   const store = getStore();
@@ -158,6 +166,13 @@ export async function POST(request: NextRequest) {
 
   if (!verified.ok) {
     return NextResponse.json({ error: `Could not verify deposit: ${verified.reason}` }, { status: 422 });
+  }
+
+  // Unreachable by construction — a linkId either resolves to a merchant or
+  // 404s above, and without one merchantAddress was required. Asserted anyway
+  // because this is the last point before money is credited to an account.
+  if (!normalizedMerchant) {
+    return NextResponse.json({ error: "Could not resolve the merchant for this payment." }, { status: 400 });
   }
 
   // Priced off the verified on-chain amount, not the client's claim, and
