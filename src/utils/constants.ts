@@ -23,9 +23,19 @@ export const Tokens: Record<TokenSymbol, { decimals: number; addresses: Record<n
   USDC: {
     decimals: 6,
     addresses: {
-      // Mainnet: native USDC, from starknet-io/starknet-addresses
-      // (bridged_tokens/mainnet.json) — the canonical registry.
-      0: "0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+      // Mainnet has the same two-USDC trap as Sepolia, and the registry is
+      // the wrong half of it. Both report symbol "USDC" with 6 decimals:
+      //
+      //   0x033068f6…35fb  name "USDC",     supply 140.7M  ← this one
+      //   0x053c9125…68a8  name "USD Coin", supply 4.8M    ← the registry's
+      //
+      // The STRK20 pool custodies ~280k of the first and 14.51 of the second,
+      // so quoting the registry address makes every private USDC payment fail
+      // with "insufficient balance" — the payer's shielded balance sits under
+      // a different token. Verified by reading the pool's own holdings.
+      // Override if the pool moves.
+      0: process.env.NEXT_PUBLIC_USDC_MAINNET ??
+        "0x033068f6539f8e6e6b131e6b2b814e6c34a5224bc66947c47dab9dfee93b35fb",
 
       // Sepolia deliberately does NOT use the registry's bridged USDC
       // (0x053b40a6…5080). Two contracts on Sepolia both report
