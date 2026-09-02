@@ -20,7 +20,7 @@
 //   node scripts/network-setup.mts --network sepolia
 //   node scripts/network-setup.mts --network mainnet --apply
 import { readFileSync } from "node:fs";
-import { Account, EthSigner, RpcProvider, hash, num } from "starknet";
+import { Account, EthSigner, RpcProvider, Signer, hash, num } from "starknet";
 
 const NETWORKS = {
   mainnet: {
@@ -47,9 +47,44 @@ const CASM = "cairo/target/dev/strk20_invoke_helper_NomosOperatingWallet.compile
 // NOMOS_OPERATING_WALLET_ADDRESS be correct for both.
 const DEPLOY_SALT = "0x0";
 
-// Setup spends STRK on declare (~14), deploy (~1) and register (~4), so this
-// is the floor worth starting from rather than a precise total.
+// Setup spends STRK on declare (~12), deploy (~1) and register (~4) plus the
+// pool fee, so this is the floor worth starting from rather than a precise
+// total.
 const RECOMMENDED_FUNDING_STRK = 25n;
+
+// Gas actually consumed by these two transactions on Sepolia, read from their
+// receipts (see cairo/address.md for the hashes). Used to size resource
+// bounds directly, because starknet.js's own estimator pads its bounds so far
+// past reality that the *cap* exceeds a balance the real fee fits inside
+// twice over — a declare that costs ~12 STRK was rejected against 25 STRK
+// for asking for a 25.8 STRK ceiling.
+const MEASURED_L2_GAS = { declare: 347_386_240n, deploy: 18_910_603n };
+// Bounds are a ceiling, not a charge: the fee paid is actual usage at the
+// actual price. Headroom covers a busier block and a price move between
+// signing and inclusion, without inflating the ceiling past the balance.
+const GAS_AMOUNT_MARGIN = 13n; // /10 → 1.3x
+const GAS_PRICE_MARGIN = 15n; // /10 → 1.5x
+
+async function boundsFor(provider: RpcProvider, step: "declare" | "deploy") {
+  // getBlockLatestAccepted returns only hash and number — the gas prices live
+  // on the full block.
+  const block = await provider.getBlockWithTxHashes("latest");
+  const raw = block as unknown as {
+    l2_gas_price?: { price_in_fri: string };
+    l1_data_gas_price?: { price_in_fri: string };
+    l1_gas_price?: { price_in_fri: string };
+  };
+  const price = (v?: { price_in_fri: string }) => (v ? num.toBigInt(v.price_in_fri) : 0n);
+  return {
+    l2_gas: {
+      max_amount: (MEASURED_L2_GAS[step] * GAS_AMOUNT_MARGIN) / 10n,
+      max_price_per_unit: (price(raw.l2_gas_price) * GAS_PRICE_MARGIN) / 10n,
+    },
+    // These two are rounding error next to l2_gas, so they get flat headroom.
+    l1_gas: { max_amount: 0n, max_price_per_unit: price(raw.l1_gas_price) * 2n },
+    l1_data_gas: { max_amount: 2_000n, max_price_per_unit: price(raw.l1_data_gas_price) * 2n },
+  };
+}
 
 // The constructor takes an EthPublicKey — (u256 x, u256 y) — which on the
 // wire is four felts: [x.low, x.high, y.low, y.high]. CallData.compile can't
@@ -173,9 +208,52 @@ async function main() {
   const signer = new EthSigner(requireEnv("NOMOS_OPERATING_WALLET_PRIVKEY"));
   const account = new Account({ provider, address, signer, cairoVersion: "1" });
 
+  // A DECLARE must be sent from a deployed account, and this account cannot
+  // deploy until its own class is declared — so it can never bootstrap
+  // itself. Some *other* already-deployed account has to publish the class
+  // first, which is exactly how Sepolia was done (its DECLARE came from
+  // 0x7614421a…, not from the operating wallet).
+  //
+  // NOMOS_DECLARER_* lets that account be supplied here. It only ever signs
+  // the DECLARE; it never touches funds or the pool, and is not needed again
+  // once the class exists on the network.
+  const declarerAddress = process.env.NOMOS_DECLARER_ADDRESS;
+  const declarerKey = process.env.NOMOS_DECLARER_PRIVKEY;
+
+  if (!declared && !deployed && !declarerKey) {
+    throw new Error(
+      `Cannot bootstrap ${network}: the class is not declared, and a DECLARE has to come from an ` +
+        `already-deployed account — this one cannot deploy until the class exists.\n\n` +
+        `Declare it from any funded mainnet account you already control (~12 STRK), then re-run:\n` +
+        `  NOMOS_DECLARER_ADDRESS=0x...  NOMOS_DECLARER_PRIVKEY=0x...  npm run setup:${network} -- --apply\n\n` +
+        `That account is Stark-curve by default (Argent, Braavos, OZ); set NOMOS_DECLARER_ETH=1 if it ` +
+        `signs with secp256k1. It signs the DECLARE only — it never holds or moves Nomos funds.`
+    );
+  }
+
   if (!declared) {
     console.log("\nDeclaring class…");
-    const res = await account.declareIfNot({ contract: sierra, casm });
+    const bounds = await boundsFor(provider, "declare");
+    const cap = (bounds.l2_gas.max_amount * bounds.l2_gas.max_price_per_unit) / 10n ** 18n;
+    console.log(`  fee ceiling ~${cap} STRK (actual charge is usage at the live price, well under this)`);
+
+    // Declared by the supplied bootstrap account when there is one, otherwise
+    // by the operating wallet itself — which is only possible once it exists.
+    const declarer =
+      declarerKey && declarerAddress
+        ? new Account({
+            provider,
+            address: declarerAddress,
+            signer: process.env.NOMOS_DECLARER_ETH === "1" ? new EthSigner(declarerKey) : new Signer(declarerKey),
+            cairoVersion: "1",
+          })
+        : account;
+    if (declarer !== account) console.log(`  declaring from ${declarerAddress}`);
+
+    const res = await declarer.declareIfNot(
+      { contract: sierra, casm },
+      { resourceBounds: bounds } as Parameters<typeof account.declareIfNot>[1]
+    );
     if (res.transaction_hash) {
       console.log(`  tx ${res.transaction_hash}`);
       await provider.waitForTransaction(res.transaction_hash);
@@ -197,12 +275,10 @@ async function main() {
       );
     }
     console.log("\nDeploying account…");
-    const res = await account.deployAccount({
-      classHash,
-      constructorCalldata,
-      addressSalt: DEPLOY_SALT,
-      contractAddress: address,
-    });
+    const res = await account.deployAccount(
+      { classHash, constructorCalldata, addressSalt: DEPLOY_SALT, contractAddress: address },
+      { resourceBounds: await boundsFor(provider, "deploy") } as Parameters<typeof account.deployAccount>[1]
+    );
     console.log(`  tx ${res.transaction_hash}`);
     await provider.waitForTransaction(res.transaction_hash);
     console.log(ok(`deployed ${res.contract_address}`));
