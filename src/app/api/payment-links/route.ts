@@ -3,6 +3,7 @@ import { validateAndParseAddress } from "starknet";
 import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
 import { isTokenSymbol, isValidNetworkIndex, tokenDecimals, TokenSymbols } from "@/utils/constants";
+import { formatFee, minimumPaymentWei } from "@/utils/fees";
 import { parseTokenAmount } from "@/utils/payments";
 
 // Creates a persisted Payment Link. Before this, a "link" was just URL
@@ -47,6 +48,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "amount must be a positive decimal number." }, { status: 400 });
     }
     amountWei = parsed;
+
+    // A flat fee is a nonsense share of a tiny payment, so refuse the link
+    // rather than letting a payer discover it at checkout. Open-amount links
+    // (no amount set) can't be checked here — settlement clamps instead.
+    const minimum = minimumPaymentWei(token);
+    if (amountWei < minimum) {
+      return NextResponse.json(
+        { error: `Minimum payment for ${token} is ${formatFee(token, minimum)}.` },
+        { status: 400 }
+      );
+    }
   }
 
   if (expiresIn !== undefined && (typeof expiresIn !== "number" || expiresIn <= 0)) {

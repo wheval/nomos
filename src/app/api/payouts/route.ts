@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
+import { minimumPayoutWei, payoutFeeWei } from "@/utils/fees";
 import { getPayoutExecutor } from "@/server/signer/payoutExecutor";
 import { isTokenSymbol, isValidNetworkIndex, TokenSymbols } from "@/utils/constants";
 
@@ -61,6 +62,28 @@ export async function POST(request: NextRequest) {
   });
   if (denied) return denied;
 
+  // A payout costs Nomos a pool fee plus gas regardless of size, so a
+  // minimum forces batching — without it a merchant could withdraw per
+  // payment and each settlement would cost more than the payment earned.
+  const minimum = minimumPayoutWei(token);
+  if (requestedWei < minimum) {
+    return NextResponse.json(
+      { error: `Minimum payout for ${token} is ${minimum} (requested ${requestedWei}).` },
+      { status: 422 }
+    );
+  }
+
+  // The fee comes out of the payout, like a bank transfer charge: the
+  // merchant is debited what they asked for and receives that less the fee.
+  const feeWei = payoutFeeWei(token);
+  const sendWei = requestedWei - feeWei;
+  if (sendWei <= 0n) {
+    return NextResponse.json(
+      { error: `Payout of ${requestedWei} does not cover the ${feeWei} ${token} payout fee.` },
+      { status: 422 }
+    );
+  }
+
   const store = getStore();
 
   const balance = await store.getLedgerBalance(normalizedMerchant, token, networkIndex);
@@ -75,7 +98,7 @@ export async function POST(request: NextRequest) {
     merchantAddress: normalizedMerchant,
     networkIndex,
     destination: normalizedDestination,
-    amountWei: requestedWei,
+    amountWei: sendWei,
     token,
     mode,
   });
@@ -85,19 +108,41 @@ export async function POST(request: NextRequest) {
     const executor = getPayoutExecutor(networkIndex);
     const { txHash } =
       mode === "withdraw"
-        ? await executor.executeWithdraw({ amountWei: requestedWei, token, destination: normalizedDestination })
-        : await executor.executeTransfer({ amountWei: requestedWei, token, destination: normalizedDestination });
+        ? await executor.executeWithdraw({ amountWei: sendWei, token, destination: normalizedDestination })
+        : await executor.executeTransfer({ amountWei: sendWei, token, destination: normalizedDestination });
 
+    // Debited in two entries so the merchant's history shows the payout and
+    // the charge separately, rather than one number they have to reconcile.
     await store.debitLedger({
       merchantAddress: normalizedMerchant,
       networkIndex,
-      amountWei: requestedWei,
+      amountWei: sendWei,
       token,
       kind: "payout",
       payoutId: payout.id,
     });
+    if (feeWei > 0n) {
+      await store.debitLedger({
+        merchantAddress: normalizedMerchant,
+        networkIndex,
+        amountWei: feeWei,
+        token,
+        kind: "payout_fee",
+        payoutId: payout.id,
+      });
+    }
     await store.updatePayoutStatus(payout.id, "confirmed", txHash);
-    return NextResponse.json({ ok: true, payoutId: payout.id, status: "confirmed", txHash }, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        payoutId: payout.id,
+        status: "confirmed",
+        txHash,
+        sentWei: sendWei.toString(),
+        feeWei: feeWei.toString(),
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     await store.updatePayoutStatus(payout.id, "failed");
     return NextResponse.json(

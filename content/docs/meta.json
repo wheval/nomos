@@ -1,4 +1,16 @@
 {
   "title": "Docs",
-  "pages": ["index", "quickstart", "---Concepts---", "payment-links", "flows", "privacy", "---Reference---", "api", "webhooks", "limits"]
+  "pages": [
+    "index",
+    "quickstart",
+    "---Concepts---",
+    "payment-links",
+    "flows",
+    "privacy",
+    "pricing",
+    "---Reference---",
+    "api",
+    "webhooks",
+    "limits"
+  ]
 }

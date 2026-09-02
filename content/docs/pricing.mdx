@@ -1,0 +1,120 @@
+---
+title: Pricing
+description: A flat fee per transaction, never a percentage — what you pay, why it is shaped this way, and where the money sits.
+---
+
+## The short version
+
+| | Fee |
+| --- | --- |
+| Private payment (Flow A) | **0.10 USDC** / 4 STRK |
+| Public payment (Flow B) | **0.20 USDC** / 8 STRK |
+| Payout | **0.30 USDC** / 12 STRK |
+
+No percentage. No monthly minimum. No setup fee.
+
+A 10 USDC payment and a 100,000 USDC payment cost the same 0.10 USDC to accept.
+
+## Why flat, and why that matters
+
+Most payment processors take a percentage because their own costs scale with
+risk and volume. Ours don't. Settling on Starknet costs the same whether the
+payment is ten dollars or a hundred thousand — the privacy pool charges one
+flat fee per operation, not a share of the amount.
+
+Charging you a percentage on top of a flat cost base would be arbitrage, and
+it would throw away the reason this stack is interesting in the first place.
+Shielding through Railgun costs 0.25% of the amount. On a 100,000 payment
+that is 2,500. Through Starknet's privacy pool it is around 0.12, regardless
+of size.
+
+So the pricing keeps the shape of the thing underneath it:
+
+| Payment | Nomos | A 2.9% + 30c card processor | Railgun (shielding only) |
+| --- | --- | --- | --- |
+| 10 | 0.10 | 0.59 | 0.03 |
+| 100 | 0.10 | 3.20 | 0.25 |
+| 1,000 | 0.10 | 29.30 | 2.50 |
+| 100,000 | **0.10** | 2,900 | 250 |
+
+## Why a private payment is cheaper than a public one
+
+The two checkout flows cost us different amounts, and the price reflects that
+rather than averaging it out.
+
+**Flow A** — the payer sends from a shielded balance. They pay the pool fee
+themselves as part of their own transaction. Nothing is left for us to do
+except pay out later.
+
+**Flow B** — the payer sends an ordinary public transfer. That lands
+unshielded, so we have to shield it before it can be paid out privately.
+That is a second pool operation, at our expense, which is why Flow B costs
+double.
+
+The result is that the more private option is also the cheaper one. That is
+deliberate.
+
+## The payout fee
+
+Paying out is a pool operation with a real cost — a pool fee plus gas —
+charged per payout rather than per payment. Ten payments settled in one
+payout cost the same to settle as one.
+
+The 0.30 payout fee covers that, and it is why payouts have a minimum:
+
+| | Minimum |
+| --- | --- |
+| Payment | 1 USDC / 40 STRK |
+| Payout | 5 USDC / 200 STRK |
+
+The payment minimum exists because a flat fee is an unreasonable share of a
+very small payment. The payout minimum exists so payouts batch — withdrawing
+after every single payment would cost you a settlement fee each time, for no
+benefit.
+
+Leave your balance to accumulate and withdraw in batches. That is the cheapest
+way to use Nomos, and it is the same advice any processor would give you.
+
+## What you are charged, and when
+
+Fees come out of settlement. You never receive an invoice, and your customer
+never sees a Nomos line item at checkout.
+
+1. Your customer pays the full amount of the link.
+2. We record the payment at its **gross** amount — what actually moved
+   on-chain.
+3. Your ledger is credited the **net**: gross minus the transaction fee.
+4. When you withdraw, the payout fee is deducted from the amount you request.
+
+Both the gross and the fee are stored against every transaction, so your
+dashboard always shows what was paid alongside what you were charged. Changing
+our fees later never rewrites what you were charged in the past.
+
+## Fees are charged in the token that was paid
+
+A USDC link is charged in USDC. A STRK link is charged in STRK. Your customer
+never has to hold a second token, and neither do you.
+
+STRK amounts are set to approximate the USDC ones at current prices and are
+adjusted if STRK moves substantially. USDC amounts are fixed.
+
+## Custody, stated plainly
+
+Nomos holds funds between the payment and your payout, the same as any
+payment processor. Stripe and Paystack hold your money for days; we hold it
+until you withdraw.
+
+What is different is what the public chain sees. With a traditional processor
+your revenue is private from the public, but entirely visible to your bank and
+your processor. With Nomos, payments are invisible **on-chain** — amounts,
+senders, and your total volume are not public information.
+
+Nomos itself can see them, because Nomos has to settle them. So the honest
+statement is that your payments are private from the chain, not that they are
+private from us. Non-custodial settlement, where funds never touch a Nomos
+account, is on the roadmap and is not what is offered today.
+
+If that trade-off doesn't suit you, the privacy pool is a public protocol —
+you can integrate it directly and pay only the protocol's own fee. Nomos
+exists to save you building checkout, links, verification, payouts, webhooks
+and reconciliation on top of it.

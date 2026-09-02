@@ -37,6 +37,11 @@ export type Deposit = {
   linkId?: string;
   status: DepositStatus;
   shieldTxHash?: string;
+  // Nomos's flat fee on this payment, in the token's smallest unit. Stored
+  // per deposit rather than derived, so a later change to the fee schedule
+  // never rewrites the history of what a merchant was actually charged.
+  // amountWei stays gross; the ledger is credited amountWei - feeWei.
+  feeWei: bigint;
   recordedAt: number; // unix seconds
 };
 
@@ -52,9 +57,10 @@ export type RecordDepositInput = {
   reference?: string; // generated when absent
   linkId?: string;
   status?: DepositStatus;
+  feeWei?: bigint;
 };
 
-export type LedgerKind = "flow_a_deposit" | "flow_b_deposit" | "payout";
+export type LedgerKind = "flow_a_deposit" | "flow_b_deposit" | "payout" | "payout_fee";
 export type LedgerDirection = "credit" | "debit";
 
 export type LedgerEntry = {

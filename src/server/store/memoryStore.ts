@@ -74,6 +74,7 @@ export class MemoryStore implements Store {
       reference: input.reference ?? `nx_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`,
       linkId: input.linkId,
       status,
+      feeWei: input.feeWei ?? 0n,
       recordedAt: Math.floor(Date.now() / 1000),
     };
     this.deposits.set(id, deposit);

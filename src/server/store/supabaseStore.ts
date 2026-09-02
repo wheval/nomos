@@ -50,6 +50,7 @@ type DepositRow = {
   link_id: string | null;
   status: DepositStatus;
   shield_tx_hash: string | null;
+  fee_wei: string | null;
   recorded_at: string;
 };
 
@@ -82,6 +83,7 @@ function depositFromRow(r: DepositRow): Deposit {
     linkId: r.link_id ?? undefined,
     status: r.status,
     shieldTxHash: r.shield_tx_hash ?? undefined,
+    feeWei: BigInt(r.fee_wei ?? "0"),
     recordedAt: Math.floor(new Date(r.recorded_at).getTime() / 1000),
   };
 }
@@ -200,6 +202,7 @@ export class SupabaseStore implements Store {
         reference: input.reference ?? newReference(),
         link_id: input.linkId ?? null,
         status: input.status ?? "pending_verify",
+        fee_wei: (input.feeWei ?? 0n).toString(),
       })
       .select("*")
       .single<DepositRow>();

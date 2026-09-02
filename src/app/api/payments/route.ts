@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
+import { netAfterFee, transactionFeeWei } from "@/utils/fees";
 import { getNoteDiscoveryClient } from "@/server/signer/noteDiscovery";
 import { deliverPaymentWebhook } from "@/utils/webhook";
 import { verifyFlowADeposit, verifyFlowBDeposit } from "@/utils/verifyTx";
@@ -159,12 +160,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Could not verify deposit: ${verified.reason}` }, { status: 422 });
   }
 
+  // Priced off the verified on-chain amount, not the client's claim, and
+  // charged per flow: Flow B costs Nomos an extra shield, so it costs more.
+  const feeWei = transactionFeeWei(token, flow);
+
   const { deposit } = await store.recordDeposit({
     merchantAddress: normalizedMerchant,
     networkIndex,
     flow,
     txHash,
     amountWei: verified.amountWei,
+    feeWei,
     token,
     note: linkNote,
     ref: linkRef,
@@ -174,10 +180,12 @@ export async function POST(request: NextRequest) {
   });
 
   if (flow === "A") {
+    // Credited net. The deposit row keeps the gross, so the merchant can
+    // always see what was paid alongside what they were charged.
     await store.creditLedger({
       merchantAddress: normalizedMerchant,
       networkIndex,
-      amountWei: verified.amountWei,
+      amountWei: netAfterFee(verified.amountWei, deposit.feeWei),
       token,
       kind: "flow_a_deposit",
       depositId: deposit.id,

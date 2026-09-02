@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/server/store";
 import { deliverPaymentWebhook } from "@/utils/webhook";
+import { netAfterFee } from "@/utils/fees";
 
 // Manual shield reconciliation — not an automated worker. Flow B deposits
 // can't be shielded headlessly: every deposit into the STRK20 pool needs a
@@ -73,10 +74,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
       await store.markDepositShielded(depositId, shieldTxHash);
+      // Net, same as Flow A. The fee was fixed when the deposit was
+      // recorded, so shielding later never reprices it.
       await store.creditLedger({
         merchantAddress: deposit.merchantAddress,
         networkIndex: deposit.networkIndex,
-        amountWei: deposit.amountWei,
+        amountWei: netAfterFee(deposit.amountWei, deposit.feeWei),
         token: deposit.token,
         kind: "flow_b_deposit",
         depositId: deposit.id,

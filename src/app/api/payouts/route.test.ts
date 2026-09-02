@@ -2,13 +2,19 @@ import { NextRequest } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Payouts are priced in whole STRK, so the fixtures have to clear the
+// minimum-payout floor — a 100 wei payout is now correctly refused.
+const REQUESTED = 300_000_000_000_000_000_000n; // 300 STRK
+const PAYOUT_FEE = 12_000_000_000_000_000_000n; //  12 STRK
+const SENT = REQUESTED - PAYOUT_FEE; //            288 STRK
+
 const verifyMerchantSecret = vi.fn(async () => true);
-const getLedgerBalance = vi.fn(async () => 1000n);
+const getLedgerBalance = vi.fn(async () => REQUESTED * 2n);
 const createPayout = vi.fn(async () => ({
   id: "payout-1",
   merchantAddress: "0xmerchant",
   destination: "0xdest",
-  amountWei: 100n,
+  amountWei: SENT,
   mode: "withdraw" as const,
   status: "pending" as const,
   createdAt: 1700000000,
@@ -54,7 +60,7 @@ function req(method: string, body?: unknown, query?: string, auth?: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   verifyMerchantSecret.mockResolvedValue(true);
-  getLedgerBalance.mockResolvedValue(1000n);
+  getLedgerBalance.mockResolvedValue(REQUESTED * 2n);
 });
 
 describe("POST /api/payouts", () => {
@@ -63,7 +69,7 @@ describe("POST /api/payouts", () => {
     secretKey: "sk_test",
     networkIndex: 2,
     destination: VALID_ADDR_2,
-    amountWei: "100",
+    amountWei: REQUESTED.toString(),
     token: "STRK",
     mode: "withdraw",
   };
@@ -75,7 +81,7 @@ describe("POST /api/payouts", () => {
   });
 
   it("rejects a payout larger than the ledger balance", async () => {
-    getLedgerBalance.mockResolvedValue(50n);
+    getLedgerBalance.mockResolvedValue(REQUESTED / 2n);
     const res = await POST(req("POST", validBody));
     expect(res.status).toBe(422);
     expect(debitLedger).not.toHaveBeenCalled();
@@ -87,16 +93,23 @@ describe("POST /api/payouts", () => {
     expect(res.status).toBe(201);
     expect(data.status).toBe("confirmed");
     expect(data.txHash).toBe("0xpayouttx");
-    expect(executeWithdraw).toHaveBeenCalledWith({ amountWei: 100n, token: "STRK", destination: NORMALIZED_ADDR_2 });
+    // What reaches the chain is the requested amount less the payout fee.
+    expect(executeWithdraw).toHaveBeenCalledWith({ amountWei: SENT, token: "STRK", destination: NORMALIZED_ADDR_2 });
+    expect(data.sentWei).toBe(SENT.toString());
+    expect(data.feeWei).toBe(PAYOUT_FEE.toString());
     expect(debitLedger).toHaveBeenCalledWith(
-      expect.objectContaining({ amountWei: 100n, kind: "payout", payoutId: "payout-1" })
+      expect.objectContaining({ amountWei: SENT, kind: "payout", payoutId: "payout-1" })
+    );
+    // The fee is a separate ledger line, not folded into the payout.
+    expect(debitLedger).toHaveBeenCalledWith(
+      expect.objectContaining({ amountWei: PAYOUT_FEE, kind: "payout_fee", payoutId: "payout-1" })
     );
     expect(updatePayoutStatus).toHaveBeenCalledWith("payout-1", "confirmed", "0xpayouttx");
   });
 
   it("executes a transfer payout via the transfer path", async () => {
     await POST(req("POST", { ...validBody, mode: "transfer" }));
-    expect(executeTransfer).toHaveBeenCalledWith({ amountWei: 100n, token: "STRK", destination: NORMALIZED_ADDR_2 });
+    expect(executeTransfer).toHaveBeenCalledWith({ amountWei: SENT, token: "STRK", destination: NORMALIZED_ADDR_2 });
     expect(executeWithdraw).not.toHaveBeenCalled();
   });
 

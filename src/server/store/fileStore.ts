@@ -34,7 +34,7 @@ const PAYOUTS_FILE = path.join(DATA_DIR, "payouts.json");
 const PAYMENT_LINKS_FILE = path.join(DATA_DIR, "payment-links.json");
 const CLAIMED_NOTES_FILE = path.join(DATA_DIR, "claimed-notes.json");
 
-type StoredDeposit = Omit<Deposit, "amountWei"> & { amountWei: string };
+type StoredDeposit = Omit<Deposit, "amountWei" | "feeWei"> & { amountWei: string; feeWei?: string };
 type StoredLedgerEntry = Omit<LedgerEntry, "amountWei" | "runningBalanceWei"> & {
   amountWei: string;
   runningBalanceWei: string;
@@ -73,10 +73,11 @@ function merchantKey(address: string, networkIndex: NetworkIndex): string {
 }
 
 function toStoredDeposit(d: Deposit): StoredDeposit {
-  return { ...d, amountWei: d.amountWei.toString() };
+  return { ...d, amountWei: d.amountWei.toString(), feeWei: d.feeWei.toString() };
 }
 function fromStoredDeposit(d: StoredDeposit): Deposit {
-  return { ...d, amountWei: BigInt(d.amountWei) };
+  // feeWei is optional on disk: rows written before fees existed have none.
+  return { ...d, amountWei: BigInt(d.amountWei), feeWei: BigInt(d.feeWei ?? "0") };
 }
 function toStoredLedger(e: LedgerEntry): StoredLedgerEntry {
   return { ...e, amountWei: e.amountWei.toString(), runningBalanceWei: e.runningBalanceWei.toString() };
@@ -190,6 +191,7 @@ export class FileStore implements Store {
       reference: input.reference ?? `nx_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`,
       linkId: input.linkId,
       status,
+      feeWei: input.feeWei ?? 0n,
       recordedAt: Math.floor(Date.now() / 1000),
     };
     deposits.push(toStoredDeposit(deposit));
