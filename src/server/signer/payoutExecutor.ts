@@ -81,7 +81,7 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
       .surplusTo(BigInt(account.address))
       .execute();
 
-    return submitPrivateAction(account, result);
+    return submitPrivateAction(account, result, provider);
   }
 
   return {

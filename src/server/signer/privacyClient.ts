@@ -203,11 +203,41 @@ const MANUAL_RESOURCE_BOUNDS = {
   l1_data_gas: { max_amount: 5_000n, max_price_per_unit: 2_000_000_000_000n },
 };
 
+// A screened deposit carries a screening attestation in additional_data, and
+// the pool rejects one older than DEPOSITOR_VALIDATION_MAX_AGE — 300s, per
+// the Starkscan prover docs, "measured against the block timestamp", so the
+// clock that matters is the chain's rather than ours. Only deposits are
+// screened; withdraw and transfer carry no attestation and are unaffected.
+//
+// A stale attestation reverts on-chain, which costs gas AND the proof, and
+// mainnet proofs come out of a rate-limited daily quota. Failing before
+// submission keeps both.
+export const ATTESTATION_MAX_AGE_SECONDS = 300;
+// Submission still has to reach a block after this check, so don't spend the
+// whole window; anything under a minute of headroom is not worth broadcasting.
+const ATTESTATION_MIN_HEADROOM_SECONDS = 60;
+
 export async function submitPrivateAction(
   account: Account,
-  result: ExecuteResult
+  result: ExecuteResult,
+  provider: ProviderInterface
 ): Promise<{ txHash: string }> {
   const { call, proof } = result.callAndProof;
+
+  const issuedAt = proof.additionalData?.signature?.issued_at;
+  if (typeof issuedAt === "number") {
+    const { timestamp } = await provider.getBlock("latest");
+    const age = timestamp - issuedAt;
+    const remaining = ATTESTATION_MAX_AGE_SECONDS - age;
+    if (remaining < ATTESTATION_MIN_HEADROOM_SECONDS) {
+      throw new Error(
+        `Screening attestation is ${age}s old against block time, leaving ${remaining}s of its ` +
+          `${ATTESTATION_MAX_AGE_SECONDS}s validity — too little to land before the pool rejects it. ` +
+          `Re-prove rather than submitting; a stale attestation reverts on-chain and wastes the proof.`
+      );
+    }
+  }
+
   const proofDetails = proof.proofFacts?.length ? { proofFacts: proof.proofFacts, proof: proof.data } : {};
   const tx = await account.execute(call, {
     tip: 0n,
