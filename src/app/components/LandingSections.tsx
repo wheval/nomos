@@ -3,6 +3,8 @@
 import { useState } from "react";
 import styles from "../uni.module.css";
 import CodeBlock from "./CodeBlock";
+import { transactionFeeWei } from "@/utils/fees";
+import { tokenDecimals } from "@/utils/constants";
 
 // Ferro-structured product-demo sections for the landing page. Every value
 // shown here is real - actual API routes, actual webhook payload shape
@@ -223,23 +225,28 @@ X-Nomos-Signature: sha256=<hmac>
 export function NoFeeCalculator() {
   const PRESETS = [10, 20, 50, 100, 250, 500, 1000];
   const [amount, setAmount] = useState(100);
+  // Read from the real schedule so the marketing number cannot drift away
+  // from what the code actually charges.
+  const NOMOS_FEE = Number(transactionFeeWei("USDC", "A")) / 10 ** tokenDecimals("USDC");
+  const cardFee = amount * 0.029 + 0.3;
 
   return (
     <section className={styles.demoSection}>
       <div className={styles.demoHead}>
         <h2 className={styles.demoHeading}>
-          <span>Zero fees</span>, however much you&apos;re settling.
+          <span>10&cent; a payment</span>, however much you&apos;re settling.
         </h2>
         <p className={styles.demoSub}>
-          No processing cut, no monthly minimums, no tiers. What your
-          customer sends is what lands in your balance.
+          A flat fee per transaction — never a percentage. No monthly
+          minimums, no tiers. A $10 payment and a $100,000 payment cost
+          the same to accept.
         </p>
       </div>
       <div className={styles.demoPanel}>
         <div className={styles.calcGrid}>
           <div className={styles.calcCol}>
-            <div className={styles.calcStat}>0%</div>
-            <div className={styles.calcStatLabel}>Nomos processing fee</div>
+            <div className={styles.calcStat}>${NOMOS_FEE.toFixed(2)}</div>
+            <div className={styles.calcStatLabel}>Flat, whatever the amount</div>
             <div className={styles.calcPresets}>
               {PRESETS.map((p) => (
                 <button
@@ -276,16 +283,24 @@ export function NoFeeCalculator() {
               <b>${amount.toFixed(2)}</b>
             </div>
             <div className={styles.calcBreakdownRow}>
-              <span>Nomos processing fee</span>
-              <b>$0.00</b>
+              <span>Nomos fee</span>
+              <b>&minus;${NOMOS_FEE.toFixed(2)}</b>
             </div>
             <div className={`${styles.calcBreakdownRow} ${styles.highlight}`}>
               <span>Lands in your balance</span>
-              <b>${amount.toFixed(2)}</b>
+              <b>${(amount - NOMOS_FEE).toFixed(2)}</b>
+            </div>
+            {/* The comparison is the argument. A percentage processor's cut
+                grows with the payment; ours does not, and the gap is the
+                entire reason to be here rather than on a card rail. */}
+            <div className={styles.calcBreakdownRow}>
+              <span>A 2.9% + 30&cent; card processor would take</span>
+              <b>${cardFee.toFixed(2)}</b>
             </div>
             <p className={styles.calcFinePrint}>
-              Only cost is the network&apos;s own gas, paid by whoever
-              signs the transaction - Nomos never takes a cut.
+              Private payments cost 10&cent;; public ones 20&cent;, because
+              Nomos shields those for you. Payouts are 30&cent; each —
+              withdraw in batches and you pay it once.
             </p>
           </div>
         </div>

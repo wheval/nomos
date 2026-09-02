@@ -10,12 +10,51 @@ Nomos is **custodial, not a pure router**. Both payment flows settle into Nomos'
 
 The operating wallet signs with a software secp256k1 key today — an explicit stand-in for real key-management infra (Turnkey/KMS), not the intended end state. It's deployed on Sepolia; see [`cairo/address.md`](cairo/address.md) for the address and class hash.
 
+## Pricing
+
+A flat fee per transaction, never a percentage — because the pool underneath is
+flat too. STRK20 charges one fee per action regardless of size, so a percentage
+on top would throw away the reason a large private payment is viable here at
+all (shielding $100k costs 0.25% on Railgun and cents on Starknet).
+
+| | Fee |
+| --- | --- |
+| Private payment (Flow A) | 0.10 USDC / 4 STRK |
+| Public payment (Flow B) — Nomos shields it for you | 0.20 USDC / 8 STRK |
+| Payout | 0.30 USDC / 12 STRK |
+
+Fees come out of settlement: the deposit records the gross, the ledger is
+credited the net. The schedule lives in [`src/utils/fees.ts`](src/utils/fees.ts)
+and its tests assert the economics — that a payout fee covers the on-chain cost
+of a payout — not just the constants. Minimum payouts exist so settlements
+batch; a payout costs the same ~9.5 STRK whether it settles one payment or
+fifty.
+
+## Networks
+
+Sepolia is fully set up. Mainnet needs funding and two commands.
+
+```bash
+set -a; source .env.local; set +a
+npm run setup:sepolia          # readiness check: config, class, account, balance, registration
+npm run setup:mainnet          # same, for mainnet
+npm run setup:mainnet -- --apply   # declare + deploy (refuses to spend below a funding floor)
+```
+
+Registration is a separate step, behind `POST /api/internal/register
+{"networkIndex": 0}` — it runs through the real per-network wiring, because
+mainnet proving goes through the [Starkscan relay](https://starkscan.co/docs/api/strk20-prover)
+(an async job API behind `STARKSCAN_API_KEY`, mainnet-only) while Sepolia uses
+StarkWare's synchronous JSON-RPC prover. The SDK's own proof provider only
+speaks the latter, so `src/server/signer/starkscanProver.ts` implements the
+former.
+
 ## Quick start
 
 ```bash
-yarn install
+npm install
 cp .env.example .env.local     # add your Alchemy key + the other values below
-yarn dev                       # http://localhost:3000
+npm run dev                    # http://localhost:3000
 ```
 
 Needs a free [Alchemy](https://alchemy.com) Starknet RPC key. `.env.example` documents every variable — the ledger store defaults to a local JSON-file driver (`NOMOS_STORE_DRIVER=file`), fine for local dev; a real deployment needs `NOMOS_STORE_DRIVER=supabase` and a Supabase project (schema in `supabase/migrations/0001_init.sql`).
@@ -41,7 +80,7 @@ Stack: Next.js 16 · React 19 · TypeScript · starknet.js 10 · zustand · vite
 
 ## Testing & CI
 
-`yarn lint` / `yarn typecheck` / `yarn test` / `yarn build` — all four run in GitHub Actions on every push/PR against `main`, using the in-memory store driver (no external credentials needed for CI to pass).
+`npm run lint` / `npm run typecheck` / `npm test` / `npm run build` — all four run in GitHub Actions on every push/PR against `main`, using the in-memory store driver (no external credentials needed for CI to pass).
 
 ## Deploy
 
@@ -49,7 +88,11 @@ Standard Next.js on [Vercel](https://vercel.com/new). Set every variable in `.en
 
 ## Docs
 
-[`docs/PRD.md`](docs/PRD.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)
+Published docs live at `/docs` in the app itself (fumadocs, source in
+[`content/docs`](content/docs)) — quickstart, payment links, flows, privacy,
+pricing, API, webhooks, limits.
+
+Design notes: [`docs/PRD.md`](docs/PRD.md) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)
 
 ## Links
 
