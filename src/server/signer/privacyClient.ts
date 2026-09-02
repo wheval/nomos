@@ -32,33 +32,33 @@ export const STRK20_POOL_ADDRESS_SEPOLIA =
   "0x0254a6b2997ef52e9f830ce1f543f6b29768295e8d17e2267d672c552cfe0d91";
 
 /**
- * Mainnet pool address, which StarkWare has not published anywhere we can
- * cite. It is deliberately env-only rather than a guessed constant:
+ * STRK20 privacy pool on Mainnet. StarkWare hasn't published this in the docs
+ * or the SDK, so it was confirmed directly against Mainnet RPC before being
+ * trusted here:
  *
- *  - the pool is NOT deployed at the Sepolia address on mainnet (checked:
- *    that address has no class hash there), so it can't be derived;
- *  - the mainnet contract circulated in the hackathon group
- *    (0x0426dcd1…dbe5e) is AVNU's — its ABI is a single `privacy_invoke`
- *    behind `avnu::privacy_swap_helper::IPrivacySwapHelper`, not the pool's
- *    `nullifier_exists` / `get_screener_public_key`. It is an anonymizer for
- *    private swaps, and wiring it here as the pool would be wrong.
+ *  - ABI exposes `privacy::interface::{IClient,IServer,IViews,IAdmin}` with
+ *    the protocol markers `nullifier_exists`, `get_screener_public_key`,
+ *    `get_note`, `apply_actions`;
+ *  - all 45 functions of the SDK's own bundled PrivacyPoolABI are present —
+ *    an exact match, so ContractDiscoveryProvider works against it unchanged;
+ *  - it custodies real shielded value (2.4M STRK at time of writing).
  *
- * Set STRK20_POOL_ADDRESS_MAINNET once the real address is confirmed; every
- * other piece of mainnet wiring below is already in place.
+ * Not to be confused with 0x0426dcd1…dbe5e, which circulated in the hackathon
+ * group as "the mainnet anonymizer": that is AVNU's, a single `privacy_invoke`
+ * behind `IPrivacySwapHelper`, with none of the pool's methods.
+ *
+ * `get_version` reports 2.0 here against Sepolia's 2.1 — the two networks run
+ * different pool releases, and it is Sepolia that diverges from the SDK ABI
+ * (it lacks is_open_note_depositor_blocked / set_open_note_depositor_blocked).
+ * Overridable by env in case Mainnet is upgraded before we are.
  */
-export const STRK20_POOL_ADDRESS_MAINNET = process.env.STRK20_POOL_ADDRESS_MAINNET ?? "";
+export const STRK20_POOL_ADDRESS_MAINNET =
+  process.env.STRK20_POOL_ADDRESS_MAINNET ??
+  "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
 
 export function poolAddressFor(networkIndex: number): string {
   if (networkIndex === 2) return STRK20_POOL_ADDRESS_SEPOLIA;
-  if (networkIndex === 0) {
-    if (!STRK20_POOL_ADDRESS_MAINNET) {
-      throw new Error(
-        "STRK20_POOL_ADDRESS_MAINNET is not configured — the mainnet privacy pool address is still unknown. " +
-          "Do not substitute the AVNU privacy-swap helper; it is not the pool."
-      );
-    }
-    return STRK20_POOL_ADDRESS_MAINNET;
-  }
+  if (networkIndex === 0) return STRK20_POOL_ADDRESS_MAINNET;
   throw new Error(`No STRK20 privacy pool on network index ${networkIndex}.`);
 }
 
