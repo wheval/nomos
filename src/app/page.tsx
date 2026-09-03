@@ -24,9 +24,10 @@ export default function Page() {
           </h1>
           <p className={styles.heroSub}>
             Already accept stablecoins? Add privacy without changing your
-            stack — via Payment Links, an embeddable widget, or a direct API
-            integration, all settling through the STRK20 pool so your balance
-            and identity never touch the public chain.
+            stack — Payment Links, hosted Checkout, or a direct API
+            integration, all settling through the STRK20 privacy pool so the
+            amount, your balance and your identity never touch the public
+            chain. Live on Starknet mainnet.
           </p>
           <div className={styles.heroCtaRow}>
             <Link href="/create" className={styles.btnCta} style={{ display: 'inline-block', width: 'auto', margin: 0, textDecoration: 'none' }}>
@@ -57,14 +58,14 @@ export default function Page() {
             <p>Generate a link with a fixed or open amount. Share it anywhere — the customer pays without ever touching your dashboard.</p>
           </div>
           <div className={styles.howStep}>
-            <div className={styles.howStepNum}><CheckoutIcon /></div>
-            <h3>Checkout</h3>
-            <p>Create a session per order from your own backend and send the customer to a hosted page. They come back to your site when it&apos;s paid.</p>
-          </div>
-          <div className={styles.howStep}>
             <div className={styles.howStepNum}><InvoiceIcon /></div>
             <h3>Invoices</h3>
             <p>Add a note and an expiry, payable once. It reads like a real invoice, backed by a private settlement instead of a public one.</p>
+          </div>
+          <div className={styles.howStep}>
+            <div className={styles.howStepNum}><WidgetIcon /></div>
+            <h3>Embedded widget</h3>
+            <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
           </div>
         </div>
 
@@ -76,14 +77,14 @@ export default function Page() {
             <p>Create sessions, verify a payment by reference, read balances and trigger payouts straight from your own backend — no UI required.</p>
           </div>
           <div className={styles.howStep}>
+            <div className={styles.howStepNum}><CheckoutIcon /></div>
+            <h3>Hosted Checkout</h3>
+            <p>Create a session per order from your backend, redirect the customer to a hosted page, and get them back on your site once it&apos;s paid.</p>
+          </div>
+          <div className={styles.howStep}>
             <div className={styles.howStepNum}><WebhookIcon /></div>
             <h3>Webhooks</h3>
             <p>Get a signed callback the moment a payment settles, so you can ship the order without polling for it.</p>
-          </div>
-          <div className={styles.howStep}>
-            <div className={styles.howStepNum}><WidgetIcon /></div>
-            <h3>Embedded widget</h3>
-            <p>Drop one script tag on your own site. A &quot;Pay with Nomos&quot; button opens checkout in place — no redirect, no rebuild.</p>
           </div>
         </div>
       </section>

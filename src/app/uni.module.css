@@ -976,6 +976,37 @@
   color: var(--muted-2);
 }
 
+/* First-run setup steps on Overview. */
+.setupGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+.setupStep {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.setupStepTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+.setupStepBody {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.setupStepCta {
+  font-size: 13px;
+  color: var(--accent, var(--ink));
+  text-decoration: none;
+}
+.setupStepCta:hover { text-decoration: underline; }
+
 /* Order reference, in the brand panel under the amount. */
 .checkoutOrderMeta {
   display: flex;

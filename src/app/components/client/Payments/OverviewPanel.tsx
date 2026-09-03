@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
-import { useMerchantAuth } from "./useMerchantAuth";
+import { merchantFetchInit, useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
 import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePaymentLinks";
@@ -33,6 +33,76 @@ function compact(n: number): string {
 
 function dayLabel(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// A merchant who never sets a business name gets a checkout that says
+// "Paying this business" — the payee line falls back to a placeholder, which
+// is the single most visible flaw a customer sees. The sidebar hinted at it
+// in sub-text; nothing asked for it. This asks, on the page they land on,
+// and disappears once there is nothing left to do.
+function SetupChecklist({
+  address,
+  secretKey,
+  networkIndex,
+  sessionReady,
+  hasLinks,
+}: {
+  address: string | null;
+  secretKey: string | null;
+  networkIndex: number;
+  sessionReady: boolean;
+  hasLinks: boolean;
+}) {
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!address || !sessionReady) return;
+    fetch(`/api/merchant-profile?address=${address}&network=${networkIndex}`, merchantFetchInit(secretKey))
+      .then((r) => (r.ok ? r.json() : { displayName: null }))
+      .then((d) => setDisplayName(typeof d.displayName === "string" && d.displayName ? d.displayName : null))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, [address, secretKey, networkIndex, sessionReady]);
+
+  // Nothing until the profile is known, so the card never flashes on for a
+  // merchant who is already set up.
+  if (!loaded) return null;
+  const steps = [
+    !displayName && {
+      href: "/dashboard/settings",
+      title: "Name your business",
+      body: "Customers see this on every checkout page. Without it the payment page just says \u201cthis business\u201d.",
+      cta: "Add a name",
+    },
+    !hasLinks && {
+      href: "/create",
+      title: "Create your first Payment Link",
+      body: "A link with a fixed or open amount that you can share anywhere. This is the fastest way to take a payment.",
+      cta: "Create a link",
+    },
+  ].filter(Boolean) as { href: string; title: string; body: string; cta: string }[];
+
+  if (steps.length === 0) return null;
+
+  return (
+    <div className={styles.cPanel}>
+      <div className={styles.cPanelHead}>
+        <span className={styles.cPanelTitle}>Finish setting up</span>
+      </div>
+      <div className={styles.setupGrid}>
+        {steps.map((step) => (
+          <div key={step.href} className={styles.setupStep}>
+            <div className={styles.setupStepTitle}>{step.title}</div>
+            <p className={styles.setupStepBody}>{step.body}</p>
+            <Link href={step.href} className={styles.setupStepCta}>
+              {step.cta} →
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function OverviewPanel() {
@@ -101,6 +171,14 @@ export default function OverviewPanel() {
 
   return (
     <div className={styles.consolePage}>
+      <SetupChecklist
+        address={address}
+        secretKey={secretKey}
+        networkIndex={networkIndex}
+        sessionReady={sessionReady}
+        hasLinks={(links ?? []).length > 0}
+      />
+
       <div className={styles.cPanel}>
         <div className={styles.cPanelHead}>
           <span className={styles.cPanelTitle}>Insights</span>
