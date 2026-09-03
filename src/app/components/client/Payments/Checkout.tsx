@@ -140,6 +140,16 @@ export default function Checkout() {
   // treating it as one is what lets someone pay the same link twice.
   const [broadcastTx, setBroadcastTx] = useState<string | null>(null);
   const [reportFailed, setReportFailed] = useState(false);
+  // A wallet can broadcast a transaction and never resolve its promise back to
+  // the page — observed on Sepolia: the payment settled, Argent showed the
+  // hash, and this page sat on "Confirm in your wallet" forever with nothing
+  // to report. Without the hash the client cannot recover on its own, so the
+  // payer is given a way to hand it over.
+  const [stalled, setStalled] = useState(false);
+  const [pendingAmountWei, setPendingAmountWei] = useState<bigint | null>(null);
+  const [manualTx, setManualTx] = useState("");
+  const [manualError, setManualError] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
   const [switchingWallet, setSwitchingWallet] = useState(false);
   // Returned by /api/payments once the deposit is recorded; handed to the
   // merchant's callback URL so their server can verify it.
@@ -236,6 +246,11 @@ export default function Checkout() {
     }
     setPaying(true);
     setPayPhase("signing");
+    setStalled(false);
+    setPendingAmountWei(amountWei);
+    // Long enough that a careful payer reading their wallet is not nagged,
+    // short enough that a hung promise does not look like a frozen page.
+    const stallTimer = setTimeout(() => setStalled(true), 45_000);
     try {
       let txH: string;
       if (flow === "A") {
@@ -281,8 +296,37 @@ export default function Checkout() {
     } catch (error: any) {
       setResult(errorResult(error?.message ?? error?.toString?.() ?? String(error)));
     } finally {
+      clearTimeout(stallTimer);
       setPaying(false);
       setPayPhase("idle");
+    }
+  }
+
+  // Reports a hash the payer supplies themselves, for when the wallet never
+  // returned one. The server verifies it on-chain exactly as it would ours, so
+  // a wrong or invented hash is rejected rather than trusted.
+  async function submitManualTx() {
+    const hash = manualTx.trim();
+    if (!/^0x[0-9a-fA-F]{1,64}$/.test(hash)) {
+      setManualError("That doesn't look like a transaction hash.");
+      return;
+    }
+    if (pendingAmountWei === null) {
+      setManualError("Start the payment first, then paste the hash.");
+      return;
+    }
+    setManualError("");
+    setManualBusy(true);
+    setBroadcastTx(hash);
+    try {
+      await reportPayment(hash, pendingAmountWei);
+      setResult({
+        status: "pending",
+        title: "Checking your payment…",
+        rows: [{ label: "Transaction", value: shortHex(hash), hash }],
+      });
+    } finally {
+      setManualBusy(false);
     }
   }
 
@@ -486,6 +530,38 @@ export default function Checkout() {
       ) : (
         <SelectWallet variant="ctaBig" />
       )}
+
+      {/* The wallet never came back. The payment may well have gone through —
+          it did, the one time this was observed — so offer the one thing that
+          recovers it: the hash, which the server verifies on-chain anyway. */}
+      {stalled && !broadcastTx ? (
+        <div className={styles.stalledBox}>
+          <div className={styles.stalledTitle}>Still waiting on your wallet</div>
+          <p className={styles.stalledBody}>
+            If you already approved the payment, your wallet may not have sent
+            the confirmation back to this page. Paste the transaction hash from
+            your wallet&apos;s activity and we&apos;ll finish up.
+          </p>
+          <div className={styles.stalledRow}>
+            <input
+              className={styles.textInput}
+              placeholder="0x…"
+              value={manualTx}
+              onChange={(e) => setManualTx(e.target.value)}
+              aria-label="Transaction hash"
+            />
+            <button
+              type="button"
+              className={styles.settingsBtn}
+              disabled={manualBusy}
+              onClick={() => void submitManualTx()}
+            >
+              {manualBusy ? "Checking…" : "Submit"}
+            </button>
+          </div>
+          {manualError ? <div className={styles.errorText}>{manualError}</div> : null}
+        </div>
+      ) : null}
 
       {/* The payment happened but we could not get it recorded. Never silently
           swallow this: the payer's money has moved and the merchant's console
