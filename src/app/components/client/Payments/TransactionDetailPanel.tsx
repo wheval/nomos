@@ -3,7 +3,7 @@
 import Link from "next/link";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
+import { explorerTxUrl, fmtTokenAmount, shortHex, isOnChainHash } from "@/utils/receipt";
 import { buildPaymentUrl } from "@/utils/payments";
 import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { TokenAmount } from "../../TokenIcons";
@@ -140,6 +140,14 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
           <aside className={styles.detailAside}>
             <h2 className={styles.asideTitle}>Transaction</h2>
             <div className={styles.copyField}>
+              {/* A payment reconciled from a shielded note has no transaction
+                  hash to link to — the note is the evidence. Rendering it as a
+                  link would send the merchant to a dead explorer page. */}
+              {!isOnChainHash(deposit.txHash) ? (
+                <span className={styles.copyFieldValue} title={deposit.txHash}>
+                  Settled from a shielded note
+                </span>
+              ) : (
               <a
                 className={styles.copyFieldValue}
                 href={explorerTxUrl(networkIndex, deposit.txHash)}
@@ -149,6 +157,7 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
               >
                 {shortHex(deposit.txHash)} ↗
               </a>
+              )}
             </div>
 
             <div className={styles.defRow}>
@@ -231,14 +240,16 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
             ) : null}
 
             <div className={styles.detailActions}>
-              <a
-                className={styles.settingsBtn}
-                href={explorerTxUrl(networkIndex, deposit.txHash)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View on explorer ↗
-              </a>
+              {isOnChainHash(deposit.txHash) ? (
+                <a
+                  className={styles.settingsBtn}
+                  href={explorerTxUrl(networkIndex, deposit.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on explorer ↗
+                </a>
+              ) : null}
               {link ? (
                 <Link
                   href={buildPaymentUrl(typeof window !== "undefined" ? window.location.origin : "", link.id)}

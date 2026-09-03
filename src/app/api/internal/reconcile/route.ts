@@ -13,6 +13,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash, num } from "starknet";
 import { getStore } from "@/server/store";
 import type { PaymentIntent } from "@/server/store/types";
+import { netAfterFee, transactionFeeWei } from "@/utils/fees";
+import { deliverPaymentWebhook } from "@/utils/webhook";
 import {
   isValidNetworkIndex,
   myFrontendProviders,
@@ -237,6 +239,7 @@ export async function POST(request: NextRequest) {
   if (state.error) return NextResponse.json(state, { status: survey.status });
 
   const origin = request.nextUrl.origin;
+  const store = getStore();
   const credited: { txHash: string; reference?: string; error?: string }[] = [];
 
   for (const transfer of state.unattributedTransfers ?? []) {
@@ -268,11 +271,60 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Flow A. A shielded note has no transaction hash, but it does not need one:
+  // the note sitting in the operating wallet *is* the evidence the money
+  // arrived, and a unique reserved amount means exactly one intent can account
+  // for it. Claiming the note is atomic, so it can back one deposit and never
+  // a second. That is the same guarantee a hash would give.
+  for (const note of state.unattributedNotes ?? []) {
+    if (!note.intentId) continue;
+    const intent = (await store.listOpenPaymentIntents(networkIndex)).find((i) => i.id === note.intentId);
+    if (!intent) continue;
+
+    // Claim first. If another sweep got there, stop — no deposit, no credit.
+    if (!(await store.claimShieldedNote(note.noteId, networkIndex))) continue;
+
+    try {
+      const { deposit } = await store.recordDeposit({
+        merchantAddress: intent.merchantAddress,
+        networkIndex,
+        flow: "A",
+        // Not a transaction hash and does not pretend to be one. The note is
+        // what identifies this payment, and it is unique per arrival.
+        txHash: `note:${note.noteId}`,
+        amountWei: intent.amountWei,
+        feeWei: transactionFeeWei(intent.token, "A"),
+        token: intent.token,
+        linkId: intent.linkId,
+        status: "verified",
+      });
+      await store.creditLedger({
+        merchantAddress: intent.merchantAddress,
+        networkIndex,
+        amountWei: netAfterFee(intent.amountWei, deposit.feeWei),
+        token: intent.token,
+        kind: "flow_a_deposit",
+        depositId: deposit.id,
+      });
+      await store.matchPaymentIntent(intent.id, deposit.id);
+      await deliverPaymentWebhook(deposit);
+      credited.push({ txHash: `note:${note.noteId}`, reference: deposit.reference });
+    } catch (err) {
+      credited.push({
+        txHash: `note:${note.noteId}`,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return NextResponse.json({
     networkIndex,
     credited,
-    // Shielded arrivals with a known intent but no hash to verify. Named so an
-    // operator can act on them rather than discovering them later.
-    needsOperator: (state.unattributedNotes ?? []).filter((n) => n.intentId),
+    // Arrivals no single intent accounts for. Left for a human on purpose:
+    // crediting the wrong merchant is worse than crediting neither.
+    ambiguous: [
+      ...(state.unattributedNotes ?? []).filter((n) => !n.intentId),
+      ...(state.unattributedTransfers ?? []).filter((t) => !t.intentId),
+    ],
   });
 }

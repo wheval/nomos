@@ -77,6 +77,18 @@ export function errorResult(msg: string): ActionResult {
 
 // Voyager explorer link for a tx hash, given the current frontend provider index
 // (0 = Mainnet, 2 = Sepolia - see src/utils/constants.ts).
+/**
+ * Is this a real on-chain transaction hash?
+ *
+ * A payment reconciled from a shielded note has no transaction hash — the note
+ * itself is the evidence — so its deposit is keyed by a "note:" reference
+ * instead. Linking that to a block explorer would produce a dead page, so
+ * callers check before rendering a link.
+ */
+export function isOnChainHash(h: string | undefined | null): boolean {
+  return typeof h === "string" && /^0x[0-9a-fA-F]{1,64}$/.test(h);
+}
+
 export function explorerTxUrl(providerIndex: number, h: string): string {
   return providerIndex === 0
     ? `https://voyager.online/tx/${h}`

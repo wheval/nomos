@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
+import { explorerTxUrl, fmtTokenAmount, shortHex, isOnChainHash } from "@/utils/receipt";
 import { merchantFetchInit, useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
@@ -352,14 +352,18 @@ export default function OverviewPanel() {
                         symbol={d.token}
                       />
                     </div>
-                    <a
-                      className={styles.txLink}
-                      href={explorerTxUrl(networkIndex, d.txHash)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {shortHex(d.txHash)} ↗
-                    </a>
+                    {isOnChainHash(d.txHash) ? (
+                      <a
+                        className={styles.txLink}
+                        href={explorerTxUrl(networkIndex, d.txHash)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {shortHex(d.txHash)} ↗
+                      </a>
+                    ) : (
+                      <span className={styles.txLink}>shielded note</span>
+                    )}
                   </div>
                 );
               })}
