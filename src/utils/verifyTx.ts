@@ -180,10 +180,16 @@ export async function verifyFlowADeposit(params: {
   // it reports none, fall back to the amount match rather than rejecting a
   // genuine payment — the claim below still bounds the damage to one credit
   // per note, which is what stops shared custody being drained.
-  const blocksKnown = sameAmount.some((n) => n.createdBlock !== undefined);
+  //
+  // A block of 0 counts as "not reported", not as block zero. The SDK's
+  // discovery currently returns created: 0 for every note, so testing only for
+  // undefined left the filter enabled against a value that can never match a
+  // real transaction's block — which rejected every genuine Flow A payment
+  // while appearing to work.
+  const blocksKnown = sameAmount.some((n) => n.createdBlock !== undefined && n.createdBlock > 0);
   const candidates =
     txBlock !== undefined && blocksKnown
-      ? sameAmount.filter((n) => n.createdBlock === txBlock)
+      ? sameAmount.filter((n) => n.createdBlock === txBlock || !n.createdBlock)
       : sameAmount;
 
   if (candidates.length === 0) {

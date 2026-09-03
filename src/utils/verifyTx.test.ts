@@ -347,3 +347,51 @@ describe("verifyFlowADeposit", () => {
     expect(claimNote).not.toHaveBeenCalled();
   });
 });
+
+describe("Flow A — discovery that reports no creation block", () => {
+  // The SDK's discovery returns created: 0 for every note. Treating that as a
+  // real block number made the block filter reject every genuine payment,
+  // because no transaction is ever mined in block 0.
+  const base = {
+    txHash: "0xabc",
+    claimedAmountWei: 1_500_000n,
+    tokenAddress: STRK_ADDR,
+    networkIndex: 2,
+  };
+
+  beforeEach(() => {
+    mockReceipt = { execution_status: "SUCCEEDED", block_number: 14_466_296, events: [] };
+  });
+
+  it("credits a matching note when discovery reports block 0", async () => {
+    const claimed: string[] = [];
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: { listNotes: async () => [{ id: "note-1", amount: 1_500_000n, createdBlock: 0 }] },
+      claimNote: async (id: string) => {
+        claimed.push(id);
+        return true;
+      },
+    });
+    expect(result).toEqual({ ok: true, amountWei: 1_500_000n });
+    expect(claimed).toEqual(["note-1"]);
+  });
+
+  it("still refuses a note already credited to another deposit", async () => {
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: { listNotes: async () => [{ id: "note-1", amount: 1_500_000n, createdBlock: 0 }] },
+      claimNote: async () => false,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("still refuses an amount no note matches", async () => {
+    const result = await verifyFlowADeposit({
+      ...base,
+      discovery: { listNotes: async () => [{ id: "note-1", amount: 999n, createdBlock: 0 }] },
+      claimNote: async () => true,
+    });
+    expect(result.ok).toBe(false);
+  });
+});
