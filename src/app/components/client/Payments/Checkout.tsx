@@ -90,7 +90,16 @@ export default function Checkout() {
       .finally(() => setLoadingLink(false));
   }, [id]);
 
-  const fixedAmount = linkData?.amountWei;
+  // The exact amount this payer must send. A few micro-units above the link's
+  // price, unique to this attempt, so the shielded note it produces names one
+  // intent — see utils/paymentFingerprint.ts. Null until reserved, or for
+  // open-amount links where the payer chooses and no fingerprint is possible.
+  const [payableWei, setPayableWei] = useState<string | null>(null);
+
+  // The reserved amount once it exists, the link's price until then. One
+  // value drives both the figure on screen and the wallet call, so the payer
+  // can never be shown one number and charged another.
+  const fixedAmount = payableWei ?? linkData?.amountWei;
   const token: constants.TokenSymbol = linkData?.token ?? "STRK";
   const decimals = constants.tokenDecimals(token);
   const note = linkData?.note ?? null;
@@ -262,24 +271,24 @@ export default function Checkout() {
     setStalled(false);
     setPendingAmountWei(amountWei);
 
-    // Before the wallet, not after. Once the wallet is invoked the money can
-    // move at any moment, and from then on this page is the only thing that
-    // knows which link it was for — unless this row already exists. Failing to
-    // create it must not block a payment, so it is best-effort: the fallbacks
-    // (report on broadcast, manual hash, reconciliation) still apply.
-    let createdIntentId: string | null = null;
-    try {
-      const r = await fetch("/api/payments/intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linkId: linkData.id, flow, amountWei: amountWei.toString() }),
-      });
-      if (r.ok) {
-        createdIntentId = (await r.json())?.intentId ?? null;
-        setIntentId(createdIntentId);
+    // Normally reserved on load, along with the amount being paid. An
+    // open-amount link has no price to reserve against, so its intent is
+    // created here instead, once the payer has chosen a figure.
+    let createdIntentId: string | null = intentId;
+    if (!createdIntentId) {
+      try {
+        const r = await fetch("/api/payments/intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ linkId: linkData.id, flow, amountWei: amountWei.toString() }),
+        });
+        if (r.ok) {
+          createdIntentId = (await r.json())?.intentId ?? null;
+          setIntentId(createdIntentId);
+        }
+      } catch {
+        // Offline or blocked; the fallbacks still apply.
       }
-    } catch {
-      // Offline or blocked; carry on and rely on the fallbacks.
     }
     // Long enough that a careful payer reading their wallet is not nagged,
     // short enough that a hung promise does not look like a frozen page.

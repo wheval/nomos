@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/server/store";
 import { isTokenSymbol, isValidNetworkIndex } from "@/utils/constants";
+import { uniquePayableAmount } from "@/utils/paymentFingerprint";
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
@@ -64,14 +65,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payment link is misconfigured." }, { status: 500 });
   }
 
+  // Quote an amount no other open attempt is using, so the note that
+  // eventually lands names exactly one intent. This is what turns attribution
+  // from a guess into a lookup — see utils/paymentFingerprint.ts.
+  const open = await store.listOpenPaymentIntents(link.networkIndex);
+  const payable = uniquePayableAmount(
+    amount,
+    link.token,
+    open.filter((i) => i.token === link.token).map((i) => i.amountWei)
+  );
+
   const intent = await store.createPaymentIntent({
     linkId: link.id,
     merchantAddress: link.merchantAddress,
     networkIndex: link.networkIndex,
     flow,
-    amountWei: amount,
+    amountWei: payable,
     token: link.token,
   });
 
-  return NextResponse.json({ intentId: intent.id }, { status: 201 });
+  // The caller must pay exactly this, not the link's round figure.
+  return NextResponse.json(
+    { intentId: intent.id, amountWei: payable.toString(), token: link.token },
+    { status: 201 }
+  );
 }
