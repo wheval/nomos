@@ -194,6 +194,15 @@ export async function POST(request: NextRequest) {
     status: flow === "A" ? "verified" : "pending_shield",
   });
 
+  // Close the intent this payment came from, so reconciliation does not later
+  // try to attribute the same arrival twice. Best-effort: the deposit is
+  // already recorded and credited, and a stale open intent is harmless — it
+  // simply finds no unattributed arrival to match.
+  const intentId = (body as { intentId?: unknown } | null)?.intentId;
+  if (typeof intentId === "string" && intentId.length > 0) {
+    await store.matchPaymentIntent(intentId, deposit.id).catch(() => {});
+  }
+
   if (flow === "A") {
     // Credited net. The deposit row keeps the gross, so the merchant can
     // always see what was paid alongside what they were charged.

@@ -11,11 +11,13 @@
 // inside a Postgres function instead of round-tripped through the client.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
+  CreatePaymentIntentInput,
+  InsufficientBalanceError,
+  PaymentIntent,
   type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
-  InsufficientBalanceError,
   type LedgerEntry,
   type LedgerKind,
   type NetworkIndex,
@@ -34,6 +36,34 @@ function requireEnv(name: string): string {
     );
   }
   return value;
+}
+
+type PaymentIntentRow = {
+  id: string;
+  link_id: string | null;
+  merchant_address: string;
+  network_index: number;
+  flow: "A" | "B";
+  amount_wei: string;
+  token: string;
+  status: "open" | "matched" | "abandoned";
+  deposit_id: string | null;
+  created_at: string;
+};
+
+function intentFromRow(r: PaymentIntentRow): PaymentIntent {
+  return {
+    id: r.id,
+    linkId: r.link_id ?? undefined,
+    merchantAddress: r.merchant_address,
+    networkIndex: r.network_index,
+    flow: r.flow,
+    amountWei: BigInt(r.amount_wei),
+    token: r.token,
+    status: r.status,
+    depositId: r.deposit_id ?? undefined,
+    createdAt: Math.floor(new Date(r.created_at).getTime() / 1000),
+  };
 }
 
 type DepositRow = {
@@ -225,6 +255,47 @@ export class SupabaseStore implements Store {
     if (!error) return true;
     if (error.code === "23505") return false; // already claimed
     throw new Error(`claimShieldedNote failed: ${error.message}`);
+  }
+
+  async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {
+    const { data, error } = await this.client
+      .from("payment_intents")
+      .insert({
+        link_id: input.linkId ?? null,
+        merchant_address: input.merchantAddress.toLowerCase(),
+        network_index: input.networkIndex,
+        flow: input.flow,
+        amount_wei: input.amountWei.toString(),
+        token: input.token,
+      })
+      .select("*")
+      .single<PaymentIntentRow>();
+    if (error || !data) throw new Error(`createPaymentIntent failed: ${error?.message}`);
+    return intentFromRow(data);
+  }
+
+  async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
+    const { data, error } = await this.client
+      .from("payment_intents")
+      .select("*")
+      .eq("network_index", networkIndex)
+      .eq("status", "open")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(`listOpenPaymentIntents failed: ${error.message}`);
+    return (data ?? []).map(intentFromRow);
+  }
+
+  async matchPaymentIntent(intentId: string, depositId: string): Promise<boolean> {
+    // Conditional on status still being open, so two arrivals cannot both
+    // claim one intent — the update simply matches no rows for the loser.
+    const { data, error } = await this.client
+      .from("payment_intents")
+      .update({ status: "matched", deposit_id: depositId, matched_at: new Date().toISOString() })
+      .eq("id", intentId)
+      .eq("status", "open")
+      .select("id");
+    if (error) throw new Error(`matchPaymentIntent failed: ${error.message}`);
+    return (data ?? []).length > 0;
   }
 
   async listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>> {

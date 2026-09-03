@@ -60,6 +60,34 @@ export type RecordDepositInput = {
   feeWei?: bigint;
 };
 
+// A payment attempt, recorded before the wallet is invoked. See
+// supabase/migrations/0011_payment_intents.sql for why this exists: it is the
+// only thing that can attribute an on-chain arrival to a link when the payer's
+// browser never reports back.
+export type PaymentIntentStatus = "open" | "matched" | "abandoned";
+
+export type PaymentIntent = {
+  id: string;
+  linkId?: string;
+  merchantAddress: string;
+  networkIndex: NetworkIndex;
+  flow: Flow;
+  amountWei: bigint;
+  token: string;
+  status: PaymentIntentStatus;
+  depositId?: string;
+  createdAt: number;
+};
+
+export type CreatePaymentIntentInput = {
+  linkId?: string;
+  merchantAddress: string;
+  networkIndex: NetworkIndex;
+  flow: Flow;
+  amountWei: bigint;
+  token: string;
+};
+
 export type LedgerKind = "flow_a_deposit" | "flow_b_deposit" | "payout" | "payout_fee";
 export type LedgerDirection = "credit" | "debit";
 
@@ -187,6 +215,15 @@ export interface Store {
   // Which notes are already spoken for, so reconciliation can tell an
   // unattributed payment from one that simply has no note.
   listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>>;
+
+  // Payment intents — attribution that does not depend on the payer's browser.
+  createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent>;
+  // Open intents for a network, newest first. Attribution compares these
+  // against what an arriving payment can actually be matched on.
+  listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]>;
+  // Marks an intent settled by a deposit. Must be atomic: two arrivals must
+  // never both claim the same intent.
+  matchPaymentIntent(intentId: string, depositId: string): Promise<boolean>;
   // Backs the verify endpoint, and the "has this invoice been paid?" check.
   getDepositByReference(reference: string): Promise<Deposit | null>;
   listDepositsForLink(linkId: string): Promise<Deposit[]>;

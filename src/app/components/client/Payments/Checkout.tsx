@@ -150,6 +150,10 @@ export default function Checkout() {
   const [manualTx, setManualTx] = useState("");
   const [manualError, setManualError] = useState("");
   const [manualBusy, setManualBusy] = useState(false);
+  // The server-side record of this attempt, created before the wallet is
+  // invoked. It is what lets an arrival be attributed if this page never
+  // reports back — see /api/payments/intent.
+  const [intentId, setIntentId] = useState<string | null>(null);
   const [switchingWallet, setSwitchingWallet] = useState(false);
   // Returned by /api/payments once the deposit is recorded; handed to the
   // merchant's callback URL so their server can verify it.
@@ -175,7 +179,15 @@ export default function Checkout() {
   // legitimately fail for a minute or two because the transaction has not been
   // mined yet, and giving up on the first 422 is how a real payment ends up
   // unrecorded.
-  async function reportPayment(txHash: string, amountWei: bigint, attempt = 0): Promise<void> {
+  async function reportPayment(
+    txHash: string,
+    amountWei: bigint,
+    // Passed explicitly rather than read from state: the intent is created
+    // moments earlier in the same handler, and a state update is not
+    // guaranteed to have committed by the time this runs.
+    intent: string | null,
+    attempt = 0
+  ): Promise<void> {
     if (!linkData) return;
     try {
       const r = await fetch("/api/payments", {
@@ -188,6 +200,7 @@ export default function Checkout() {
           txHash,
           networkIndex: myFrontendProviderIndex,
           linkId: linkData.id,
+          intentId: intent,
         }),
       });
       if (r.ok) {
@@ -202,7 +215,7 @@ export default function Checkout() {
       // Network blip; falls through to the retry below.
     }
     if (attempt < 8) {
-      setTimeout(() => void reportPayment(txHash, amountWei, attempt + 1), 5000);
+      setTimeout(() => void reportPayment(txHash, amountWei, intent, attempt + 1), 5000);
     } else {
       // Out of attempts. The money moved, so say so plainly and keep the hash
       // on screen rather than pretending nothing happened.
@@ -248,6 +261,26 @@ export default function Checkout() {
     setPayPhase("signing");
     setStalled(false);
     setPendingAmountWei(amountWei);
+
+    // Before the wallet, not after. Once the wallet is invoked the money can
+    // move at any moment, and from then on this page is the only thing that
+    // knows which link it was for — unless this row already exists. Failing to
+    // create it must not block a payment, so it is best-effort: the fallbacks
+    // (report on broadcast, manual hash, reconciliation) still apply.
+    let createdIntentId: string | null = null;
+    try {
+      const r = await fetch("/api/payments/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkId: linkData.id, flow, amountWei: amountWei.toString() }),
+      });
+      if (r.ok) {
+        createdIntentId = (await r.json())?.intentId ?? null;
+        setIntentId(createdIntentId);
+      }
+    } catch {
+      // Offline or blocked; carry on and rely on the fallbacks.
+    }
     // Long enough that a careful payer reading their wallet is not nagged,
     // short enough that a hung promise does not look like a frozen page.
     const stallTimer = setTimeout(() => setStalled(true), 45_000);
@@ -288,7 +321,7 @@ export default function Checkout() {
       // customer paid, the merchant was never credited, and the page invited
       // them to pay again. The server verifies the hash on-chain itself, which
       // is the authority here; the client's job is only to hand it over.
-      void reportPayment(txH, amountWei);
+      void reportPayment(txH, amountWei, createdIntentId);
 
       const provider = constants.myFrontendProviders[myFrontendProviderIndex];
       const txR = await provider.waitForTransaction(txH, { retries: 400, retryInterval: 3000 });
@@ -319,7 +352,7 @@ export default function Checkout() {
     setManualBusy(true);
     setBroadcastTx(hash);
     try {
-      await reportPayment(hash, pendingAmountWei);
+      await reportPayment(hash, pendingAmountWei, intentId);
       setResult({
         status: "pending",
         title: "Checking your payment…",

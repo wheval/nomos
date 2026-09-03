@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash, num } from "starknet";
 import { getStore } from "@/server/store";
+import type { PaymentIntent } from "@/server/store/types";
 import {
   isValidNetworkIndex,
   myFrontendProviders,
@@ -40,6 +41,36 @@ function requireAuth(request: NextRequest): NextResponse | null {
   return null;
 }
 
+/**
+ * Which open intent does this arrival belong to?
+ *
+ * Matched on the only things an arrival can be compared against: network,
+ * token and exact amount. Returns a single intent or nothing — never a guess.
+ *
+ * Ambiguity is left unresolved on purpose. Two merchants with identical
+ * 1.5 USDC links produce indistinguishable arrivals, and crediting the wrong
+ * one is worse than crediting neither: the money is still safe and still
+ * visible, and a human can attribute it. Automatic attribution is only safe
+ * where it is certain.
+ */
+function soleMatchingIntent(
+  intents: PaymentIntent[],
+  token: string,
+  amountWei: bigint,
+  // Intents already paired with an earlier arrival in this sweep. One intent
+  // is one payment, so it cannot back two arrivals — without this, two
+  // identical 1 USDC notes both matched the same intent and the sweep reported
+  // two attributable payments where there was only ever one.
+  consumed: Set<string>
+): PaymentIntent | null {
+  const candidates = intents.filter(
+    (i) => i.token === token && i.amountWei === amountWei && !consumed.has(i.id)
+  );
+  if (candidates.length !== 1) return null;
+  consumed.add(candidates[0].id);
+  return candidates[0];
+}
+
 const fmt = (wei: bigint, token: TokenSymbol) => `${Number(wei) / 10 ** tokenDecimals(token)} ${token}`;
 
 export async function GET(request: NextRequest) {
@@ -63,9 +94,22 @@ export async function GET(request: NextRequest) {
   // the same one verification writes to, so "unclaimed" means precisely "no
   // deposit settled against this".
   const claimed = await store.listClaimedNoteIds(networkIndex);
+  const openIntents = await store.listOpenPaymentIntents(networkIndex);
+  // Shared across both flows: an intent paired with a note must not also be
+  // offered to a transfer.
+  const consumedIntents = new Set<string>();
   const discovery = getNoteDiscoveryClient(networkIndex);
 
-  const unattributedNotes: { token: string; amount: string; noteId: string }[] = [];
+  const unattributedNotes: {
+    token: string;
+    amount: string;
+    noteId: string;
+    // The intent this arrival belongs to, when exactly one matches. Present
+    // means it can be credited automatically; null means a human decides.
+    intentId: string | null;
+    linkId?: string;
+    merchantAddress?: string;
+  }[] = [];
   const discoveryErrors: string[] = [];
   for (const token of TokenSymbols) {
     const address = tokenAddressFor(token, networkIndex);
@@ -73,7 +117,15 @@ export async function GET(request: NextRequest) {
     try {
       for (const note of await discovery.listNotes({ tokenAddress: address })) {
         if (claimed.has(note.id)) continue;
-        unattributedNotes.push({ token, amount: fmt(note.amount, token), noteId: note.id });
+        const intent = soleMatchingIntent(openIntents, token, note.amount, consumedIntents);
+        unattributedNotes.push({
+          token,
+          amount: fmt(note.amount, token),
+          noteId: note.id,
+          intentId: intent?.id ?? null,
+          linkId: intent?.linkId,
+          merchantAddress: intent?.merchantAddress,
+        });
       }
     } catch (err) {
       // A token whose discovery fails must not hide the tokens that worked.
@@ -84,7 +136,15 @@ export async function GET(request: NextRequest) {
   // Flow B. A public transfer into the operating wallet with no deposit row
   // is the same failure in the other flow, and is checkable straight from
   // chain events.
-  const unattributedTransfers: { token: string; amount: string; txHash: string; block?: number }[] = [];
+  const unattributedTransfers: {
+    token: string;
+    amount: string;
+    txHash: string;
+    block?: number;
+    intentId: string | null;
+    linkId?: string;
+    merchantAddress?: string;
+  }[] = [];
   if (operatingWalletAddress !== "0x0") {
     const head = await provider.getBlockNumber();
     const operating = num.toBigInt(operatingWalletAddress);
@@ -107,11 +167,16 @@ export async function GET(request: NextRequest) {
           if (to === undefined || low === undefined) continue;
           if (num.toBigInt(to) !== operating) continue;
           if (await store.getDepositByTxHash(ev.transaction_hash)) continue;
+          const amount = num.toBigInt(low);
+          const intent = soleMatchingIntent(openIntents, token, amount, consumedIntents);
           unattributedTransfers.push({
             token,
-            amount: fmt(num.toBigInt(low), token),
+            amount: fmt(amount, token),
             txHash: ev.transaction_hash,
             block: ev.block_number,
+            intentId: intent?.id ?? null,
+            linkId: intent?.linkId,
+            merchantAddress: intent?.merchantAddress,
           });
         }
       } catch (err) {
@@ -128,7 +193,86 @@ export async function GET(request: NextRequest) {
     // Public transfers received with no deposit behind them.
     unattributedTransfers,
     clean: unattributedNotes.length === 0 && unattributedTransfers.length === 0,
+    // Arrivals that can be credited without a human, because exactly one
+    // open intent matches them.
+    attributable:
+      unattributedNotes.filter((n) => n.intentId).length +
+      unattributedTransfers.filter((t) => t.intentId).length,
+    openIntents: openIntents.length,
     errors: discoveryErrors,
   });
 }
 
+
+/**
+ * Credits the arrivals that GET reported as attributable.
+ *
+ * Flow B is fully automatic and needs no browser at all: a public transfer
+ * carries its own transaction hash, so /api/payments can verify it on-chain
+ * exactly as it would a client-reported one.
+ *
+ * Flow A cannot be: a shielded note has no transaction hash to verify against,
+ * and deposits are keyed by hash. So a note whose intent is known is reported
+ * here for a human to finish, rather than credited on an amount match alone —
+ * amount is not proof, and this is money.
+ */
+export async function POST(request: NextRequest) {
+  const denied = requireAuth(request);
+  if (denied) return denied;
+
+  const raw = request.nextUrl.searchParams.get("network");
+  const networkIndex = raw === null ? 2 : Number(raw);
+  if (!isValidNetworkIndex(networkIndex)) {
+    return NextResponse.json({ error: "network must be 0 (mainnet) or 2 (sepolia)." }, { status: 400 });
+  }
+
+  // Reuse the read path verbatim so POST can never act on a different view of
+  // the world than GET reported.
+  const survey = await GET(request);
+  const state = (await survey.json()) as {
+    unattributedTransfers?: { txHash: string; intentId: string | null }[];
+    unattributedNotes?: { noteId: string; intentId: string | null; amount: string }[];
+    error?: string;
+  };
+  if (state.error) return NextResponse.json(state, { status: survey.status });
+
+  const origin = request.nextUrl.origin;
+  const credited: { txHash: string; reference?: string; error?: string }[] = [];
+
+  for (const transfer of state.unattributedTransfers ?? []) {
+    if (!transfer.intentId) continue;
+    const intent = (await getStore().listOpenPaymentIntents(networkIndex)).find(
+      (i) => i.id === transfer.intentId
+    );
+    if (!intent) continue;
+    try {
+      // Through the ordinary endpoint, so on-chain verification, fee pricing
+      // and ledger crediting all behave identically to a normal payment.
+      const res = await fetch(`${origin}/api/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          flow: "B",
+          amountWei: intent.amountWei.toString(),
+          token: intent.token,
+          txHash: transfer.txHash,
+          networkIndex,
+          linkId: intent.linkId,
+          intentId: intent.id,
+        }),
+      });
+      const body = (await res.json()) as { reference?: string; error?: string };
+      credited.push({ txHash: transfer.txHash, reference: body.reference, error: body.error });
+    } catch (err) {
+      credited.push({ txHash: transfer.txHash, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  return NextResponse.json({
+    networkIndex,
+    credited,
+    // Shielded arrivals with a known intent but no hash to verify. Named so an
+    // operator can act on them rather than discovering them later.
+    needsOperator: (state.unattributedNotes ?? []).filter((n) => n.intentId),
+  });
+}

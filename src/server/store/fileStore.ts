@@ -10,11 +10,13 @@ import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
 import {
+  CreatePaymentIntentInput,
+  InsufficientBalanceError,
+  PaymentIntent,
   type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
-  InsufficientBalanceError,
   type LedgerEntry,
   type LedgerKind,
   type MerchantKey,
@@ -33,7 +35,9 @@ const LEDGER_FILE = path.join(DATA_DIR, "ledger.json");
 const PAYOUTS_FILE = path.join(DATA_DIR, "payouts.json");
 const PAYMENT_LINKS_FILE = path.join(DATA_DIR, "payment-links.json");
 const CLAIMED_NOTES_FILE = path.join(DATA_DIR, "claimed-notes.json");
+const PAYMENT_INTENTS_FILE = path.join(DATA_DIR, "payment-intents.json");
 
+type StoredPaymentIntent = Omit<PaymentIntent, "amountWei"> & { amountWei: string };
 type StoredDeposit = Omit<Deposit, "amountWei" | "feeWei"> & { amountWei: string; feeWei?: string };
 type StoredLedgerEntry = Omit<LedgerEntry, "amountWei" | "runningBalanceWei"> & {
   amountWei: string;
@@ -152,6 +156,41 @@ export class FileStore implements Store {
     if (claimed.includes(key)) return false;
     claimed.push(key);
     await writeJson(CLAIMED_NOTES_FILE, claimed);
+    return true;
+  }
+
+  private async readIntents(): Promise<StoredPaymentIntent[]> {
+    return readJson(PAYMENT_INTENTS_FILE, []);
+  }
+
+  async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {
+    const intents = await this.readIntents();
+    const intent: PaymentIntent = {
+      id: crypto.randomUUID(),
+      ...input,
+      status: "open",
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    intents.push({ ...intent, amountWei: intent.amountWei.toString() });
+    await writeJson(PAYMENT_INTENTS_FILE, intents);
+    return intent;
+  }
+
+  async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
+    const intents = await this.readIntents();
+    return intents
+      .filter((i) => i.status === "open" && i.networkIndex === networkIndex)
+      .map((i) => ({ ...i, amountWei: BigInt(i.amountWei) }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  async matchPaymentIntent(intentId: string, depositId: string): Promise<boolean> {
+    const intents = await this.readIntents();
+    const found = intents.find((i) => i.id === intentId);
+    if (!found || found.status !== "open") return false;
+    found.status = "matched";
+    found.depositId = depositId;
+    await writeJson(PAYMENT_INTENTS_FILE, intents);
     return true;
   }
 

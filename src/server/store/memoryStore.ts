@@ -2,11 +2,13 @@
 // unset or "memory") — no external state, resets every process start.
 import crypto from "crypto";
 import {
+  CreatePaymentIntentInput,
+  InsufficientBalanceError,
+  PaymentIntent,
   type CreatePaymentLinkInput,
   type CreatePayoutInput,
   type Deposit,
   type DepositStatus,
-  InsufficientBalanceError,
   type LedgerEntry,
   type LedgerKind,
   type MerchantKey,
@@ -89,6 +91,33 @@ export class MemoryStore implements Store {
     const key = `${networkIndex}:${noteId}`;
     if (this.claimedNotes.has(key)) return false;
     this.claimedNotes.add(key);
+    return true;
+  }
+
+  private intents = new Map<string, PaymentIntent>();
+
+  async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {
+    const intent: PaymentIntent = {
+      id: crypto.randomUUID(),
+      ...input,
+      status: "open",
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    this.intents.set(intent.id, intent);
+    return intent;
+  }
+
+  async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
+    return [...this.intents.values()]
+      .filter((i) => i.status === "open" && i.networkIndex === networkIndex)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  async matchPaymentIntent(intentId: string, depositId: string): Promise<boolean> {
+    const intent = this.intents.get(intentId);
+    // Single-threaded in process, so the read-then-write is already atomic.
+    if (!intent || intent.status !== "open") return false;
+    this.intents.set(intentId, { ...intent, status: "matched", depositId });
     return true;
   }
 

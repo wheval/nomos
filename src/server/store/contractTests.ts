@@ -292,5 +292,65 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
       const store = makeStore();
       expect(await store.getPaymentLink(crypto.randomUUID())).toBeNull();
     });
+
+    describe("payment intents", () => {
+      // An intent is the only thing that can attribute an on-chain arrival to
+      // a link when the payer's browser never reports back, so every driver
+      // has to honour: created open, listed while open, matched exactly once.
+      it("creates an open intent and scopes it to its own network", async () => {
+        const store = makeStore();
+        const merchant = randomAddress();
+        const intent = await store.createPaymentIntent({
+          linkId: "link-1",
+          merchantAddress: merchant,
+          networkIndex: TEST_NET,
+          flow: "A",
+          amountWei: 1_500_000n,
+          token: "USDC",
+        });
+        expect(intent.status).toBe("open");
+        expect(intent.amountWei).toBe(1_500_000n);
+
+        const open = await store.listOpenPaymentIntents(TEST_NET);
+        expect(open.map((i) => i.id)).toContain(intent.id);
+
+        // Test and live are different money; an intent must not leak across.
+        const other = await store.listOpenPaymentIntents(LIVE_NET);
+        expect(other.map((i) => i.id)).not.toContain(intent.id);
+      });
+
+      it("matches an intent exactly once, so one arrival cannot credit twice", async () => {
+        const store = makeStore();
+        const merchant = randomAddress();
+        const intent = await store.createPaymentIntent({
+          linkId: "link-2",
+          merchantAddress: merchant,
+          networkIndex: TEST_NET,
+          flow: "B",
+          amountWei: 2_000_000n,
+          token: "USDC",
+        });
+        const { deposit } = await store.recordDeposit({
+          merchantAddress: merchant,
+          networkIndex: TEST_NET,
+          flow: "B",
+          txHash: `0xintent${Date.now()}`,
+          amountWei: 2_000_000n,
+          token: "USDC",
+        });
+
+        expect(await store.matchPaymentIntent(intent.id, deposit.id)).toBe(true);
+        // The second claim loses, which is what stops a re-run of
+        // reconciliation crediting the same arrival again.
+        expect(await store.matchPaymentIntent(intent.id, deposit.id)).toBe(false);
+        expect((await store.listOpenPaymentIntents(TEST_NET)).map((i) => i.id)).not.toContain(intent.id);
+      });
+
+      it("reports false for an intent that does not exist", async () => {
+        const store = makeStore();
+        expect(await store.matchPaymentIntent("00000000-0000-0000-0000-000000000000", "nope")).toBe(false);
+      });
+    });
+
   });
 }
