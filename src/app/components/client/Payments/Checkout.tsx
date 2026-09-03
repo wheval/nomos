@@ -12,6 +12,7 @@ import SelectWallet from "../WalletHandle/SelectWallet";
 import { switchConnectedWalletNetwork } from "../WalletHandle/connectWallet";
 import { networkLabel } from "@/utils/networks";
 import ReceiptCard from "../ReceiptCard";
+import { TokenLogo } from "../../TokenIcons";
 import { parseTokenAmount } from "@/utils/payments";
 import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResult } from "@/utils/receipt";
 
@@ -328,7 +329,12 @@ export default function Checkout() {
           {fixedAmount !== undefined ? (
             <>
               {fmtTokenAmount(BigInt(fixedAmount), decimals)}
-              <span>{token}</span>
+              {/* The mark makes the token readable at a glance, the way the
+                  console already shows every other amount. */}
+              <span className={styles.checkoutAmountToken}>
+                <TokenLogo symbol={token} size={20} />
+                {token}
+              </span>
             </>
           ) : (
             "Enter amount"
