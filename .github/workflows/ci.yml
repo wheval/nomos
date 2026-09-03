@@ -26,7 +26,13 @@ jobs:
         # npm, not yarn: yarn.lock had drifted out of sync with what actually
         # installs, and the two lockfiles disagreed. The privacy SDK lives on
         # GitHub Packages, so .npmrc needs a token that can read it.
-        run: npm ci
+        #
+        # `npm install`, not `npm ci`: sharp pulls platform-specific optional
+        # dependencies, so a lockfile resolved on macOS legitimately lacks the
+        # Linux ones (@emnapi/*) that this runner needs, and `npm ci` treats
+        # that as the lockfile being out of sync. install resolves them and
+        # still honours the lockfile for everything else.
+        run: npm install --no-audit --no-fund
         env:
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
