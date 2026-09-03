@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Suspense } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import styles from "../uni.module.css";
 import { BrandMark } from "./Brand";
 import Switch from "./Switch";
@@ -22,15 +23,31 @@ const PRODUCT_ITEMS = [{ href: "/create", label: "Payment Links", icon: LinkIcon
 
 const FOOT_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
-  { href: "/integration", label: "Developers", icon: DevelopersIcon },
+  // API keys, webhooks and the IP allowlist all live in Settings' Developers
+  // group. This used to point at /integration, a public marketing page, which
+  // walked the merchant straight out of the console.
+  { href: "/dashboard/settings?tab=keys", label: "Developers", icon: DevelopersIcon },
 ];
 
 const COLLAPSE_STORAGE_KEY = "nomos:sidebar-collapsed";
 
 // The merchant console shell: collapsible sidebar + topbar, wrapping every
 // /dashboard* page and /create.
+// The Suspense boundary lives here rather than in each console page, because
+// this component is what reads the query string (to tell Settings from
+// Developers, which share a path) and it wraps every one of them. Putting it
+// here means no page has to know.
 export default function ConsoleShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <ConsoleShellInner>{children}</ConsoleShellInner>
+    </Suspense>
+  );
+}
+
+function ConsoleShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
   const walletChain = useStoreWallet((state) => state.chain);
@@ -120,7 +137,20 @@ export default function ConsoleShell({ children }: { children: React.ReactNode }
   }
 
   function renderNavLink({ href, label, icon: Icon }: { href: string; label: string; icon: () => React.ReactElement }) {
-    const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+    // Two items now share /dashboard/settings and differ only by ?tab=, so
+    // matching has to consider the query: compare paths first, then the tab
+    // when the link names one. pathname never carries a query string.
+    const [hrefPath, hrefQuery] = href.split("?");
+    const wantedTab = hrefQuery ? new URLSearchParams(hrefQuery).get("tab") : null;
+    const currentTab = searchParams.get("tab");
+    const active =
+      hrefPath === "/dashboard"
+        ? pathname === "/dashboard"
+        : pathname.startsWith(hrefPath) &&
+          // A tabbed link matches only its own tab; an untabbed one matches
+          // only when no tab is selected, so Settings and Developers never
+          // light up together.
+          (wantedTab ? currentTab === wantedTab : !currentTab);
     return (
       <Link
         key={href}

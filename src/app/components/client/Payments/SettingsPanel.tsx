@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
@@ -64,6 +65,7 @@ function CopyButton({ value }: { value: string }) {
 }
 
 type TabId = "profile" | "branding" | "keys" | "webhook" | "ips";
+const TAB_IDS: TabId[] = ["profile", "branding", "keys", "webhook", "ips"];
 type TabDef = { id: TabId; label: string; icon: () => React.ReactElement };
 
 const BUSINESS_TABS: TabDef[] = [
@@ -78,7 +80,14 @@ const DEVELOPER_TABS: TabDef[] = [
 
 export default function SettingsPanel() {
   const { isConnected, address, publicKey, secretKey, justIssued, issuing, issueKey, networkIndex, sessionReady } = useMerchantAuth();
-  const [tab, setTab] = useState<TabId>("profile");
+  // Honour ?tab= so the console can link straight to a pane — the sidebar's
+  // Developers item lands on API keys rather than dumping the merchant on
+  // Profile and making them hunt.
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [tab, setTab] = useState<TabId>(
+    TAB_IDS.includes(requestedTab as TabId) ? (requestedTab as TabId) : "profile"
+  );
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSaved, setWebhookSaved] = useState(false);
