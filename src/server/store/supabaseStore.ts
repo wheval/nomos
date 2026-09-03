@@ -227,6 +227,15 @@ export class SupabaseStore implements Store {
     throw new Error(`claimShieldedNote failed: ${error.message}`);
   }
 
+  async listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>> {
+    const { data, error } = await this.client
+      .from("claimed_notes")
+      .select("note_id")
+      .eq("network_index", networkIndex);
+    if (error) throw new Error(`listClaimedNoteIds failed: ${error.message}`);
+    return new Set((data ?? []).map((r: { note_id: string }) => r.note_id));
+  }
+
   async getDepositByReference(reference: string): Promise<Deposit | null> {
     const { data } = await this.client
       .from("deposits")

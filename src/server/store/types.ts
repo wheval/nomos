@@ -184,6 +184,9 @@ export interface Store {
   // caller must then refuse the deposit. Implementations MUST make this
   // atomic — two concurrent callers cannot both win the same note.
   claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean>;
+  // Which notes are already spoken for, so reconciliation can tell an
+  // unattributed payment from one that simply has no note.
+  listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>>;
   // Backs the verify endpoint, and the "has this invoice been paid?" check.
   getDepositByReference(reference: string): Promise<Deposit | null>;
   listDepositsForLink(linkId: string): Promise<Deposit[]>;

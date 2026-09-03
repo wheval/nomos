@@ -13,7 +13,8 @@
     "shield:mark": "tsx scripts/shield-reconcile.ts mark",
     "setup:sepolia": "node scripts/network-setup.mts --network sepolia",
     "setup:mainnet": "node scripts/network-setup.mts --network mainnet",
-    "postinstall": "fumadocs-mdx"
+    "postinstall": "fumadocs-mdx",
+    "reconcile": "node -e \"const s=process.env.NOMOS_SHIELD_WORKER_SECRET;const n=process.argv[1]||2;fetch('http://localhost:3000/api/internal/reconcile?network='+n,{headers:{authorization:'Bearer '+s}}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d,null,2)))\""
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

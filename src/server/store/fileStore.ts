@@ -155,6 +155,12 @@ export class FileStore implements Store {
     return true;
   }
 
+  async listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>> {
+    const prefix = `${networkIndex}:`;
+    const claimed = await this.readClaimedNotes();
+    return new Set(claimed.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+  }
+
   private async readPaymentLinks(): Promise<StoredPaymentLink[]> {
     return readJson(PAYMENT_LINKS_FILE, []);
   }

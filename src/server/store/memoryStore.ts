@@ -92,6 +92,11 @@ export class MemoryStore implements Store {
     return true;
   }
 
+  async listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>> {
+    const prefix = `${networkIndex}:`;
+    return new Set([...this.claimedNotes].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+  }
+
   async getDepositByReference(reference: string): Promise<Deposit | null> {
     for (const d of this.deposits.values()) if (d.reference === reference) return d;
     return null;
