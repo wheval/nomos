@@ -19,7 +19,10 @@ const NAV_ITEMS = [
   { href: "/dashboard/payouts", label: "Payouts", icon: PayoutsIcon },
 ];
 
-const PRODUCT_ITEMS = [{ href: "/dashboard/links", label: "Payment Links", icon: LinkIcon }];
+const PRODUCT_ITEMS = [
+  { href: "/dashboard/links", label: "Payment Links", icon: LinkIcon },
+  { href: "/dashboard/invoices", label: "Invoices", icon: InvoiceIcon },
+];
 
 const FOOT_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
@@ -389,6 +392,15 @@ function OverviewIcon() {
     </svg>
   );
 }
+function InvoiceIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 3h9l3 3v15l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function LinkIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

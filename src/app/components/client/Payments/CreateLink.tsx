@@ -22,9 +22,20 @@ import CreateLinkModal from "./CreateLinkModal";
 // Links are persisted server-side rather than encoded in the URL: checkout
 // fetches the canonical record by id instead of trusting a copied link, and
 // this list is what makes a merchant's links recoverable and auditable.
-export default function CreateLink() {
+/**
+ * The Payment Links index, and the Invoices index — the same list, filtered.
+ *
+ * The landing page sells them as separate products and the create dialog asks
+ * which one you are making, but the console showed a single mixed list. A
+ * merchant chasing an unpaid invoice had to read the type chip on every row.
+ */
+export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice" } = {}) {
+  const invoices = kind === "invoice";
   const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
-  const { links, loadError, refresh } = usePaymentLinks(address ?? "", secretKey, networkIndex, sessionReady);
+  const { links: allLinks, loadError, refresh } = usePaymentLinks(address ?? "", secretKey, networkIndex, sessionReady);
+  // singleUse is what distinguishes an invoice from a reusable link, so the
+  // two views are one query and a filter rather than two endpoints.
+  const links = allLinks === null ? null : allLinks.filter((l) => Boolean(l.singleUse) === invoices);
   const router = useRouter();
 
   const [creating, setCreating] = useState(false);
@@ -50,15 +61,17 @@ export default function CreateLink() {
       <div className={styles.cPanel}>
         <div className={styles.pageHead}>
           <div>
-            <h1 className={styles.pageHeadTitle}>Payment Links</h1>
+            <h1 className={styles.pageHeadTitle}>{invoices ? "Invoices" : "Payment Links"}</h1>
             <p className={styles.pageHeadSub}>
-              Whoever pays, the amount and their identity stay shielded in the STRK20 pool.
+              {invoices
+                ? "Billed to one person and payable once. Anyone who opens it later is told it is settled."
+                : "One link, any number of payments. The amount and the payer stay shielded in the STRK20 pool."}
             </p>
           </div>
           <div className={styles.pageHeadActions}>
             <button type="button" className={styles.settingsBtn} onClick={() => setCreating(true)}>
               <PlusIcon />
-              Create payment link
+              {invoices ? "Create invoice" : "Create payment link"}
             </button>
           </div>
         </div>
@@ -104,7 +117,11 @@ export default function CreateLink() {
             <div className={styles.emptyBox}><p>Loading…</p></div>
           ) : links.length === 0 ? (
             <div className={styles.emptyBox}>
-              <p>No payment links yet. Create one to start taking payments.</p>
+              <p>
+                {invoices
+                  ? "No invoices yet. Create one to bill someone directly."
+                  : "No payment links yet. Create one to start taking payments."}
+              </p>
               <button
                 type="button"
                 className={styles.settingsBtn}
@@ -112,7 +129,7 @@ export default function CreateLink() {
                 onClick={() => setCreating(true)}
               >
                 <PlusIcon />
-                Create payment link
+                {invoices ? "Create invoice" : "Create payment link"}
               </button>
             </div>
           ) : (
@@ -183,6 +200,7 @@ export default function CreateLink() {
       </div>
 
       <CreateLinkModal
+        initialKind={invoices ? "invoice" : undefined}
         open={creating}
         onClose={() => setCreating(false)}
         onCreated={(id) => {

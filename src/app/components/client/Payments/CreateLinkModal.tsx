@@ -19,7 +19,11 @@ export default function CreateLinkModal({
   merchantAddress,
   secretKey,
   networkIndex,
+  // Opening from Invoices skips the "what kind?" step — the merchant already
+  // answered it by being on that page.
+  initialKind,
 }: {
+  initialKind?: Kind;
   open: boolean;
   onClose: () => void;
   onCreated: (url: string) => void;
@@ -27,7 +31,14 @@ export default function CreateLinkModal({
   secretKey: string | null;
   networkIndex: number;
 }) {
-  const [kind, setKind] = useState<Kind | null>(null);
+  const [kind, setKind] = useState<Kind | null>(initialKind ?? null);
+
+  // Reset on each open. Without this the dialog reopens on whatever was picked
+  // last time, so a merchant who backed out of an invoice gets the invoice form
+  // again next time they meant to make a link.
+  useEffect(() => {
+    if (open) setKind(initialKind ?? null);
+  }, [open, initialKind]);
   const [token, setToken] = useState<TokenSymbol>("STRK");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
