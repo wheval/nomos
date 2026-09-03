@@ -4,9 +4,21 @@ description: A private payment gateway for Starknet — and a straight account o
 ---
 
 Nomos lets a business accept payments on Starknet without its revenue or its
-customers' payments appearing on the public chain. You create a Payment Link,
-share it, and the customer pays with their wallet. Settlement clears against
-the live STRK20 privacy pool.
+customers' payments appearing on the public chain. Settlement clears against
+the live STRK20 privacy pool, on **Starknet mainnet**.
+
+## What you can build with
+
+| | | |
+|---|---|---|
+| **Payment Links** | Create one in the console, share it anywhere | [Docs](/docs/payment-links) |
+| **Invoices** | A link payable once, that closes after it is paid | [Docs](/docs/payment-links) |
+| **Hosted Checkout** | A session per order from your backend, with a return URL | [Docs](/docs/checkout) |
+| **Payments API** | Create, verify, read balances, trigger payouts | [Docs](/docs/api) |
+| **Webhooks** | A signed callback the moment a payment settles | [Docs](/docs/webhooks) |
+
+Pricing is a flat fee per transaction, never a percentage — a $10 payment and a
+$100,000 payment cost the same to accept. See [Pricing](/docs/pricing).
 
 ## What is actually private
 
