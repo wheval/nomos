@@ -40,7 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /scripts-ts-node/
-package-lock.json
 A1priv/A1priv.ts
 /A1priv/
 
