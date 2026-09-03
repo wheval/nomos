@@ -36,12 +36,17 @@ jobs:
         # that as the lockfile being out of sync. install resolves them and
         # still honours the lockfile for everything else.
         run: |
-          # Fail with a readable message rather than a registry 401 that looks
-          # like a broken token when the secret simply is not reaching the job.
           if [ -z "$GH_PACKAGES_TOKEN" ]; then
             echo "GH_PACKAGES_TOKEN is empty — set it as a repository secret (needs read:packages)."
             exit 1
           fi
+          # Write the token into the runner's own npmrc rather than relying on
+          # .npmrc's ${VAR} expansion. The expansion resolved for metadata but
+          # not for the tarball fetch, which 401'd as "token not provided" —
+          # @starkware-libs metadata is readable anonymously, so an empty
+          # expansion looks fine right up until the download.
+          npm config set //npm.pkg.github.com/:_authToken "$GH_PACKAGES_TOKEN"
+          echo "token length: ${#GH_PACKAGES_TOKEN}, starts: ${GH_PACKAGES_TOKEN:0:4}"
           npm install --no-audit --no-fund
 
       - name: Lint
