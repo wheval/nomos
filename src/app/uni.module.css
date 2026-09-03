@@ -976,6 +976,10 @@
   color: var(--muted-2);
 }
 
+.modalError {
+  padding: 0 20px 10px;
+}
+
 /* First-run setup steps on Overview. */
 .setupGrid {
   display: grid;

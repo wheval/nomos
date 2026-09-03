@@ -273,7 +273,6 @@ export default function CreateLinkModal({
                 </>
               ) : null}
 
-              {error ? <div className={styles.errorText}>{error}</div> : null}
             </div>
 
             {/* Outside the scrolling body: a control the reader has to scroll
@@ -296,6 +295,12 @@ export default function CreateLinkModal({
               {advanced ? "Hide advanced options" : "Show advanced options"}
               <ChevronIcon />
             </button>
+
+            {/* Outside the scroller for the same reason as the toggle above:
+                the body caps at 380px and this form runs longer, so an error
+                rendered inside it lands below the fold and the submit looks
+                like it did nothing at all. */}
+            {error ? <div className={`${styles.errorText} ${styles.modalError}`}>{error}</div> : null}
 
             <div className={styles.modalFoot}>
               <button
