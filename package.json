@@ -12,7 +12,8 @@
     "shield:list": "tsx scripts/shield-reconcile.ts list",
     "shield:mark": "tsx scripts/shield-reconcile.ts mark",
     "setup:sepolia": "node scripts/network-setup.mts --network sepolia",
-    "setup:mainnet": "node scripts/network-setup.mts --network mainnet"
+    "setup:mainnet": "node scripts/network-setup.mts --network mainnet",
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
