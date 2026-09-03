@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/payouts", label: "Payouts", icon: PayoutsIcon },
 ];
 
-const PRODUCT_ITEMS = [{ href: "/create", label: "Payment Links", icon: LinkIcon }];
+const PRODUCT_ITEMS = [{ href: "/dashboard/links", label: "Payment Links", icon: LinkIcon }];
 
 const FOOT_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },

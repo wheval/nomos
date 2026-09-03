@@ -1,17 +1,8 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import ConsoleShell from "../components/ConsoleShell";
-import CreateLink from "../components/client/Payments/CreateLink";
-import styles from "../uni.module.css";
-
+// Kept as a redirect rather than deleted: /create was the Payment Links list
+// for long enough to have been shared and bookmarked, and it is still what the
+// landing page's primary CTA points at.
 export default function CreatePage() {
-  return (
-    <ConsoleShell>
-      {/* The panel carries its own heading and Create action, like the other
-          list pages — no separate page header above it. */}
-      <div className={styles.consolePage}>
-        <CreateLink />
-      </div>
-    </ConsoleShell>
-  );
+  redirect("/dashboard/links");
 }

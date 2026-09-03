@@ -980,6 +980,32 @@
   padding: 0 20px 10px;
 }
 
+.notFoundCode {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: var(--muted-2);
+  margin-bottom: 10px;
+}
+.notFoundTitle {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+.notFoundBody {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 auto 22px;
+  max-width: 380px;
+}
+.notFoundActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* First-run setup steps on Overview. */
 .setupGrid {
   display: grid;
@@ -2861,10 +2887,16 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   margin: -4px 0 20px;
 }
 .modalScroll {
-  max-height: min(58vh, 520px);
+  /* 58vh cut "Expires" mid-word on a short window; the extra room means the
+     common case fits without scrolling at all. */
+  max-height: min(66vh, 560px);
   overflow-y: auto;
   margin: 0 -26px;
   padding: 0 26px;
+  /* A hard cut mid-label reads as a broken layout. Fading the last few pixels
+     makes it legible as "there is more below". */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
 }
 .modalFoot {
   display: flex;
