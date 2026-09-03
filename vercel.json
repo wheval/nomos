@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm config set //npm.pkg.github.com/:_authToken \"$GH_PACKAGES_TOKEN\" && npm install --no-audit --no-fund"
+}
