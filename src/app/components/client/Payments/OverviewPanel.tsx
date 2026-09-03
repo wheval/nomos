@@ -11,8 +11,7 @@ import { useLedger } from "./useLedger";
 import { depositStatusLabel } from "./depositStatus";
 import { usePaymentLinks, paymentLinkStatusLabel, expiresInLabel } from "./usePaymentLinks";
 import { buildPaymentUrl } from "@/utils/payments";
-import { myFrontendProviders, tokenAddressFor, TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
-import { num } from "starknet";
+import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import InsightsChart, { Donut, type ChartPoint } from "./InsightsChart";
 import { rowNavProps } from "./rowNav";
 import { TokenAmount, TokenLogo } from "../../TokenIcons";
@@ -106,38 +105,6 @@ function SetupChecklist({
   );
 }
 
-// The merchant's own on-chain balance, read straight from the token contract.
-// Distinct from the ledger balance: one is what Nomos owes them, the other is
-// what they already hold, and a payout moves the first into the second.
-function useWalletBalance(address: string | null, token: TokenSymbol, networkIndex: number): string | null {
-  const [balance, setBalance] = useState<string | null>(null);
-
-  useEffect(() => {
-    setBalance(null);
-    const tokenAddress = tokenAddressFor(token, networkIndex);
-    const provider = myFrontendProviders[networkIndex];
-    if (!address || !provider || tokenAddress === "0x0") return;
-
-    let cancelled = false;
-    provider
-      .callContract({ contractAddress: tokenAddress, entrypoint: "balanceOf", calldata: [address] })
-      .then((res) => {
-        if (cancelled) return;
-        // u256 comes back as (low, high).
-        const raw = num.toBigInt(res[0]) + (res[1] === undefined ? 0n : num.toBigInt(res[1]) << 128n);
-        setBalance(fmtTokenAmount(raw, tokenDecimals(token)));
-      })
-      // A balance is a nicety on this page; leaving it as an em dash beats
-      // failing the whole panel over an RPC hiccup.
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [address, token, networkIndex]);
-
-  return balance;
-}
-
 export default function OverviewPanel() {
   const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
   const { deposits, balances, loadError } = useLedger(address, secretKey, networkIndex, sessionReady);
@@ -145,7 +112,6 @@ export default function OverviewPanel() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [days, setDays] = useState<number>(DEFAULT_RANGE);
   const [token, setToken] = useState<TokenSymbol>(TokenSymbols[0]);
-  const walletBalance = useWalletBalance(address, token, networkIndex);
   const router = useRouter();
 
   useEffect(() => {
@@ -283,24 +249,13 @@ export default function OverviewPanel() {
               </div>
             </div>
             <div className={styles.metricCard}>
-              {/* Named rather than just "Balance": the merchant now sees two
-                  balances and they mean different things — what Nomos owes
-                  them, and what their own wallet holds. */}
-              <div className={styles.metricLabel}>Nomos balance</div>
+              <div className={styles.metricLabel}>Balance</div>
               <div className={styles.metricValue}>
                 <TokenAmount
                   amount={balances ? fmtTokenAmount(BigInt(balances[token]), decimals) : "—"}
                   symbol={token}
                 />
               </div>
-              <div className={styles.metricSub}>Available to pay out</div>
-            </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Wallet balance</div>
-              <div className={styles.metricValue}>
-                <TokenAmount amount={walletBalance ?? "—"} symbol={token} />
-              </div>
-              <div className={styles.metricSub}>In your connected wallet</div>
             </div>
             <div className={styles.metricCard}>
               <div className={styles.metricLabel}>Deposits</div>
