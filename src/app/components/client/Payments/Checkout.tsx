@@ -129,6 +129,16 @@ export default function Checkout() {
   const [amountError, setAmountError] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const [paying, setPaying] = useState(false);
+  // Phase, not just busy/idle: the wallet step and the on-chain wait are very
+  // different waits and the button said "Confirm in your wallet" through both,
+  // for up to twenty minutes.
+  const [payPhase, setPayPhase] = useState<"idle" | "signing" | "confirming">("idle");
+  // Set the instant a transaction is broadcast. Once this exists the payment
+  // is in flight whatever happens next, so the page must never offer a clean
+  // "Pay" again — a failed *receipt lookup* is not a failed payment, and
+  // treating it as one is what lets someone pay the same link twice.
+  const [broadcastTx, setBroadcastTx] = useState<string | null>(null);
+  const [reportFailed, setReportFailed] = useState(false);
   const [switchingWallet, setSwitchingWallet] = useState(false);
   // Returned by /api/payments once the deposit is recorded; handed to the
   // merchant's callback URL so their server can verify it.
@@ -148,6 +158,45 @@ export default function Checkout() {
         </div>
       </div>
     );
+  }
+
+  // Hands the transaction to the server until it sticks. Verification can
+  // legitimately fail for a minute or two because the transaction has not been
+  // mined yet, and giving up on the first 422 is how a real payment ends up
+  // unrecorded.
+  async function reportPayment(txHash: string, amountWei: bigint, attempt = 0): Promise<void> {
+    if (!linkData) return;
+    try {
+      const r = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          flow,
+          amountWei: amountWei.toString(),
+          token,
+          txHash,
+          networkIndex: myFrontendProviderIndex,
+          linkId: linkData.id,
+        }),
+      });
+      if (r.ok) {
+        const d = await r.json().catch(() => null);
+        if (d?.reference) setPaidReference(d.reference);
+        setReportFailed(false);
+        return;
+      }
+      // 409 means it is already recorded — that is success, not a retry.
+      if (r.status === 409) return;
+    } catch {
+      // Network blip; falls through to the retry below.
+    }
+    if (attempt < 8) {
+      setTimeout(() => void reportPayment(txHash, amountWei, attempt + 1), 5000);
+    } else {
+      // Out of attempts. The money moved, so say so plainly and keep the hash
+      // on screen rather than pretending nothing happened.
+      setReportFailed(true);
+    }
   }
 
   async function handlePay() {
@@ -185,6 +234,7 @@ export default function Checkout() {
       return;
     }
     setPaying(true);
+    setPayPhase("signing");
     try {
       let txH: string;
       if (flow === "A") {
@@ -205,6 +255,8 @@ export default function Checkout() {
         ]);
         txH = r.transaction_hash;
       }
+      setBroadcastTx(txH);
+      setPayPhase("confirming");
       setResult({
         status: "pending",
         title: "Waiting for confirmation…",
@@ -213,38 +265,23 @@ export default function Checkout() {
           { label: "Transaction", value: shortHex(txH), hash: txH },
         ],
       });
+
+      // Report the payment the moment a hash exists, not after a receipt poll
+      // succeeds. This used to sit behind `if (final.status === "ok")`, so a
+      // failed *lookup* meant the payment was never reported at all — the
+      // customer paid, the merchant was never credited, and the page invited
+      // them to pay again. The server verifies the hash on-chain itself, which
+      // is the authority here; the client's job is only to hand it over.
+      void reportPayment(txH, amountWei);
+
       const provider = constants.myFrontendProviders[myFrontendProviderIndex];
       const txR = await provider.waitForTransaction(txH, { retries: 400, retryInterval: 3000 });
-      const final = receiptToResult(txR, txH, `${fmtTokenAmount(amountWei, decimals)} ${token}`);
-      setResult(final);
-      if (final.status === "ok") {
-        // Best-effort order bookkeeping for the merchant dashboard - never
-        // blocks or fails the payment itself, which already confirmed on-chain.
-        // Server re-verifies this on-chain (and re-resolves merchant/token
-        // from the link itself) before crediting anything - see
-        // src/utils/verifyTx.ts and /api/payments.
-        fetch("/api/payments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            flow,
-            amountWei: amountWei.toString(),
-            token,
-            txHash: txH,
-            networkIndex: myFrontendProviderIndex,
-            linkId: linkData.id,
-          }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d) => {
-            if (d?.reference) setPaidReference(d.reference);
-          })
-          .catch(() => {});
-      }
+      setResult(receiptToResult(txR, txH, `${fmtTokenAmount(amountWei, decimals)} ${token}`));
     } catch (error: any) {
       setResult(errorResult(error?.message ?? error?.toString?.() ?? String(error)));
     } finally {
       setPaying(false);
+      setPayPhase("idle");
     }
   }
 
@@ -426,12 +463,33 @@ export default function Checkout() {
       ) : null}
 
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : isConnected ? (
-        <button className={styles.btnCta} disabled={!isStrk20Network || networkMismatch || paying} onClick={handlePay}>
-          {paying ? "Confirm in your wallet…" : "Pay"}
+        <button
+          className={styles.btnCta}
+          // Disabled for good once a transaction is broadcast. Re-enabling
+          // after a failed receipt lookup is what let the same link be paid
+          // twice: the lookup failed, the payment had not.
+          disabled={!isStrk20Network || networkMismatch || paying || broadcastTx !== null}
+          onClick={handlePay}
+        >
+          {payPhase === "signing"
+            ? "Confirm in your wallet…"
+            : payPhase === "confirming" || broadcastTx !== null
+              ? "Payment sent — confirming…"
+              : "Pay"}
         </button>
       ) : (
         <SelectWallet variant="ctaBig" />
       )}
+
+      {/* The payment happened but we could not get it recorded. Never silently
+          swallow this: the payer's money has moved and the merchant's console
+          does not know, so surface the hash they will need to quote. */}
+      {reportFailed && broadcastTx ? (
+        <div className={styles.warn} style={{ padding: "10px 0 0" }}>
+          Your payment was sent, but we could not confirm it with the business
+          automatically. Quote this transaction to them: {shortHex(broadcastTx)}
+        </div>
+      ) : null}
 
       {isPaid || isExpired || isRevoked || isAlreadyPaid ? null : <PayOnPhone />}
 
