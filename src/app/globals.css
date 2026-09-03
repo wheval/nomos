@@ -250,3 +250,35 @@ a {
     @apply font-sans;
   }
 }
+
+/* Saving a receipt is printing it, so everything that is not the receipt has
+   to get out of the way — and it has to survive on white paper whatever theme
+   the payer was using. Lives here rather than in uni.module.css because CSS
+   Modules rejects rules with no local class, and because reaching the whole
+   page is exactly the intent. */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #nomos-receipt,
+  #nomos-receipt * {
+    visibility: visible !important;
+  }
+  #nomos-receipt {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border: none;
+    padding: 0;
+    color: #111;
+  }
+  #nomos-receipt a {
+    color: #111;
+    text-decoration: none;
+  }
+  /* The button is what opened the print dialog; it has no place on the page
+     that dialog produces. */
+  #nomos-receipt [data-print-hide] {
+    display: none !important;
+  }
+}

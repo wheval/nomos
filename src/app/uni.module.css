@@ -181,855 +181,124 @@
 .btnBlock { width: 100%; padding: 6px 16px; font-size: 16px; margin-top: 6px; }
 
 /* --- Readable result receipt ------------------------------------------- */
+/* Proportions taken from the reference (reciept.svg, 341x453): a narrow card,
+   a lighter band across the top that the logo straddles, and a pill button
+   inset 34px each side. */
 .receipt {
-  margin-top: 12px;
-  padding: 16px 18px;
-  border-radius: var(--r-md);
-  background: var(--card);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  position: relative;
+  width: min(341px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(239, 240, 248, 0.2);
+  border-radius: 16px;
+  padding: 0 33px 27px;
+  text-align: center;
+  overflow: hidden;
 }
-.receiptOk { border-color: rgba(52, 211, 153, 0.35); background: var(--green-soft); }
-.receiptError { border-color: rgba(196, 181, 253, 0.35); background: var(--danger-soft); }
-.receiptPending { border-color: var(--pink-soft-2); background: var(--pink-soft); }
-.receiptHead {
+/* The band sits behind the logo and ends partway down it, which is what gives
+   the card its header without a hard divider. */
+.receiptBand {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 69px;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+.receiptLogo {
+  position: relative;
+  width: 59px;
+  height: 59px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  margin: 40px auto 0;
+  display: block;
+  background: #000;
+}
+.receiptLogoLetter {
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 24px;
   font-weight: 500;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.receiptIcon {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
   color: #fff;
-  flex: none;
 }
-.receiptOk .receiptIcon { background: var(--green); }
-.receiptError .receiptIcon { background: var(--danger); }
-.receiptPending .receiptIcon { background: var(--pink); }
-.receiptRows {
-  margin-top: 12px;
+.receiptFrom {
+  position: relative;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.receiptFrom b { color: var(--ink); font-weight: 500; }
+.receiptDate { font-size: 12px; color: var(--muted-2); margin-top: 4px; }
+
+.receiptAmountLabel {
+  font-size: 12px;
+  color: var(--muted-2);
+  margin-top: 22px;
+}
+.receiptAmount {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin-top: 6px;
 }
+.receiptAmount span { font-size: 15px; font-weight: 400; color: var(--muted-2); }
+
+.receiptRule {
+  height: 1px;
+  background: rgba(239, 240, 248, 0.14);
+  margin: 18px 0 16px;
+}
+
+/* The reference stacks the order id — label above, value centred beneath —
+   because the value is too long to sit opposite its own label. */
+.receiptStack { margin-bottom: 14px; }
+.receiptStackLabel { font-size: 12px; color: var(--muted-2); }
+.receiptStackValue {
+  font-size: 12px;
+  color: var(--ink);
+  margin-top: 5px;
+  word-break: break-all;
+}
+
 .receiptRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 13px;
-}
-.receiptRow:first-child { border-top: none; }
-.receiptLabel { color: var(--muted); }
-.receiptValue {
-  color: var(--ink);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.receiptLink {
-  color: var(--pink-text);
-  font-weight: 500;
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 12.5px;
-  text-decoration: none;
-}
-.receiptLink:hover { text-decoration: underline; }
-.receiptNote {
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--ink-soft);
-  font-family: var(--font-mono-ui), monospace;
+  padding: 5px 0;
   font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 220px;
-  overflow: auto;
-}
-
-.verdict {
-  margin-top: 10px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: var(--inset);
-}
-.verdictPass { border-color: rgba(52, 211, 153, 0.35); background: var(--green-soft); }
-.verdictFail { border-color: rgba(196, 181, 253, 0.35); background: var(--danger-soft); }
-.verdictHead {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-weight: 500;
-  font-size: 15px;
-  margin-bottom: 8px;
-}
-.verdictRow {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  font-size: 12.5px;
-  font-family: var(--font-mono-ui), monospace;
-  padding: 2px 0;
-}
-.verdictRow b { font-family: var(--font-body), sans-serif; color: var(--muted); font-weight: 400; }
-
-.warn {
-  font-size: 12.5px;
-  color: var(--danger);
-  font-weight: 400;
-  padding: 8px 12px 0;
-  line-height: 1.45;
-}
-
-/* Connect controls */
-.connectPill {
-  font-family: var(--font-body), sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--pink-text);
-  background: var(--pink-soft);
-  border: none;
-  border-radius: 999px;
-  padding: 9px 18px;
-  cursor: pointer;
-  transition: background 140ms;
-}
-.connectPill:hover { background: var(--pink-soft-2); }
-.connectPill:disabled { opacity: 0.6; cursor: wait; }
-.addrPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 7px 7px 7px 13px;
-  cursor: pointer;
-}
-.addrDot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
-.addrDisconnect {
-  font-family: var(--font-body), sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--inset);
-  border-radius: 999px;
-  padding: 4px 10px;
-}
-
-.errorText { color: var(--danger); font-size: 13px; margin-top: 12px; font-weight: 400; }
-
-/* --- Wallet picker / confirm modal --------------------------------------
-   Overlay is a sibling of .console (position:fixed, rendered next to the
-   shell, not inside it). Without its own tokens it inherits shadcn's
-   :root --card (white) and --muted (near-white), which is how the live-mode
-   confirm shipped as a blank white box. */
-.modalOverlay {
-  --ink: #f4f4f5;
-  --ink-soft: #a1a1aa;
-  --muted: #a1a1aa;
-  --muted-2: #8a8a93;
-  --bg: #1a1a1a;
-  --card: #242424;
-  --line: #3a3a3a;
-  --line-soft: #3a3a3a;
-  --inset: #2c2c2c;
-  --inset-2: #333333;
-  --pink: #e56b43;
-  --pink-hover: #f07c53;
-  --pink-soft: rgba(229, 107, 67, 0.14);
-  --green: #34d399;
-  --green-soft: rgba(52, 211, 153, 0.12);
-  --r-md: 10px;
-  --r-lg: 14px;
-
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  color: var(--ink);
-  background: rgba(0, 0, 0, 0.64);
-  backdrop-filter: blur(8px);
-}
-.modal {
-  width: min(440px, calc(100vw - 32px));
-  background: var(--card);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 22px;
-  transform-origin: center;
-  animation: modalIn 180ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-@keyframes modalIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .modal { animation: none; }
-}
-.modalHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.modalTitle {
-  font-weight: 500;
-  font-size: 17px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.modalBody {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
-.modalActions {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
-}
-/* Modal actions sit in a 420px dialog, so the full-size button scale would
-   overflow two side-by-side labels — step it down rather than let text wrap. */
-.modalActions .btn,
-.modalActions .btnCta {
-  flex: 1;
-  width: auto;
-  margin-top: 0;
-  text-align: center;
-  font-size: 15px;
-  padding: 6px 16px;
-  white-space: nowrap;
-}
-.modalActions .btnGhost {
-  background: var(--inset);
-}
-.modalClose {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: var(--inset);
-  color: var(--muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 140ms, color 140ms, transform 120ms;
-}
-.modalClose:not(:disabled):hover { background: var(--inset-2); color: var(--ink); }
-.modalClose:not(:disabled):active { transform: scale(0.97); }
-.modalClose:disabled { opacity: 0.5; cursor: not-allowed; }
-.walletList { display: flex; flex-direction: column; gap: 8px; }
-.walletRow {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  width: 100%;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: var(--card);
-  cursor: pointer;
   text-align: left;
-  transition: background 140ms, border-color 140ms;
 }
-.walletRow:not(:disabled):hover { background: var(--inset); border-color: var(--pink-soft-2); }
-.walletRow:disabled { opacity: 0.6; cursor: wait; }
-.walletIcon { width: 32px; height: 32px; border-radius: 8px; flex: none; }
-.walletName { flex: 1; font-weight: 500; font-size: 15px; color: var(--ink); }
-.walletGo { color: var(--muted); font-size: 16px; }
-.walletHint {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-  padding: 6px 2px;
-}
-.walletHint a { color: var(--pink-text); font-weight: 500; text-decoration: none; }
-.walletHint a:hover { text-decoration: underline; }
-
-/* Footer */
-.footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 44px auto 34px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.footer a { color: var(--pink-text); text-decoration: none; font-weight: 400; }
-.footer a:hover { text-decoration: underline; }
-.footerDot { color: var(--line); }
-
-/* --- Tabbed action interface (Umbra-style) ------------------------------ */
-.panel { width: min(520px, calc(100vw - 32px)); margin: 0 auto; }
-.panelWide { width: min(720px, calc(100vw - 32px)); margin: 0 auto; }
-
-.tabs {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.tab {
-  font-family: var(--font-body), sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  padding: 8px 15px;
-  cursor: pointer;
-  transition: background 140ms, color 140ms;
-}
-.tab:hover { color: var(--ink); }
-.tabActive { color: var(--pink-text); background: var(--pink-soft); font-weight: 500; }
-.tabActive:hover { color: var(--pink-text); }
-
-.inputBlock {
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 18px 18px 16px;
-}
-.inputLabel { color: var(--pink-text); font-weight: 500; font-size: 14px; }
-.inputMain {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 8px 0 12px;
-}
-.bigValue { font-size: 40px; font-weight: 400; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
-.tokenPill {
+.receiptRowLabel { color: var(--muted-2); }
+.receiptRowValue {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 500;
-  font-size: 15px;
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 7px 15px 7px 8px;
-  white-space: nowrap;
-}
-.tokenDot {
-  display: inline-flex;
-  align-items: center;
-}
-.tokenDot svg { display: block; }
-.subLine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.subMono { font-family: var(--font-mono-ui), monospace; }
-
-.feeRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 8px;
-  padding: 15px 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  font-size: 14px;
-  color: var(--muted);
-  background: var(--card);
-}
-.feeVal { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 400; }
-
-.btnCta {
-  width: 100%;
-  margin-top: 10px;
-  padding: 6px 16px;
-  font-family: var(--font-body), sans-serif;
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  color: #fff;
-  background: var(--pink);
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: var(--shadow-sm);
-  transition: background 140ms, box-shadow 140ms, transform 120ms, opacity 140ms;
-}
-.btnCta:not(:disabled):hover { background: var(--pink-hover); box-shadow: var(--shadow-md); }
-.btnCta:active { transform: scale(0.99); }
-.btnCta:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .btn, .connectPill, .btnCta, .tab { transition: none; }
-}
-
-/* --- Payment Links (create + checkout) ---------------------------------- */
-.navLink {
-  color: var(--muted);
-  font-weight: 500;
-  font-size: 14px;
-  text-decoration: none;
-}
-.navLink:hover { color: var(--ink); }
-
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-.fieldRow {
-  display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(180px, 1.3fr);
-  gap: 16px;
-  align-items: start;
-}
-@media (max-width: 640px) {
-  .fieldRow { grid-template-columns: 1fr; }
-}
-.fieldLabel { font-size: 13px; font-weight: 500; color: var(--muted); }
-.textInput {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 6px 16px;
-  font-family: var(--font-body), sans-serif;
-  font-size: 15px;
-  color: var(--ink);
-  background: var(--card);
-  transition: border-color 120ms, box-shadow 120ms;
-}
-.textInput:focus {
-  outline: none;
-  border-color: var(--pink);
-  box-shadow: 0 0 0 3.5px var(--pink-soft);
-}
-.textInput:focus-visible { outline: none; }
-.textInput::placeholder { color: var(--muted); opacity: 0.75; }
-.textInput:disabled { color: var(--muted); background: var(--inset); }
-
-.linkRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 10px 10px 14px;
-  background: var(--inset);
-}
-.linkText {
-  flex: 1;
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 12.5px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.summaryCard {
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 6px 20px;
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 16px;
-}
-.summaryRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 0; font-size: 14px; }
-.summaryRow + .summaryRow { border-top: 1px solid var(--line-soft); }
-.summaryLabel { color: var(--muted); }
-.summaryValue { font-weight: 500; color: var(--ink); font-family: var(--font-mono-ui), monospace; text-align: right; font-variant-numeric: tabular-nums; }
-
-.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip {
-  font-family: var(--font-body), sans-serif;
-  font-weight: 500;
-  font-size: 13px;
-  color: var(--muted);
-  background: var(--inset);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 8px 14px;
-  cursor: pointer;
-  transition: background 140ms, color 140ms, border-color 140ms;
-  display: inline-flex;
-  align-items: center;
-}
-.chip:hover { color: var(--ink); }
-.chipActive { color: var(--pink-text); background: var(--pink-soft); border-color: var(--pink-soft-2); }
-
-/* --- Embeddable widget button + modal ----------------------------------- */
-.widgetBtn {
-  font-family: var(--font-body), sans-serif;
-  font-weight: 500;
-  font-size: 15px;
-  color: #fff;
-  background: var(--pink, #e56b43);
-  border: none;
-  border-radius: 12px;
-  padding: 13px 22px;
-  cursor: pointer;
-}
-.widgetBtn:hover { filter: brightness(1.06); }
-.widgetOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(13, 14, 14, 0.45);
-}
-.widgetFrame {
-  width: min(480px, 100%);
-  height: min(720px, 90vh);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--bg);
-}
-.widgetClose {
-  position: absolute;
-  top: -14px;
-  right: calc(50% - min(240px, 50%) - 14px);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-  font-size: 16px;
-  cursor: pointer;
-}
-
-/* --- /pay success state --------------------------------------------------*/
-.successCard {
-  text-align: center;
-  padding: 8px 4px 4px;
-}
-.successIcon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--green-soft);
-  color: var(--green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  margin: 0 auto 18px;
-}
-.successTitle {
-  font-size: 20px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-.successNote {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-  max-width: 340px;
-  margin: 0 auto;
-}
-
-/* --- next-step row (after generating a link, etc.) ---------------------- */
-.nextSteps {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-.nextSteps a {
-  flex: 1;
-  text-align: center;
-  font-family: var(--font-body), sans-serif;
-  font-weight: 500;
-  font-size: 13.5px;
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 6px 16px;
-  text-decoration: none;
-  transition: background 140ms, border-color 140ms;
-}
-.nextSteps a:hover { background: var(--inset); border-color: var(--pink-soft-2); }
-
-/* --- Dashboard: stat cards ------------------------------------------------*/
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.statCard {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 18px 20px 20px;
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-}
-.statLabel {
-  font-size: 14px;
-  font-weight: 300;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-.statValue {
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  gap: 5px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.statValue span { font-size: 14px; font-weight: 400; color: var(--muted-2); margin-left: 5px; }
-@media (max-width: 560px) {
-  .statGrid { grid-template-columns: 1fr; }
-}
+.receiptRowValue a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 
-/* --- Dashboard: section shell -------------------------------------------- */
-.sectionCard {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-  padding: 22px 24px 20px;
-  margin-bottom: 16px;
-}
-.sectionHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-.sectionTitle { font-size: 17px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; }
-.sectionMeta { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.sectionSub { font-size: 13px; color: var(--muted); margin: 4px 0 16px; line-height: 1.5; }
-
-/* --- Dashboard: payments table -------------------------------------------*/
-.txTable { display: flex; flex-direction: column; }
-.txRow {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 16px;
-  align-items: center;
-  padding: 13px 0;
-  border-top: 1px solid var(--line-soft);
-}
-.txRow:first-child { border-top: none; }
-.txMain { min-width: 0; }
-.txTitle {
-  font-size: 13.5px;
+.receiptDownload {
+  width: 100%;
+  height: 33px;
+  margin-top: 18px;
+  border-radius: 16.5px;
+  border: 0;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.txTime { font-size: 11.5px; color: var(--muted-2); margin-top: 2px; }
-.txAmount {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.txLink {
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 11.5px;
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.txLink:hover { color: var(--pink-text); }
-.txExpiry { font-size: 11.5px; color: var(--muted-2); margin-top: 2px; }
-.txActions { display: flex; align-items: center; gap: 12px; }
-.txActions button {
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 11.5px;
-  color: var(--muted);
   cursor: pointer;
 }
-.txActions button:hover { color: var(--pink-text); }
-
-.emptyState {
-  text-align: center;
-  padding: 28px 12px 8px;
-}
-.emptyState p {
-  color: var(--muted);
-  font-size: 13.5px;
-  line-height: 1.5;
-  max-width: 320px;
-  margin: 0 auto 16px;
-}
-
-/* --- Dashboard: key display ------------------------------------------------*/
-.keyRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 6px 16px;
-  background: var(--inset);
-  font-family: var(--font-mono-ui), monospace;
-  font-size: 13px;
-  color: var(--ink);
-}
-.keyRow.secret { border-color: var(--pink-soft-2); background: var(--pink-soft); }
-.keyDot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex: none; }
-.keyText { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.keyBadge {
-  font-family: var(--font-body), sans-serif;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--pink-text);
-  background: var(--pink-soft-2);
-  border-radius: 999px;
-  padding: 3px 8px;
-  flex: none;
-}
-
-/* --- Checkout: trust footer ------------------------------------------------*/
-.trustRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin-top: 16px;
-  color: var(--muted-2);
-  font-size: 12px;
-}
-.trustRow svg { flex: none; }
-
-/* --- Checkout: amount-first header --------------------------------------- */
-.checkoutAmountBlock { text-align: left; padding: 4px 0 0; }
-
-/* Two-panel checkout: context left, payment right. */
-.checkoutSplit {
-  width: min(920px, calc(100vw - 32px));
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--surface, transparent);
-}
-.checkoutBrandPanel {
-  display: flex;
-  flex-direction: column;
-  padding: 26px 26px 20px;
-  background: var(--surface-2, rgba(255, 255, 255, 0.02));
-  border-right: 1px solid var(--line);
-  min-width: 0;
-}
-.checkoutPayPanel {
-  padding: 26px;
-  min-width: 0;
-}
-/* Pins the attribution to the foot of the brand panel however tall the
-   payment side grows. */
-.checkoutPoweredBy {
-  margin-top: auto;
-  padding-top: 22px;
-  font-size: 11.5px;
-  color: var(--muted-2);
-}
-
-.modalError {
-  padding: 0 20px 10px;
-}
-
-.notFoundCode {
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  color: var(--muted-2);
-  margin-bottom: 10px;
-}
-.notFoundTitle {
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  margin: 0 0 10px;
-}
-.notFoundBody {
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.6;
-  margin: 0 auto 22px;
-  max-width: 380px;
-}
-.notFoundActions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.stalledBox {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-top: 12px;
-}
-.stalledTitle {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 5px;
-}
-.stalledBody {
-  font-size: 12.5px;
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0 0 10px;
-}
-.stalledRow {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.stalledRow input { flex: 1; min-width: 0; }
 
 /* First-run setup steps on Overview. */
 .setupGrid {

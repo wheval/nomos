@@ -12,6 +12,7 @@ import SelectWallet from "../WalletHandle/SelectWallet";
 import { switchConnectedWalletNetwork } from "../WalletHandle/connectWallet";
 import { networkLabel } from "@/utils/networks";
 import ReceiptCard from "../ReceiptCard";
+import PaymentReceipt from "./PaymentReceipt";
 import { TokenLogo } from "../../TokenIcons";
 import { parseTokenAmount } from "@/utils/payments";
 import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResult } from "@/utils/receipt";
@@ -149,6 +150,9 @@ export default function Checkout() {
   // treating it as one is what lets someone pay the same link twice.
   const [broadcastTx, setBroadcastTx] = useState<string | null>(null);
   const [reportFailed, setReportFailed] = useState(false);
+  // Stamped when the payment settles, so a receipt re-rendered later still
+  // shows the date the money moved.
+  const [paidAt, setPaidAt] = useState<number | null>(null);
   // A wallet can broadcast a transaction and never resolve its promise back to
   // the page — observed on Sepolia: the payment settled, Argent showed the
   // hash, and this page sat on "Confirm in your wallet" forever with nothing
@@ -314,6 +318,7 @@ export default function Checkout() {
         txH = r.transaction_hash;
       }
       setBroadcastTx(txH);
+      setPaidAt(Math.floor(Date.now() / 1000));
       setPayPhase("confirming");
       setResult({
         status: "pending",
@@ -487,14 +492,24 @@ export default function Checkout() {
       )}
 
       {isPaid ? (
-        <div className={styles.successCard}>
-          <div className={styles.successIcon}>✓</div>
-          <div className={styles.successTitle}>Payment sent</div>
-          <p className={styles.successNote}>
-            {flow === "A"
-              ? "Shielded and settled on-chain. The business has been notified — nothing more to do here."
-              : "Settled on-chain and recorded for the business — nothing more to do here."}
-          </p>
+        <>
+          {/* A receipt rather than a success message: something the payer can
+              file, forward, or quote back to the business weeks later. */}
+          <PaymentReceipt
+            merchantName={merchantName}
+            logoDataUrl={linkData.logoDataUrl}
+            amount={
+              fixedAmount !== undefined
+                ? fmtTokenAmount(BigInt(fixedAmount), decimals)
+                : customAmount
+            }
+            token={token}
+            reference={paidReference}
+            txHash={broadcastTx}
+            flow={flow}
+            networkIndex={myFrontendProviderIndex}
+            paidAt={paidAt ?? Math.floor(Date.now() / 1000)}
+          />
           {linkData.callbackUrl ? (
             <div className={styles.nextSteps} style={{ maxWidth: 280, margin: "14px auto 0" }}>
               {/* The reference travels with the payer so the merchant's server
@@ -504,7 +519,7 @@ export default function Checkout() {
               </a>
             </div>
           ) : null}
-        </div>
+        </>
       ) : isAlreadyPaid ? (
         <div className={styles.warn} style={{ padding: "0 0 12px" }}>
           This invoice has already been paid. Nothing to do here — check with the business if
