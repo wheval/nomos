@@ -36,27 +36,27 @@ export default function PaymentReceipt({
   const onChain = isOnChainHash(txHash);
 
   return (
-    <div className={styles.receipt} id="nomos-receipt">
-      <div className={styles.receiptBand} />
+    <div className={styles.payReceipt} id="nomos-receipt">
+      <div className={styles.payReceiptBand} />
 
       {/* The reference always carries a mark at the top, straddling the band.
           A merchant without a logo falls back to their initial rather than
           leaving a hole where the identity should be. */}
       {logoDataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.receiptLogo} src={logoDataUrl} alt="" />
+        <img className={styles.payReceiptLogo} src={logoDataUrl} alt="" />
       ) : (
-        <div className={styles.receiptLogo} aria-hidden="true">
-          <span className={styles.receiptLogoLetter}>
+        <div className={styles.payReceiptLogo} aria-hidden="true">
+          <span className={styles.payReceiptLogoLetter}>
             {(merchantName ?? "?").trim().charAt(0).toUpperCase()}
           </span>
         </div>
       )}
 
-      <div className={styles.receiptFrom}>
+      <div className={styles.payReceiptFrom}>
         Receipt from <b>{merchantName ?? "this business"}</b>
       </div>
-      <div className={styles.receiptDate}>
+      <div className={styles.payReceiptDate}>
         {new Date(paidAt * 1000).toLocaleDateString(undefined, {
           year: "numeric",
           month: "long",
@@ -64,25 +64,25 @@ export default function PaymentReceipt({
         })}
       </div>
 
-      <div className={styles.receiptAmountLabel}>Amount paid</div>
-      <div className={styles.receiptAmount}>
+      <div className={styles.payReceiptAmountLabel}>Amount paid</div>
+      <div className={styles.payReceiptAmount}>
         <TokenLogo symbol={token} size={22} />
         {amount}
         <span>{token}</span>
       </div>
 
-      <div className={styles.receiptRule} />
+      <div className={styles.payReceiptRule} />
 
       {reference ? (
-        <div className={styles.receiptStack}>
-          <div className={styles.receiptStackLabel}>Payment reference</div>
-          <div className={styles.receiptStackValue}>{reference}</div>
+        <div className={styles.payReceiptStack}>
+          <div className={styles.payReceiptStackLabel}>Payment reference</div>
+          <div className={styles.payReceiptStackValue}>{reference}</div>
         </div>
       ) : null}
 
-      <div className={styles.receiptRow}>
-        <span className={styles.receiptRowLabel}>Transaction</span>
-        <span className={styles.receiptRowValue}>
+      <div className={styles.payReceiptRow}>
+        <span className={styles.payReceiptRowLabel}>Transaction</span>
+        <span className={styles.payReceiptRowValue}>
           {/* A payment settled from a shielded note has no hash to link. */}
           {onChain && txHash ? (
             <a href={explorerTxUrl(networkIndex, txHash)} target="_blank" rel="noreferrer">
@@ -94,9 +94,9 @@ export default function PaymentReceipt({
         </span>
       </div>
 
-      <div className={styles.receiptRow}>
-        <span className={styles.receiptRowLabel}>Payment method</span>
-        <span className={styles.receiptRowValue}>
+      <div className={styles.payReceiptRow}>
+        <span className={styles.payReceiptRowLabel}>Payment method</span>
+        <span className={styles.payReceiptRowValue}>
           <TokenLogo symbol={token} size={14} />
           {token} · {flow === "A" ? "private" : "standard"}
         </span>
@@ -104,7 +104,7 @@ export default function PaymentReceipt({
 
       <button
         type="button"
-        className={styles.receiptDownload}
+        className={styles.payReceiptDownload}
         data-print-hide
         onClick={() => window.print()}
       >
