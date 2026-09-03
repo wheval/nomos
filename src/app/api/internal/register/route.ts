@@ -13,6 +13,7 @@ import { num } from "starknet";
 import { isValidNetworkIndex, myFrontendProviders } from "@/utils/constants";
 import { getOperatingAccount } from "@/server/signer/operatingWallet";
 import {
+  ensurePoolAllowance,
   getPrivacyClient,
   poolAddressFor,
   provingBlockId,
@@ -77,13 +78,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, alreadyRegistered: true, address: account.address });
     }
 
+    // The pool pulls its fee from the caller, so without an allowance
+    // apply_actions reverts — and a revert is still charged.
+    const allowance = await ensurePoolAllowance(account, provider, networkIndex);
+
     const transfers = getPrivacyClient(provider, networkIndex);
     const blockId = await provingBlockId(provider);
     const result = await transfers.build({ provingBlockId: blockId }).register().execute();
     const { txHash } = await submitPrivateAction(account, result, provider);
-    await provider.waitForTransaction(txHash);
+    const receipt = await provider.waitForTransaction(txHash);
 
-    return NextResponse.json({ ok: true, alreadyRegistered: false, address: account.address, txHash }, { status: 201 });
+    // waitForTransaction resolves for a REVERTED transaction too. Reporting
+    // ok on one is worse than failing: it burns the fee, leaves the wallet
+    // unregistered, and says the opposite.
+    const status = (receipt as unknown as { execution_status?: string; value?: { execution_status?: string } });
+    const executionStatus = status.execution_status ?? status.value?.execution_status;
+    if (executionStatus === "REVERTED") {
+      return NextResponse.json(
+        { ok: false, error: "Registration reverted on-chain.", txHash, approvalTxHash: allowance.txHash },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json(
+      { ok: true, alreadyRegistered: false, address: account.address, txHash, approvalTxHash: allowance.txHash },
+      { status: 201 }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ ok: false, error: message }, { status: 502 });

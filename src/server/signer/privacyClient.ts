@@ -23,6 +23,7 @@ import {
 // documented option for a direct-RPC discovery provider, no indexer infra).
 import { ContractDiscoveryProvider } from "@starkware-libs/starknet-privacy-sdk/testing";
 import { PrivacyPoolABI } from "@starkware-libs/starknet-privacy-sdk/abi";
+import { addrSTRK } from "@/utils/constants";
 import { getOperatingAccount } from "./operatingWallet";
 import { StarkscanProofProvider } from "./starkscanProver";
 
@@ -202,6 +203,54 @@ const MANUAL_RESOURCE_BOUNDS = {
   l1_gas: { max_amount: 0n, max_price_per_unit: 500_000_000_000_000n },
   l1_data_gas: { max_amount: 5_000n, max_price_per_unit: 2_000_000_000_000n },
 };
+
+/**
+ * Approve the pool to collect its fee before any action that pays one.
+ *
+ * The pool charges its fee by pulling STRK from the caller, so apply_actions
+ * reverts with "Insufficient ERC20 allowance" without this — and a revert is
+ * charged, so the omission costs real gas every time it happens rather than
+ * failing for free.
+ *
+ * Allowance is topped up in multiples rather than per action, because each
+ * approve is its own transaction and its own fee; unlimited is avoided so a
+ * compromised or upgraded pool cannot drain the operating wallet's STRK.
+ */
+const ALLOWANCE_ACTIONS = 20n;
+
+export async function ensurePoolAllowance(
+  account: Account,
+  provider: ProviderInterface,
+  networkIndex: number
+): Promise<{ approved: boolean; txHash?: string }> {
+  const pool = poolAddressFor(networkIndex);
+  const fee = await poolFeeAmount(provider, networkIndex);
+  if (fee === 0n) return { approved: false };
+
+  const [low, high] = await provider.callContract({
+    contractAddress: addrSTRK,
+    entrypoint: "allowance",
+    calldata: [account.address, pool],
+  });
+  const allowance = num.toBigInt(low) + (high === undefined ? 0n : num.toBigInt(high) << 128n);
+  if (allowance >= fee) return { approved: false };
+
+  const target = fee * ALLOWANCE_ACTIONS;
+  const tx = await account.execute(
+    {
+      contractAddress: addrSTRK,
+      entrypoint: "approve",
+      calldata: [pool, num.toHex(target & ((1n << 128n) - 1n)), num.toHex(target >> 128n)],
+    },
+    // Manual bounds for the same reason every other call here uses them:
+    // estimateInvokeFee simulates with SKIP_VALIDATE, so it never prices this
+    // account's secp256k1 __validate__ and the approve dies with "Out of gas"
+    // before it starts.
+    { resourceBounds: MANUAL_RESOURCE_BOUNDS } as Parameters<Account["execute"]>[1]
+  );
+  await provider.waitForTransaction(tx.transaction_hash);
+  return { approved: true, txHash: tx.transaction_hash };
+}
 
 // A screened deposit carries a screening attestation in additional_data, and
 // the pool rejects one older than DEPOSITOR_VALIDATION_MAX_AGE — 300s, per

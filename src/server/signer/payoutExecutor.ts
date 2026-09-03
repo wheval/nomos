@@ -11,7 +11,7 @@ import { addrSTRK, myFrontendProviders } from "@/utils/constants";
 import { num } from "starknet";
 import type { ProviderInterface } from "starknet";
 import { getOperatingAccount } from "./operatingWallet";
-import { getPrivacyClient, poolFeeAmount, provingBlockId, submitPrivateAction } from "./privacyClient";
+import { ensurePoolAllowance, getPrivacyClient, poolFeeAmount, provingBlockId, submitPrivateAction } from "./privacyClient";
 
 export interface PayoutExecutor {
   executeWithdraw(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
@@ -61,6 +61,9 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
   ): Promise<{ txHash: string }> {
     const account = getOperatingAccount(provider, networkIndex);
     await assertCanPayFees(provider, networkIndex, account.address);
+    // Same reason as registration: the pool pulls its fee, and without an
+    // allowance the payout reverts after paying gas for the privilege.
+    await ensurePoolAllowance(account, provider, networkIndex);
     const transfers = getPrivacyClient(provider, networkIndex);
     const blockId = await provingBlockId(provider);
 
