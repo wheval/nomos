@@ -45,7 +45,7 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
   if (!isConnected) {
     return (
       <div className={styles.cPanel}>
-        <div className={styles.cPanelSection} style={{ textAlign: "center" }}>
+        <div className={styles.connectPrompt}>
           <p className={styles.sectionSub}>Connect the wallet you want paid into before creating a link.</p>
           <SelectWallet variant="ctaBig" />
         </div>

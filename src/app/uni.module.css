@@ -3250,3 +3250,13 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   font-weight: 500;
   cursor: pointer;
 }
+
+
+/* The connect-wallet prompt every console panel shows before a wallet is
+   attached. A shared class rather than an inline textAlign repeated in seven
+   files — and it insets the button, which previously ran to the panel's inner
+   edges with nothing to breathe against. */
+.connectPrompt {
+  text-align: center;
+  padding: 26px 20px;
+}

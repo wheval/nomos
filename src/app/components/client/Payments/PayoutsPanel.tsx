@@ -14,7 +14,7 @@ export default function PayoutsPanel() {
     return (
       <div className={styles.consolePage}>
         <div className={styles.cPanel}>
-          <div className={styles.cPanelSection} style={{ textAlign: "center" }}>
+          <div className={styles.connectPrompt}>
             <p className={styles.sectionSub}>Connect the wallet your Payment Links pay into to see its console.</p>
             <SelectWallet variant="ctaBig" />
           </div>
