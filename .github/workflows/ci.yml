@@ -14,6 +14,9 @@ jobs:
       # Placeholder only — the RPC providers are constructed at build time
       # but never actually called during lint/typecheck/test/build.
       NEXT_PUBLIC_PROVIDER_URL: ci-placeholder
+      # Job-level so every step sees it — .npmrc expands ${GH_PACKAGES_TOKEN}
+      # to reach @starkware-libs on GitHub Packages.
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,9 +35,14 @@ jobs:
         # Linux ones (@emnapi/*) that this runner needs, and `npm ci` treats
         # that as the lockfile being out of sync. install resolves them and
         # still honours the lockfile for everything else.
-        run: npm install --no-audit --no-fund
-        env:
-          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          # Fail with a readable message rather than a registry 401 that looks
+          # like a broken token when the secret simply is not reaching the job.
+          if [ -z "$GH_PACKAGES_TOKEN" ]; then
+            echo "GH_PACKAGES_TOKEN is empty — set it as a repository secret (needs read:packages)."
+            exit 1
+          fi
+          npm install --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
