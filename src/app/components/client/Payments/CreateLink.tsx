@@ -14,6 +14,7 @@ import { usePaymentLinks, expiresInLabel } from "./usePaymentLinks";
 import { linkStatus, pillClass } from "./statusTone";
 import { rowNavProps } from "./rowNav";
 import CreateLinkModal from "./CreateLinkModal";
+import ExternalIcon from "../../ExternalIcon";
 
 // The Payment Links index: what exists, and a way to make another. Creation
 // moved into a dialog so the list — the thing a merchant comes here to read —
@@ -106,7 +107,7 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
               </div>
               <div className={styles.nextSteps} style={{ marginTop: 12 }}>
                 <Link href={`/dashboard/links/${justCreated}`}>Open its page →</Link>
-                <a href={createdUrl} target="_blank" rel="noreferrer">Preview as customer ↗</a>
+                <a href={createdUrl} target="_blank" rel="noreferrer">Preview as customer <ExternalIcon /></a>
               </div>
             </div>
           ) : null}
@@ -178,7 +179,7 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
                         <td>
                           <div className={styles.txActions}>
                             <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
-                              View ↗
+                              View <ExternalIcon />
                             </a>
                             <button
                               type="button"

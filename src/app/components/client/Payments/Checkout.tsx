@@ -417,11 +417,15 @@ export default function Checkout() {
       <div className={styles.checkoutAmountBlock}>
         {note ? <div className={styles.checkoutLineItem}>{note}</div> : null}
         <div className={styles.checkoutAmountValue}>
-          {fixedAmount !== undefined ? (
+          {/* On an open-amount link the headline follows what the payer is
+              typing on the right. It used to sit on "Enter amount" while they
+              filled the field, so the two halves of the page disagreed about
+              what was being paid. */}
+          {fixedAmount !== undefined || customAmount.trim() ? (
             <>
-              {fmtTokenAmount(BigInt(fixedAmount), decimals)}
-              {/* The mark makes the token readable at a glance, the way the
-                  console already shows every other amount. */}
+              {fixedAmount !== undefined
+                ? fmtTokenAmount(BigInt(fixedAmount), decimals)
+                : customAmount.trim()}
               <span className={styles.checkoutAmountToken}>
                 <TokenLogo symbol={token} size={20} />
                 {token}

@@ -11,6 +11,7 @@ import { useMerchantAuth } from "./useMerchantAuth";
 import { useLedger } from "./useLedger";
 import { usePaymentLinks } from "./usePaymentLinks";
 import { depositStatus, pillClass } from "./statusTone";
+import ExternalIcon from "../../ExternalIcon";
 
 // One deposit and the link it came from. Like the link detail view, both
 // records are read out of the console's cached lists, so opening a row from
@@ -155,7 +156,7 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
                 rel="noreferrer"
                 title={deposit.txHash}
               >
-                {shortHex(deposit.txHash)} ↗
+                {shortHex(deposit.txHash)} <ExternalIcon />
               </a>
               )}
             </div>
@@ -233,7 +234,7 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {shortHex(deposit.shieldTxHash)} ↗
+                    {shortHex(deposit.shieldTxHash)} <ExternalIcon />
                   </a>
                 </span>
               </div>
@@ -247,7 +248,7 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  View on explorer ↗
+                  View on explorer <ExternalIcon />
                 </a>
               ) : null}
               {link ? (
@@ -256,7 +257,7 @@ export default function TransactionDetailPanel({ id }: { id: string }) {
                   className={`${styles.settingsBtn} ${styles.settingsBtnGhost}`}
                   target="_blank"
                 >
-                  Open checkout ↗
+                  Open checkout <ExternalIcon />
                 </Link>
               ) : null}
             </div>

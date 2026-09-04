@@ -15,6 +15,7 @@ import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants
 import InsightsChart, { Donut, type ChartPoint } from "./InsightsChart";
 import { rowNavProps } from "./rowNav";
 import { TokenAmount, TokenLogo } from "../../TokenIcons";
+import ExternalIcon from "../../ExternalIcon";
 
 const RANGES = [7, 30, 90] as const;
 const DEFAULT_RANGE = 30;
@@ -359,7 +360,7 @@ export default function OverviewPanel() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {shortHex(d.txHash)} ↗
+                        {shortHex(d.txHash)} <ExternalIcon />
                       </a>
                     ) : (
                       <span className={styles.txLink}>shielded note</span>
@@ -422,7 +423,7 @@ export default function OverviewPanel() {
                     </div>
                     <div className={styles.txActions}>
                       <a className={styles.txLink} href={url} target="_blank" rel="noreferrer" title="Open link">
-                        View ↗
+                        View <ExternalIcon />
                       </a>
                       <button
                         type="button"

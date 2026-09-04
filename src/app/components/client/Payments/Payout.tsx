@@ -11,6 +11,7 @@ import { pillClass, type Tone } from "./statusTone";
 import { useFrontendProvider } from "../provider/providerContext";
 import type { Payout as PayoutRecord, PayoutMode } from "@/server/store";
 import type { TokenBalances } from "./useLedger";
+import ExternalIcon from "../../ExternalIcon";
 
 type WirePayout = Omit<PayoutRecord, "amountWei"> & { amountWei: string };
 
@@ -220,7 +221,7 @@ export default function Payout({
         <p className={styles.settingsHint}>
           Sent —{" "}
           <a href={explorerTxUrl(myFrontendProviderIndex, lastTxHash)} target="_blank" rel="noreferrer">
-            {shortHex(lastTxHash)} ↗
+            {shortHex(lastTxHash)} <ExternalIcon />
           </a>
         </p>
       ) : null}
@@ -265,7 +266,7 @@ export default function Payout({
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {shortHex(p.txHash)} ↗
+                          {shortHex(p.txHash)} <ExternalIcon />
                         </a>
                       ) : (
                         <span className={styles.cellMuted}>—</span>

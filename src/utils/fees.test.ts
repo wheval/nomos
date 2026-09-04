@@ -19,25 +19,21 @@ describe("fee schedule", () => {
     expect(transactionFeeWei("STRK", "B")).toBeGreaterThan(transactionFeeWei("STRK", "A"));
   });
 
-  it("charges 0.10/0.20 USDC per transaction and 0.30 to pay out", () => {
-    expect(transactionFeeWei("USDC", "A")).toBe(100_000n);
-    expect(transactionFeeWei("USDC", "B")).toBe(200_000n);
-    expect(payoutFeeWei("USDC")).toBe(300_000n);
+  it("charges 0.01/0.02 USDC per transaction and 0.05 to pay out", () => {
+    expect(transactionFeeWei("USDC", "A")).toBe(10_000n);
+    expect(transactionFeeWei("USDC", "B")).toBe(20_000n);
+    expect(payoutFeeWei("USDC")).toBe(50_000n);
   });
 
-  it("covers the on-chain payout cost with the payout fee alone", () => {
-    // The STRK payout fee is charged in STRK, so it compares directly.
-    expect(payoutFeeWei("STRK")).toBeGreaterThan(PAYOUT_COST_STRK);
-  });
-
-  it("turns a profit once a handful of payments batch into one payout", () => {
-    // Ten Flow A payments settled by one payout, priced in STRK so revenue
-    // and cost share a unit.
-    const revenue = transactionFeeWei("STRK", "A") * 10n + payoutFeeWei("STRK");
-    expect(revenue).toBeGreaterThan(PAYOUT_COST_STRK);
-    // And with a single payment it still clears, because the payout fee is
-    // sized to stand on its own.
-    expect(transactionFeeWei("STRK", "A") + payoutFeeWei("STRK")).toBeGreaterThan(PAYOUT_COST_STRK);
+  it("knowingly runs below settlement cost while this is a prototype", () => {
+    // Prices were cut an order of magnitude so a demo can move $0.20 rather
+    // than being floored at $1.10. The payout fee no longer covers the ~9.5
+    // STRK a payout costs on-chain, and that is the deliberate trade.
+    //
+    // Asserted rather than left implicit so the subsidy stays a decision
+    // someone made, not a regression nobody noticed — and so restoring
+    // sustainable pricing means changing a test on purpose.
+    expect(payoutFeeWei("STRK")).toBeLessThan(PAYOUT_COST_STRK);
   });
 
   it("keeps the minimum payment above its own fee", () => {

@@ -14,6 +14,7 @@ import { useLedger } from "./useLedger";
 import { usePaymentLinks, expiresInLabel } from "./usePaymentLinks";
 import { depositStatus, linkStatus, pillClass } from "./statusTone";
 import { rowNavProps } from "./rowNav";
+import ExternalIcon from "../../ExternalIcon";
 
 // One Payment Link and everything recorded against it. Both the link and its
 // deposits come from the lists the console already caches, so arriving here
@@ -159,7 +160,7 @@ export default function LinkDetailPanel({ id }: { id: string }) {
                               target="_blank"
                               rel="noreferrer"
                             >
-                              {shortHex(d.txHash)} ↗
+                              {shortHex(d.txHash)} <ExternalIcon />
                             </a>
                           </td>
                         </tr>
@@ -244,7 +245,7 @@ export default function LinkDetailPanel({ id }: { id: string }) {
 
             <div className={styles.detailActions}>
               <a className={styles.settingsBtn} href={url} target="_blank" rel="noreferrer">
-                Open checkout ↗
+                Open checkout <ExternalIcon />
               </a>
               {!link.revoked ? (
                 <button

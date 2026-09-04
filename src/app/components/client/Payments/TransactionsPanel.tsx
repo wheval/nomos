@@ -12,6 +12,7 @@ import { depositStatus, pillClass } from "./statusTone";
 import { rowNavProps } from "./rowNav";
 import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { TokenAmount } from "../../TokenIcons";
+import ExternalIcon from "../../ExternalIcon";
 
 const RANGES = [
   { days: 0, label: "All time" },
@@ -138,7 +139,7 @@ export default function TransactionsPanel() {
                               target="_blank"
                               rel="noreferrer"
                             >
-                              {shortHex(d.txHash)} ↗
+                              {shortHex(d.txHash)} <ExternalIcon />
                             </a>
                           ) : (
                             <span className={styles.cellMuted}>shielded note</span>

@@ -19,9 +19,12 @@ all (shielding $100k costs 0.25% on Railgun and cents on Starknet).
 
 | | Fee |
 | --- | --- |
-| Private payment (Flow A) | 0.10 USDC / 4 STRK |
-| Public payment (Flow B) — Nomos shields it for you | 0.20 USDC / 8 STRK |
-| Payout | 0.30 USDC / 12 STRK |
+| Private payment (Flow A) | 0.01 USDC / 0.4 STRK |
+| Public payment (Flow B) — Nomos shields it for you | 0.02 USDC / 0.8 STRK |
+| Payout | 0.05 USDC / 2 STRK |
+
+Prototype pricing: set well below what the model implies so testing does not
+need real money, and the payout fee does not yet cover on-chain settlement.
 
 Fees come out of settlement: the deposit records the gross, the ledger is
 credited the net. The schedule lives in [`src/utils/fees.ts`](src/utils/fees.ts)

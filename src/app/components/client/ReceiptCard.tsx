@@ -3,6 +3,7 @@
 import styles from "../../uni.module.css";
 import type { ActionResult } from "@/utils/receipt";
 import { explorerTxUrl } from "@/utils/receipt";
+import ExternalIcon from "../ExternalIcon";
 
 // Readable receipt card for a submitted STRK20 action - replaces raw JSON/hex.
 // Shared between the wallet panel and the Payment Link checkout flow.
@@ -42,7 +43,7 @@ export default function ReceiptCard({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {row.value} ↗
+                  {row.value} <ExternalIcon />
                 </a>
               ) : (
                 <span className={styles.receiptValue}>{row.value}</span>

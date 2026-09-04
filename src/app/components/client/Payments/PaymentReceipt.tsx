@@ -3,6 +3,7 @@
 import { explorerTxUrl, isOnChainHash, shortHex } from "@/utils/receipt";
 import styles from "../../../uni.module.css";
 import { TokenLogo } from "../../TokenIcons";
+import ExternalIcon from "../../ExternalIcon";
 
 // What a payer gets to keep. Until now the paid state was a success card and a
 // return link — nothing they could file, forward to an accountant, or quote
@@ -86,7 +87,7 @@ export default function PaymentReceipt({
           {/* A payment settled from a shielded note has no hash to link. */}
           {onChain && txHash ? (
             <a href={explorerTxUrl(networkIndex, txHash)} target="_blank" rel="noreferrer">
-              {shortHex(txHash)} ↗
+              {shortHex(txHash)} <ExternalIcon />
             </a>
           ) : (
             "Settled privately"

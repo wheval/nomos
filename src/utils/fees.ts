@@ -17,6 +17,15 @@
 // one payout settles many transactions. That is why minimumPayoutWei exists
 // — without it a merchant could withdraw per payment and each settlement
 // would cost more than the transaction earned.
+//
+// PROTOTYPE PRICING. These are set an order of magnitude below the schedule
+// the model implies, so a demo can move $0.20 rather than being floored at
+// $1.10 — a floor in STRK looked absurd (40 STRK) purely because STRK is
+// worth under three cents. The consequence is deliberate and worth stating
+// plainly: the payout fee no longer covers the ~9.5 STRK a payout actually
+// costs on-chain, so Nomos subsidises roughly 7.5 STRK of every withdrawal.
+// Fine while the goal is demonstrating the product; not fine at volume. The
+// shape is right and only the numbers move — see docs/pricing.
 import { Tokens, type TokenSymbol } from "./constants";
 
 export type Flow = "A" | "B";
@@ -43,19 +52,19 @@ type FeeSchedule = {
 const SCHEDULES: Record<TokenSymbol, FeeSchedule> = {
   // 6 decimals — 1_000_000 = $1.
   USDC: {
-    transactionA: 100_000n, //  $0.10
-    transactionB: 200_000n, //  $0.20
-    payout: 300_000n, //        $0.30
-    minimumPayment: 1_000_000n, //   $1
-    minimumPayout: 5_000_000n, //    $5
+    transactionA: 10_000n, //  $0.01
+    transactionB: 20_000n, //  $0.02
+    payout: 50_000n, //        $0.05
+    minimumPayment: 200_000n, //  $0.20
+    minimumPayout: 500_000n, //   $0.50
   },
-  // 18 decimals. ~$0.026/STRK at time of writing.
+  // 18 decimals. ~$0.028/STRK at time of writing.
   STRK: {
-    transactionA: 4_000_000_000_000_000_000n, //    4 STRK  ≈ $0.10
-    transactionB: 8_000_000_000_000_000_000n, //    8 STRK  ≈ $0.21
-    payout: 12_000_000_000_000_000_000n, //        12 STRK  ≈ $0.31
-    minimumPayment: 40_000_000_000_000_000_000n, // 40 STRK ≈ $1.04
-    minimumPayout: 200_000_000_000_000_000_000n, // 200 STRK ≈ $5.22
+    transactionA: 400_000_000_000_000_000n, //     0.4 STRK ≈ $0.011
+    transactionB: 800_000_000_000_000_000n, //     0.8 STRK ≈ $0.022
+    payout: 2_000_000_000_000_000_000n, //           2 STRK ≈ $0.055
+    minimumPayment: 8_000_000_000_000_000_000n, //   8 STRK ≈ $0.22
+    minimumPayout: 20_000_000_000_000_000_000n, //  20 STRK ≈ $0.55
   },
 };
 
