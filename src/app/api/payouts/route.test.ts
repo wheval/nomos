@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { minimumPayoutWei, payoutFeeWei } from "@/utils/fees";
 
-// Payouts are priced in whole STRK, so the fixtures have to clear the
-// minimum-payout floor — a 100 wei payout is now correctly refused.
-const REQUESTED = 300_000_000_000_000_000_000n; // 300 STRK
-const PAYOUT_FEE = 12_000_000_000_000_000_000n; //  12 STRK
-const SENT = REQUESTED - PAYOUT_FEE; //            288 STRK
+// Derived from the live fee schedule rather than copied from it: these
+// numbers moved once already when pricing was cut for the prototype, and the
+// hardcoded copy silently went stale.
+const REQUESTED = minimumPayoutWei("STRK") * 3n;
+const PAYOUT_FEE = payoutFeeWei("STRK");
+const SENT = REQUESTED - PAYOUT_FEE;
 
 const verifyMerchantSecret = vi.fn(async () => true);
 const getLedgerBalance = vi.fn(async () => REQUESTED * 2n);
