@@ -200,7 +200,7 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
       </div>
 
       <CreateLinkModal
-        initialKind={invoices ? "invoice" : undefined}
+        kind={invoices ? "invoice" : "page"}
         open={creating}
         onClose={() => setCreating(false)}
         onCreated={(id) => {

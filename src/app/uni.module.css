@@ -2941,30 +2941,6 @@ a.copyFieldValue:hover { color: var(--pink-text); }
 .modalFoot .settingsBtn { flex: none; }
 
 /* Type chooser — icon, what it does, and the action, one row per kind. */
-.typeChoice {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-}
-.typeChoice + .typeChoice { border-top: 1px solid var(--line); }
-.typeChoiceIcon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: none;
-  border-radius: 12px;
-  background: var(--inset);
-  color: var(--ink-soft);
-}
-.typeChoiceText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.typeChoiceTitle {
-  font-size: 15.5px;
-  font-weight: 500;
-  color: var(--ink);
-}
-.typeChoiceDesc { font-size: 14px; color: var(--muted); line-height: 1.5; }
 
 /* A row that reads as a sentence with a control in it, not a bare checkbox. */
 .checkRow {

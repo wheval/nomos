@@ -19,11 +19,10 @@ export default function CreateLinkModal({
   merchantAddress,
   secretKey,
   networkIndex,
-  // Opening from Invoices skips the "what kind?" step — the merchant already
-  // answered it by being on that page.
-  initialKind,
+  // Decided by the page that opened this, not asked again inside it.
+  kind,
 }: {
-  initialKind?: Kind;
+  kind: Kind;
   open: boolean;
   onClose: () => void;
   onCreated: (url: string) => void;
@@ -31,14 +30,9 @@ export default function CreateLinkModal({
   secretKey: string | null;
   networkIndex: number;
 }) {
-  const [kind, setKind] = useState<Kind | null>(initialKind ?? null);
-
-  // Reset on each open. Without this the dialog reopens on whatever was picked
-  // last time, so a merchant who backed out of an invoice gets the invoice form
-  // again next time they meant to make a link.
-  useEffect(() => {
-    if (open) setKind(initialKind ?? null);
-  }, [open, initialKind]);
+  // Which kind this is comes from the page that opened it — Payment Links or
+  // Invoices — so the dialog no longer asks. The chooser step it used to show
+  // was answered before the merchant ever clicked.
   const [token, setToken] = useState<TokenSymbol>("STRK");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -62,7 +56,6 @@ export default function CreateLinkModal({
   // Reset on close so reopening never inherits a half-filled previous attempt.
   useEffect(() => {
     if (open) return;
-    setKind(null);
     setName("");
     setAmount("");
     setFixedAmount(true);
@@ -124,64 +117,15 @@ export default function CreateLinkModal({
       >
         <div className={styles.modalHead}>
           <span className={styles.modalTitle} id="create-link-title">
-            {kind === null
-              ? "Create a payment link"
-              : kind === "invoice"
-                ? "Create an invoice"
-                : "Create a reusable link"}
+            {kind === "invoice" ? "Create an invoice" : "Create a reusable link"}
           </span>
           <button className={styles.modalClose} onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
 
-        {kind === null ? (
-          <>
-            <p className={styles.modalSub}>
-              Choose the kind of payment you want to collect.
-            </p>
-            <div className={styles.typeChoice}>
-              <span className={styles.typeChoiceIcon}>
-                <PageIcon />
-              </span>
-              <span className={styles.typeChoiceText}>
-                <span className={styles.typeChoiceTitle}>Reusable link</span>
-                <span className={styles.typeChoiceDesc}>
-                  Share one link and take any number of payments, from any number of people.
-                </span>
-              </span>
-              <button
-                type="button"
-                className={`${styles.settingsBtn} ${styles.settingsBtnGhost}`}
-                onClick={() => setKind("page")}
-              >
-                Choose
-              </button>
-            </div>
-            <div className={styles.typeChoice}>
-              <span className={styles.typeChoiceIcon}>
-                <InvoiceIcon />
-              </span>
-              <span className={styles.typeChoiceText}>
-                <span className={styles.typeChoiceTitle}>Invoice</span>
-                <span className={styles.typeChoiceDesc}>
-                  Bill one person once. It closes after the first payment and tells anyone
-                  who opens it later that it&apos;s already paid.
-                </span>
-              </span>
-              <button
-                type="button"
-                className={`${styles.settingsBtn} ${styles.settingsBtnGhost}`}
-                onClick={() => setKind("invoice")}
-              >
-                Choose
-              </button>
-            </div>
-            {/* Recurring is absent on purpose: charging on a schedule means
-                pulling funds against a standing mandate, and a shielded
-                balance can't be debited without its holder signing. */}
-          </>
-        ) : (
+        {(
+
           <>
             <div className={styles.modalScroll} ref={scrollRef}>
               <div className={styles.settingsField}>
@@ -317,9 +261,9 @@ export default function CreateLinkModal({
               <button
                 type="button"
                 className={`${styles.settingsBtn} ${styles.settingsBtnGhost}`}
-                onClick={() => setKind(null)}
+                onClick={onClose}
               >
-                Back
+                Cancel
               </button>
               <button
                 type="button"
@@ -337,23 +281,6 @@ export default function CreateLinkModal({
   );
 }
 
-function PageIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M3 10h18" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 14h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function InvoiceIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
 function ChevronIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
