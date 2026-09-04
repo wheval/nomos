@@ -176,6 +176,11 @@ export class FileStore implements Store {
     return intent;
   }
 
+  async getPaymentIntent(intentId: string): Promise<PaymentIntent | null> {
+    const found = (await this.readIntents()).find((i) => i.id === intentId);
+    return found ? { ...found, amountWei: BigInt(found.amountWei) } : null;
+  }
+
   async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
     const intents = await this.readIntents();
     return intents
@@ -247,6 +252,11 @@ export class FileStore implements Store {
   async getDepositByTxHash(txHash: string): Promise<Deposit | null> {
     const deposits = await this.readDeposits();
     const found = deposits.find((d) => d.txHash === txHash);
+    return found ? fromStoredDeposit(found) : null;
+  }
+
+  async getDepositById(depositId: string): Promise<Deposit | null> {
+    const found = (await this.readDeposits()).find((d) => d.id === depositId);
     return found ? fromStoredDeposit(found) : null;
   }
 

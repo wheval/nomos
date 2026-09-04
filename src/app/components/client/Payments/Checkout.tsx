@@ -236,6 +236,38 @@ export default function Checkout() {
     }
   }
 
+  // Ask the server whether the payment arrived, rather than waiting on the
+  // wallet to tell us. The private-transfer call can broadcast and never
+  // resolve — public payments return their hash, private ones are the ones
+  // that go missing — so this is what actually closes the loop. The server
+  // finds the note by its reserved amount and settles it.
+  function pollIntent(intent: string, amountWei: bigint) {
+    let attempts = 0;
+    const tick = async () => {
+      attempts += 1;
+      try {
+        const r = await fetch(`/api/payments/intent/${intent}`);
+        const d = await r.json();
+        if (d?.status === "paid") {
+          setPaidReference(d.reference ?? null);
+          setPaidAt((prev) => prev ?? Math.floor(Date.now() / 1000));
+          setResult({
+            status: "ok",
+            title: "Payment received",
+            rows: [{ label: "Amount", value: `${fmtTokenAmount(amountWei, decimals)} ${token}` }],
+          });
+          return;
+        }
+      } catch {
+        // Keep polling; a blip is not an answer.
+      }
+      // Every 5s for five minutes. Long enough for a slow block and a slow
+      // prover, short enough that a payer is not left staring.
+      if (attempts < 60) setTimeout(() => void tick(), 5_000);
+    };
+    setTimeout(() => void tick(), 4_000);
+  }
+
   async function handlePay() {
     setResult(null);
     if (!linkData) return; // unreachable past the guard above, keeps TS happy
@@ -297,6 +329,10 @@ export default function Checkout() {
     // Long enough that a careful payer reading their wallet is not nagged,
     // short enough that a hung promise does not look like a frozen page.
     const stallTimer = setTimeout(() => setStalled(true), 45_000);
+    // Started before the wallet call, not after it. If that promise never
+    // resolves — which is exactly the failure this is here for — nothing
+    // after the await would ever run.
+    if (createdIntentId) pollIntent(createdIntentId, amountWei);
     try {
       let txH: string;
       if (flow === "A") {

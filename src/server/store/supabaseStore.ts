@@ -274,6 +274,15 @@ export class SupabaseStore implements Store {
     return intentFromRow(data);
   }
 
+  async getPaymentIntent(intentId: string): Promise<PaymentIntent | null> {
+    const { data } = await this.client
+      .from("payment_intents")
+      .select("*")
+      .eq("id", intentId)
+      .maybeSingle<PaymentIntentRow>();
+    return data ? intentFromRow(data) : null;
+  }
+
   async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
     const { data, error } = await this.client
       .from("payment_intents")
@@ -305,6 +314,11 @@ export class SupabaseStore implements Store {
       .eq("network_index", networkIndex);
     if (error) throw new Error(`listClaimedNoteIds failed: ${error.message}`);
     return new Set((data ?? []).map((r: { note_id: string }) => r.note_id));
+  }
+
+  async getDepositById(depositId: string): Promise<Deposit | null> {
+    const { data } = await this.client.from("deposits").select("*").eq("id", depositId).maybeSingle<DepositRow>();
+    return data ? depositFromRow(data) : null;
   }
 
   async getDepositByReference(reference: string): Promise<Deposit | null> {

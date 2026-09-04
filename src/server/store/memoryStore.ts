@@ -107,6 +107,10 @@ export class MemoryStore implements Store {
     return intent;
   }
 
+  async getPaymentIntent(intentId: string): Promise<PaymentIntent | null> {
+    return this.intents.get(intentId) ?? null;
+  }
+
   async listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]> {
     return [...this.intents.values()]
       .filter((i) => i.status === "open" && i.networkIndex === networkIndex)
@@ -124,6 +128,10 @@ export class MemoryStore implements Store {
   async listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>> {
     const prefix = `${networkIndex}:`;
     return new Set([...this.claimedNotes].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length)));
+  }
+
+  async getDepositById(depositId: string): Promise<Deposit | null> {
+    return this.deposits.get(depositId) ?? null;
   }
 
   async getDepositByReference(reference: string): Promise<Deposit | null> {

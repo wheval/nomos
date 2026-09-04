@@ -202,6 +202,7 @@ export interface Store {
   // Deposits
   recordDeposit(input: RecordDepositInput): Promise<{ deposit: Deposit; alreadyExisted: boolean }>;
   getDepositByTxHash(txHash: string): Promise<Deposit | null>;
+  getDepositById(depositId: string): Promise<Deposit | null>;
   // Claim a shielded note for a deposit, exactly once, ever.
   //
   // Flow A cannot be verified from public calldata, so settlement rests on
@@ -218,6 +219,9 @@ export interface Store {
 
   // Payment intents — attribution that does not depend on the payer's browser.
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent>;
+  // One intent by id, whatever its status — the checkout polls this to learn
+  // it was paid when the wallet never returned a hash.
+  getPaymentIntent(intentId: string): Promise<PaymentIntent | null>;
   // Open intents for a network, newest first. Attribution compares these
   // against what an arriving payment can actually be matched on.
   listOpenPaymentIntents(networkIndex: NetworkIndex): Promise<PaymentIntent[]>;
