@@ -3240,3 +3240,89 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   text-align: center;
   padding: 26px 20px;
 }
+
+/* Shield queue — internal operator tooling. Deliberately plainer than the
+   merchant console: nobody is being sold anything here, they are checking a
+   number against a wallet before crediting someone real money. */
+.shieldGate {
+  max-width: 420px;
+  margin: 12vh auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shieldGateForm { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+
+.shieldNote {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--pink-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.shieldNote strong { color: var(--ink); font-weight: 500; }
+
+.shieldError {
+  color: #fca5a5;
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+.shieldResults {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.shieldResultBad { color: #fca5a5; margin-top: 6px; font-family: var(--font-mono-ui), monospace; font-size: 13px; }
+
+.shieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 0 26px;
+  border-top: 1px solid var(--line-soft);
+}
+.shieldGroup:first-of-type { border-top: none; }
+.shieldGroupHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.shieldGroupTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.shieldGroupSub { margin: 5px 0 0; font-size: 14px; color: var(--muted); }
+
+.shieldDest {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--inset);
+}
+.shieldDestValue {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.shieldConfirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shieldConfirm .inputMain { flex: 1; min-width: 280px; }
+
+@media (max-width: 640px) {
+  .shieldGroupHead { flex-direction: column; }
+  .shieldDest { flex-wrap: wrap; }
+}

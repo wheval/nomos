@@ -11,6 +11,7 @@ const mockDeposit = {
   txHash: "0xtx1",
   amountWei: 100n,
   token: "STRK",
+  networkIndex: 2,
   status: "pending_shield" as const,
   recordedAt: 1700000000,
 };
@@ -46,11 +47,33 @@ describe("GET /api/internal/shield", () => {
     expect(res.status).toBe(401);
   });
 
-  it("lists pending deposits and the total", async () => {
+  it("lists pending deposits and what the batch adds up to", async () => {
     const res = await GET(req("GET"));
     const data = await res.json();
     expect(data.deposits).toHaveLength(1);
-    expect(data.totalWei).toBe("100");
+    expect(data.groups).toEqual([
+      { networkIndex: 2, token: "STRK", totalWei: "100", depositIds: ["dep-1"] },
+    ]);
+  });
+
+  it("never adds two tokens together, or two networks", async () => {
+    // One shield action covers one token on one network. A single total
+    // across everything summed 1 USDC (1e6) with 1 STRK (1e18) and handed an
+    // operator a number that meant nothing.
+    listPendingShieldDeposits.mockResolvedValue([
+      mockDeposit,
+      { ...mockDeposit, id: "dep-2", token: "USDC", amountWei: 5n },
+      { ...mockDeposit, id: "dep-3", networkIndex: 0, amountWei: 7n },
+      { ...mockDeposit, id: "dep-4", amountWei: 3n },
+    ]);
+    const res = await GET(req("GET"));
+    const { groups } = await res.json();
+    expect(groups).toHaveLength(3);
+    const strkSepolia = groups.find((g: any) => g.token === "STRK" && g.networkIndex === 2);
+    expect(strkSepolia.totalWei).toBe("103");
+    expect(strkSepolia.depositIds).toEqual(["dep-1", "dep-4"]);
+    expect(groups.find((g: any) => g.token === "USDC").totalWei).toBe("5");
+    expect(groups.find((g: any) => g.networkIndex === 0).totalWei).toBe("7");
   });
 });
 

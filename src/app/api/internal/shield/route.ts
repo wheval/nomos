@@ -24,19 +24,35 @@ function requireAuth(request: NextRequest): NextResponse | null {
   return null;
 }
 
-// GET: list deposits waiting to be manually shielded, and the total wei
-// that needs shielding in one batch.
+// GET: what is waiting to be shielded, grouped by what can actually be
+// shielded together.
 export async function GET(request: NextRequest) {
   const authError = requireAuth(request);
   if (authError) return authError;
 
   const store = getStore();
   const deposits = await store.listPendingShieldDeposits();
-  const totalWei = deposits.reduce((sum, d) => sum + d.amountWei, 0n);
+
+  // Grouped by network and token. A single total across everything was
+  // meaningless — it added 1 USDC (1e6) to 1 STRK (1e18) — and it is also not
+  // what an operator needs: one shield action covers one token on one network,
+  // so the batch is the group.
+  const groups = new Map<string, { networkIndex: number; token: string; totalWei: bigint; depositIds: string[] }>();
+  for (const d of deposits) {
+    const key = `${d.networkIndex}:${d.token}`;
+    const group = groups.get(key) ?? { networkIndex: d.networkIndex, token: d.token, totalWei: 0n, depositIds: [] };
+    group.totalWei += d.amountWei;
+    group.depositIds.push(d.id);
+    groups.set(key, group);
+  }
 
   return NextResponse.json({
+    // The server-side variable, not the NEXT_PUBLIC_ mirror. This address is
+    // where an operator is about to send real money by hand, so it comes from
+    // the same source the signer itself uses.
+    operatingWallet: process.env.NOMOS_OPERATING_WALLET_ADDRESS ?? null,
     deposits: deposits.map((d) => ({ ...d, amountWei: d.amountWei.toString(), feeWei: (d.feeWei ?? 0n).toString() })),
-    totalWei: totalWei.toString(),
+    groups: [...groups.values()].map((g) => ({ ...g, totalWei: g.totalWei.toString() })),
   });
 }
 
