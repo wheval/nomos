@@ -155,6 +155,9 @@ export type PaymentLink = {
   singleUse: boolean;
   // Where to send the payer once they're done, like Paystack's callback_url.
   callbackUrl?: string;
+  // Who an invoice is addressed to. Absent on reusable links, which have no
+  // particular customer.
+  customerEmail?: string;
 };
 
 export type CreatePaymentLinkInput = {
@@ -168,6 +171,7 @@ export type CreatePaymentLinkInput = {
   logoDataUrl?: string;
   singleUse?: boolean;
   callbackUrl?: string;
+  customerEmail?: string;
 };
 
 // One MerchantKey per (address, networkIndex) — a merchant's test and live

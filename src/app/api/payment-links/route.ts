@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { merchantAddress, secretKey, amount, token, note, expiresIn, networkIndex, logoDataUrl, singleUse, callbackUrl } = body ?? {};
+  const { merchantAddress, secretKey, amount, token, note, expiresIn, networkIndex, logoDataUrl, singleUse, callbackUrl, customerEmail } = body ?? {};
   if (typeof merchantAddress !== "string") {
     return NextResponse.json({ error: "merchantAddress is required." }, { status: 400 });
   }
@@ -120,6 +120,11 @@ export async function POST(request: NextRequest) {
     logoDataUrl: logo,
     singleUse: singleUse === true,
     callbackUrl: callback,
+    // Only kept for invoices; a reusable link has no particular customer.
+    customerEmail:
+      typeof customerEmail === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customerEmail.trim())
+        ? customerEmail.trim()
+        : undefined,
   });
 
   return NextResponse.json(
@@ -133,6 +138,7 @@ export async function POST(request: NextRequest) {
       createdAt: link.createdAt,
       singleUse: link.singleUse,
       callbackUrl: link.callbackUrl,
+      customerEmail: link.customerEmail,
     },
     { status: 201 }
   );

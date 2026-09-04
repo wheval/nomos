@@ -30,6 +30,21 @@ import ExternalIcon from "../../ExternalIcon";
  * which one you are making, but the console showed a single mixed list. A
  * merchant chasing an unpaid invoice had to read the type chip on every row.
  */
+// A prepared invoice email, opened in the merchant's own mail client.
+function mailtoInvoice(to: string, url: string, summary: string): string {
+  const subject = summary ? `Invoice: ${summary}` : "Invoice";
+  const body = [
+    "Hi,",
+    "",
+    summary ? `Here is your invoice for ${summary}.` : "Here is your invoice.",
+    "",
+    `Pay it here: ${url}`,
+    "",
+    "Thanks.",
+  ].join("\n");
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice" } = {}) {
   const invoices = kind === "invoice";
   const { isConnected, address, secretKey, networkIndex, sessionReady } = useMerchantAuth();
@@ -41,6 +56,8 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
 
   const [creating, setCreating] = useState(false);
   const [justCreated, setJustCreated] = useState<string | null>(null);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
+  const [createdSummary, setCreatedSummary] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
   if (!isConnected) {
@@ -108,6 +125,16 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
               <div className={styles.nextSteps} style={{ marginTop: 12 }}>
                 <Link href={`/dashboard/links/${justCreated}`}>Open its page →</Link>
                 <a href={createdUrl} target="_blank" rel="noreferrer">Preview as customer <ExternalIcon /></a>
+                {/* Opens the merchant's own mail client with the invoice
+                    written. Nomos does not send mail itself — that needs a
+                    delivery provider and a verified sending domain, and a
+                    prepared draft from their real address is better received
+                    than one from a stranger's server anyway. */}
+                {createdEmail ? (
+                  <a href={mailtoInvoice(createdEmail, createdUrl, createdSummary)}>
+                    Email it to {createdEmail} →
+                  </a>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -204,8 +231,10 @@ export default function CreateLink({ kind = "link" }: { kind?: "link" | "invoice
         kind={invoices ? "invoice" : "page"}
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={(id) => {
+        onCreated={(id, details) => {
           setJustCreated(id);
+          setCreatedEmail(details.customerEmail ?? null);
+          setCreatedSummary(details.summary);
           refresh();
         }}
         merchantAddress={address}

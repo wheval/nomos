@@ -162,6 +162,7 @@ type PaymentLinkRow = {
   logo_data_url: string | null;
   single_use: boolean;
   callback_url: string | null;
+  customer_email: string | null;
 };
 
 function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
@@ -179,6 +180,7 @@ function paymentLinkFromRow(r: PaymentLinkRow): PaymentLink {
     logoDataUrl: r.logo_data_url ?? undefined,
     singleUse: r.single_use ?? false,
     callbackUrl: r.callback_url ?? undefined,
+    customerEmail: r.customer_email ?? undefined,
   };
 }
 
@@ -530,6 +532,7 @@ export class SupabaseStore implements Store {
         logo_data_url: input.logoDataUrl ?? null,
         single_use: input.singleUse ?? false,
         callback_url: input.callbackUrl ?? null,
+        customer_email: input.customerEmail ?? null,
       })
       .select("*")
       .single<PaymentLinkRow>();

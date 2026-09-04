@@ -441,6 +441,7 @@ export class FileStore implements Store {
       logoDataUrl: input.logoDataUrl,
       singleUse: input.singleUse ?? false,
       callbackUrl: input.callbackUrl,
+      customerEmail: input.customerEmail,
     };
     links.push(toStoredPaymentLink(link));
     await this.writePaymentLinks(links);

@@ -25,7 +25,8 @@ export default function CreateLinkModal({
   kind: Kind;
   open: boolean;
   onClose: () => void;
-  onCreated: (url: string) => void;
+  // The created link, plus what the caller needs to offer a send action.
+  onCreated: (id: string, details: { customerEmail?: string; summary: string }) => void;
   merchantAddress: string;
   secretKey: string | null;
   networkIndex: number;
@@ -40,6 +41,12 @@ export default function CreateLinkModal({
   const [expirySeconds, setExpirySeconds] = useState<number | null>(null);
   const [callbackUrl, setCallbackUrl] = useState("");
   const [advanced, setAdvanced] = useState(false);
+  // A reusable link that closes after its first payment — a limited offer, a
+  // one-off bill to no one in particular. Distinct from an invoice, which is
+  // addressed to a named person and emailed to them.
+  const [oncePerLink, setOncePerLink] = useState(false);
+  // Who the invoice is for. Invoices are billed to someone; a link is not.
+  const [customerEmail, setCustomerEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -59,6 +66,8 @@ export default function CreateLinkModal({
     setName("");
     setAmount("");
     setFixedAmount(true);
+    setOncePerLink(false);
+    setCustomerEmail("");
     setExpirySeconds(null);
     setCallbackUrl("");
     setAdvanced(false);
@@ -91,13 +100,19 @@ export default function CreateLinkModal({
           amount: fixedAmount ? amount.trim() : undefined,
           note: name.trim() || undefined,
           expiresIn: expirySeconds ?? undefined,
-          singleUse: kind === "invoice",
+          singleUse: kind === "invoice" || oncePerLink,
+          customerEmail: kind === "invoice" && customerEmail.trim() ? customerEmail.trim() : undefined,
           callbackUrl: callbackUrl.trim() || undefined,
         }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
-      onCreated(d.id);
+      onCreated(d.id, {
+        customerEmail: d.customerEmail,
+        summary: [name.trim(), fixedAmount && amount.trim() ? `${amount.trim()} ${token}` : null]
+          .filter(Boolean)
+          .join(" — "),
+      });
       onClose();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Could not create the link.");
@@ -159,6 +174,39 @@ export default function CreateLinkModal({
                   ))}
                 </div>
               </div>
+
+              {kind === "invoice" ? (
+                <div className={styles.settingsField}>
+                  <label className={styles.settingsLabel} htmlFor="invoiceEmail">
+                    Customer email
+                  </label>
+                  <input
+                    id="invoiceEmail"
+                    type="email"
+                    className={styles.settingsInput}
+                    placeholder="name@company.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                  />
+                  <p className={styles.settingsHint}>
+                    Who the invoice is for. You get a prepared email to send once it&apos;s created.
+                  </p>
+                </div>
+              ) : (
+                <label className={styles.checkRow}>
+                  <input
+                    type="checkbox"
+                    checked={oncePerLink}
+                    onChange={(e) => setOncePerLink(e.target.checked)}
+                  />
+                  <span>
+                    <span className={styles.checkRowLabel}>Accept only one payment</span>
+                    <span className={styles.checkRowHint}>
+                      The link closes after the first payment and tells anyone who opens it later.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <label className={styles.checkRow}>
                 <input

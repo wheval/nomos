@@ -296,6 +296,7 @@ export class MemoryStore implements Store {
       logoDataUrl: input.logoDataUrl,
       singleUse: input.singleUse ?? false,
       callbackUrl: input.callbackUrl,
+      customerEmail: input.customerEmail,
     };
     this.paymentLinks.set(link.id, link);
     return link;
