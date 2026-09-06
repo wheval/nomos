@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
+import { sweepOpenIntents } from "@/server/intentSweep";
 import { netAfterFee, transactionFeeWei } from "@/utils/fees";
 import { getNoteDiscoveryClient } from "@/server/signer/noteDiscovery";
 import { deliverPaymentWebhook } from "@/utils/webhook";
@@ -248,6 +249,12 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   const store = getStore();
+
+  // Before reporting a balance, catch up on anything that arrived on-chain
+  // without the payer's tab ever telling us. A merchant opening their console
+  // is the most reliable moment to settle their own payments — see
+  // server/intentSweep.ts for why the tab could not stay load-bearing.
+  await sweepOpenIntents({ networkIndex, merchantAddress: normalizedTo });
 
   const [deposits, balances] = await Promise.all([
     store.listDepositsFor(normalizedTo, networkIndex),
