@@ -3326,3 +3326,348 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   .shieldGroupHead { flex-direction: column; }
   .shieldDest { flex-wrap: wrap; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Landing page, CoinDash-derived treatment.
+
+   Adopts the reference's spatial system — a deeper, flatter ground, 20px
+   radii, generous section rhythm, product shown as mockup cards — while
+   keeping what is Nomos's own: the warm accent that runs through the
+   console, receipt and favicon, and DM Sans. Swapping those for the
+   reference's violet and Inter would have made the landing page a different
+   product from the one it links into.
+
+   Scoped to .landing so none of it can reach the console.
+   ══════════════════════════════════════════════════════════════════════════ */
+.landing {
+  --l-bg: #101010;
+  --l-surface: #161616;
+  --l-raised: #1c1c1c;
+  --l-line: #262626;
+  --l-line-soft: #1f1f1f;
+  --l-ink: #ffffff;
+  --l-muted: #9f9f9f;
+  --l-muted-2: #6f6f6f;
+  --l-accent: #e56b43;
+  --l-accent-text: #f0916e;
+  --l-accent-soft: rgba(229, 107, 67, 0.13);
+  --l-green: #3ee089;
+  --l-green-soft: rgba(62, 224, 137, 0.14);
+  --l-r: 20px;
+  --l-r-sm: 12px;
+
+  background: var(--l-bg);
+  color: var(--l-ink);
+}
+.landing ::selection { background: var(--l-accent-soft); }
+
+.landShell {
+  width: min(1120px, calc(100vw - 40px));
+  margin: 0 auto;
+}
+
+/* Adjacent sections both pay this, so the visible gap is double it. At 96
+   that read as 260px of dead space between the pricing cards and the step
+   list — airy enough to look unfinished rather than considered. */
+.landSection { padding: 72px 0; }
+.landSectionTight { padding: 48px 0; }
+
+.landEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border: 1px solid var(--l-line);
+  border-radius: 999px;
+  background: var(--l-surface);
+  color: var(--l-muted);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.landEyebrowDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--l-green);
+  box-shadow: 0 0 0 3px var(--l-green-soft);
+}
+
+.landH2 {
+  margin: 18px 0 0;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  color: var(--l-ink);
+  text-wrap: balance;
+}
+.landLede {
+  margin: 14px 0 0;
+  max-width: 62ch;
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--l-muted);
+}
+.landHeadCentered { text-align: center; }
+.landHeadCentered .landLede { margin-inline: auto; }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.landHero {
+  padding: 72px 0 56px;
+  text-align: center;
+}
+.landHeroTitle {
+  margin: 22px 0 0;
+  font-size: clamp(38px, 6.4vw, 74px);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+  text-wrap: balance;
+}
+.landHeroTitle em {
+  font-style: normal;
+  color: var(--l-accent-text);
+}
+.landHeroSub {
+  margin: 22px auto 0;
+  max-width: 60ch;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--l-muted);
+}
+.landCtaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 32px;
+}
+.landBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 140ms, border-color 140ms, transform 140ms;
+}
+.landBtnPrimary { background: var(--l-accent); color: #fff; }
+.landBtnPrimary:hover { background: #f07c53; }
+.landBtnGhost {
+  background: var(--l-surface);
+  border-color: var(--l-line);
+  color: var(--l-ink);
+}
+.landBtnGhost:hover { border-color: #3a3a3a; }
+.landBtn:active { transform: translateY(1px); }
+
+.landTrust {
+  margin-top: 20px;
+  font-size: 13.5px;
+  color: var(--l-muted-2);
+}
+
+/* Live numbers directly under the hero, the reference's social-proof band
+   reworked as fact rather than logos — Nomos has no customer logos to show
+   and inventing them would be the wrong kind of borrowing. */
+.landStatBand {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 56px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-line);
+  overflow: hidden;
+}
+.landStat {
+  background: var(--l-surface);
+  padding: 24px 20px;
+  text-align: center;
+}
+.landStatValue {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--l-ink);
+}
+.landStatLabel {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--l-muted);
+}
+
+/* ── Card grids ─────────────────────────────────────────────────────────── */
+.landGrid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 40px;
+}
+.landGrid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 40px;
+}
+.landCard {
+  padding: 26px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-surface);
+}
+.landCard h3 {
+  margin: 16px 0 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--l-ink);
+  letter-spacing: -0.01em;
+}
+.landCard p {
+  margin: 9px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--l-muted);
+}
+.landCardIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--l-r-sm);
+  border: 1px solid var(--l-line);
+  background: var(--l-raised);
+  color: var(--l-accent-text);
+}
+
+/* ── Comparison table ───────────────────────────────────────────────────── */
+.landCompareWrap {
+  margin-top: 40px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  overflow: hidden;
+  overflow-x: auto;
+}
+.landCompare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  background: var(--l-surface);
+}
+.landCompare th,
+.landCompare td {
+  padding: 15px 20px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--l-line-soft);
+}
+.landCompare th:first-child,
+.landCompare td:first-child { text-align: left; }
+.landCompare thead th {
+  font-weight: 400;
+  color: var(--l-muted);
+  border-bottom: 1px solid var(--l-line);
+}
+.landCompare tbody tr:last-child td { border-bottom: none; }
+.landCompare td { font-variant-numeric: tabular-nums; color: var(--l-muted); }
+.landCompare td:first-child { color: var(--l-ink); }
+.landCompareUs {
+  color: var(--l-ink) !important;
+  font-weight: 500;
+  background: var(--l-accent-soft);
+}
+.landCompareHeadUs { color: var(--l-accent-text) !important; }
+
+/* ── Pricing ────────────────────────────────────────────────────────────── */
+.landPriceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 40px;
+}
+.landPrice {
+  padding: 28px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.landPriceFeatured { border-color: var(--l-accent); }
+.landPriceName { font-size: 14px; color: var(--l-muted); }
+.landPriceValue {
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.landPriceAlt {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13px;
+  color: var(--l-muted-2);
+}
+.landPriceNote {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--l-muted);
+}
+
+/* ── Steps ──────────────────────────────────────────────────────────────── */
+.landSteps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 40px;
+  counter-reset: landstep;
+}
+.landStep {
+  padding: 26px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-surface);
+}
+.landStepNum {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--l-accent-soft);
+  color: var(--l-accent-text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.landStep h3 {
+  margin: 16px 0 0;
+  font-size: 16.5px;
+  font-weight: 500;
+}
+.landStep p {
+  margin: 8px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--l-muted);
+}
+
+/* ── Closing ────────────────────────────────────────────────────────────── */
+.landClosing {
+  margin: 40px 0 96px;
+  padding: 64px 32px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-surface);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .landGrid3, .landPriceGrid, .landSteps { grid-template-columns: 1fr; }
+  .landGrid2 { grid-template-columns: 1fr; }
+  .landStatBand { grid-template-columns: repeat(2, 1fr); }
+  .landSection { padding: 52px 0; }
+}
