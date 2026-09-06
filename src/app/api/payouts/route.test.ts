@@ -23,7 +23,7 @@ const createPayout = vi.fn(async () => ({
 }));
 const updatePayoutStatus = vi.fn(async () => {});
 const debitLedger = vi.fn(async () => ({}) as any);
-const listPayoutsFor = vi.fn(async () => []);
+const listPayoutsFor = vi.fn(async (): Promise<any[]> => []);
 const getMerchantProfile = vi.fn(async () => ({ displayName: null, allowedIps: [] as string[], logoDataUrl: null }));
 
 vi.mock("@/server/store", () => ({

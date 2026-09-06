@@ -39,21 +39,38 @@ export function maxFingerprintOverpay(token: string): bigint {
  * A payable amount that no other open attempt is using.
  *
  * `takenAmounts` is every open intent's amount for this token and network.
- * Returns the base amount plus the lowest free slot.
+ * Returns the base amount plus a free slot.
+ *
+ * The slot is probed from a random start rather than from zero, and that is
+ * deliberate. Reserving an amount is read-then-write — list the open intents,
+ * pick a slot, create the intent — so two attempts on the same link at the
+ * same moment see the same set. Always picking the lowest free slot makes
+ * them pick the *same* slot every time; a random start makes it one chance in
+ * FINGERPRINT_SLOTS. It matters because two open intents sharing an amount is
+ * exactly the state attribution cannot resolve: if only one of the two notes
+ * arrives, it names both, and the wrong merchant can be credited. (The
+ * remaining case is caught, not silent — reconciliation refuses to attribute
+ * an arrival that matches more than one intent and reports it for a human.)
+ *
+ * The cost is that a payer typically overpays by half the slot range instead
+ * of nothing — for USDC, five hundredths of a cent.
  *
  * If every slot is taken it returns the base amount unchanged rather than
- * refusing the payment. Attribution then degrades to the ambiguous case, which
- * is reported for a human — a payment that is hard to attribute beats a
- * payment the payer was not allowed to make.
+ * refusing the payment. Attribution then degrades to that same ambiguous
+ * case: a payment that is hard to attribute beats a payment the payer was not
+ * allowed to make.
  */
 export function uniquePayableAmount(
   baseAmountWei: bigint,
   token: string,
-  takenAmounts: Iterable<bigint>
+  takenAmounts: Iterable<bigint>,
+  // Injectable so tests can pin the probe order; production never passes it.
+  startSlot: bigint = BigInt(Math.floor(Math.random() * Number(FINGERPRINT_SLOTS)))
 ): bigint {
   const unit = fingerprintUnit(token);
   const taken = new Set(takenAmounts);
-  for (let slot = 0n; slot < FINGERPRINT_SLOTS; slot++) {
+  for (let probe = 0n; probe < FINGERPRINT_SLOTS; probe++) {
+    const slot = (startSlot + probe) % FINGERPRINT_SLOTS;
     const candidate = baseAmountWei + slot * unit;
     if (!taken.has(candidate)) return candidate;
   }
