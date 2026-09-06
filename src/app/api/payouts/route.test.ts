@@ -63,6 +63,46 @@ beforeEach(() => {
   vi.clearAllMocks();
   verifyMerchantSecret.mockResolvedValue(true);
   getLedgerBalance.mockResolvedValue(REQUESTED * 2n);
+  listPayoutsFor.mockResolvedValue([]);
+});
+
+describe("one payout in flight at a time", () => {
+  // The ledger is debited only once a payout settles on-chain, so until then
+  // the balance still reads as available. Without this guard a double-clicked
+  // withdraw, a retry, or two open tabs all pass the balance check and all
+  // execute — paying the merchant twice against one balance.
+  const body = {
+    merchantAddress: VALID_ADDR_1,
+    secretKey: "sk_test",
+    destination: VALID_ADDR_2,
+    amountWei: REQUESTED.toString(),
+    token: "STRK",
+    mode: "withdraw",
+    networkIndex: 2,
+  };
+
+  for (const status of ["pending", "broadcasting"] as const) {
+    it(`refuses a second payout while one is ${status}`, async () => {
+      listPayoutsFor.mockResolvedValue([{ id: "in-flight", token: "STRK", status, networkIndex: 2 } as any]);
+      const res = await POST(req("POST", body));
+      expect(res.status).toBe(409);
+      expect((await res.json()).payoutId).toBe("in-flight");
+      expect(createPayout).not.toHaveBeenCalled();
+    });
+  }
+
+  for (const status of ["confirmed", "failed"] as const) {
+    it(`allows the next payout once the last one is ${status}`, async () => {
+      listPayoutsFor.mockResolvedValue([{ id: "done", token: "STRK", status, networkIndex: 2 } as any]);
+      expect((await POST(req("POST", body))).status).toBe(201);
+    });
+  }
+
+  it("does not let a pending STRK payout block a USDC one", async () => {
+    listPayoutsFor.mockResolvedValue([{ id: "strk", token: "STRK", status: "pending", networkIndex: 2 } as any]);
+    const res = await POST(req("POST", { ...body, token: "USDC", amountWei: (minimumPayoutWei("USDC") * 3n).toString() }));
+    expect(res.status).toBe(201);
+  });
 });
 
 describe("POST /api/payouts", () => {

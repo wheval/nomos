@@ -94,6 +94,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // One payout in flight per merchant, per token, per network.
+  //
+  // The ledger is not debited until the payout has actually settled on-chain,
+  // so between the balance check above and that debit the balance still reads
+  // as available. Two requests in that window — a double-clicked withdraw
+  // button, a client retry, two tabs — would both pass the check and both
+  // execute, paying the merchant twice against one balance. Refusing the
+  // second is the conservative half: a payout that is genuinely stuck resolves
+  // to confirmed or failed and unblocks the next one.
+  const inFlight = (await store.listPayoutsFor(normalizedMerchant, networkIndex)).find(
+    (p) => p.token === token && (p.status === "pending" || p.status === "broadcasting")
+  );
+  if (inFlight) {
+    return NextResponse.json(
+      {
+        error:
+          `A ${token} payout is already in flight (${inFlight.id}, ${inFlight.status}). ` +
+          `Wait for it to settle before starting another.`,
+        payoutId: inFlight.id,
+      },
+      { status: 409 }
+    );
+  }
+
   const payout = await store.createPayout({
     merchantAddress: normalizedMerchant,
     networkIndex,

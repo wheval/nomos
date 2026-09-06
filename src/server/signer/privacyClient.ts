@@ -248,7 +248,11 @@ export async function ensurePoolAllowance(
     // before it starts.
     { resourceBounds: MANUAL_RESOURCE_BOUNDS } as Parameters<Account["execute"]>[1]
   );
-  await provider.waitForTransaction(tx.transaction_hash);
+  // A silently-reverted approve is the worst case: the payout that follows
+  // burns gas and, on mainnet, a proof from the rate-limited daily quota,
+  // only to revert with "Insufficient ERC20 allowance" — the exact failure
+  // this function exists to prevent.
+  await waitForSuccess(provider, tx.transaction_hash, "Pool fee approval");
   return { approved: true, txHash: tx.transaction_hash };
 }
 
@@ -265,6 +269,33 @@ export const ATTESTATION_MAX_AGE_SECONDS = 300;
 // Submission still has to reach a block after this check, so don't spend the
 // whole window; anything under a minute of headroom is not worth broadcasting.
 const ATTESTATION_MIN_HEADROOM_SECONDS = 60;
+
+// waitForTransaction resolves for a REVERTED transaction exactly as it does
+// for a successful one — it waits for inclusion, not for success. Every
+// spending path here has to check, because a caller that believes a reverted
+// transaction succeeded does real damage: a payout that reverts on-chain
+// would otherwise still debit the merchant's ledger and be recorded
+// confirmed, so the merchant loses the balance and receives nothing.
+//
+// Throwing is the right shape for that. /api/payouts debits only after the
+// executor returns, so an exception leaves the balance untouched and marks
+// the payout failed.
+export async function waitForSuccess(
+  provider: ProviderInterface,
+  txHash: string,
+  what: string
+): Promise<void> {
+  const receipt = (await provider.waitForTransaction(txHash)) as unknown as {
+    execution_status?: string;
+    revert_reason?: string;
+    value?: { execution_status?: string; revert_reason?: string };
+  };
+  const executionStatus = receipt.execution_status ?? receipt.value?.execution_status;
+  if (executionStatus === "REVERTED") {
+    const reason = receipt.revert_reason ?? receipt.value?.revert_reason ?? "no reason given";
+    throw new Error(`${what} reverted on-chain (${txHash}): ${reason}`);
+  }
+}
 
 export async function submitPrivateAction(
   account: Account,
@@ -293,5 +324,6 @@ export async function submitPrivateAction(
     ...proofDetails,
     resourceBounds: MANUAL_RESOURCE_BOUNDS,
   } as Parameters<Account["execute"]>[1]);
+  await waitForSuccess(provider, tx.transaction_hash, "Private pool action");
   return { txHash: tx.transaction_hash };
 }
