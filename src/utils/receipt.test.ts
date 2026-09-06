@@ -30,6 +30,32 @@ describe("shortHex", () => {
     const result = shortHex(long);
     expect(result).toBe("0x1dc5a...927a");
   });
+
+  // A payment settled from a shielded note has no transaction of its own and
+  // carries a synthetic `note:<id>` reference. num.toHex rejected it, and
+  // because shortHex is called unguarded in most of its ~30 call sites, that
+  // threw during render and took down the whole transaction detail page.
+  it("shortens a note reference instead of throwing on it", () => {
+    const noteRef =
+      "note:2332359948240290564060511101448347587589826749951759148909689920785094431468";
+    expect(() => shortHex(noteRef)).not.toThrow();
+    expect(shortHex(noteRef)).toMatch(/^note:/);
+    expect(shortHex(noteRef).length).toBeLessThan(noteRef.length);
+  });
+
+  it("keeps the prefix so the reader can still tell what it is", () => {
+    expect(shortHex("note:12345678901234567890")).toBe("note:0xab54a...0ad2");
+  });
+
+  it("never throws on anything else a record might carry", () => {
+    for (const value of ["", "pending", "not a hash at all", "0x", "—"]) {
+      expect(() => shortHex(value)).not.toThrow();
+    }
+  });
+
+  it("still renders a plain decimal felt as hex", () => {
+    expect(shortHex("100")).toBe("0x64");
+  });
 });
 
 describe("prettyStatus", () => {

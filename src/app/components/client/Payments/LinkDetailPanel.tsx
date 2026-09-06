@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "../../../uni.module.css";
 import SelectWallet from "../WalletHandle/SelectWallet";
-import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
+import { explorerTxUrl, fmtTokenAmount, shortHex, isOnChainHash } from "@/utils/receipt";
 import { buildPaymentUrl } from "@/utils/payments";
 import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { TokenAmount } from "../../TokenIcons";
@@ -154,14 +154,24 @@ export default function LinkDetailPanel({ id }: { id: string }) {
                           </td>
                           <td className={styles.cellMuted}>{new Date(d.recordedAt * 1000).toLocaleString()}</td>
                           <td>
-                            <a
-                              className={styles.txLink}
-                              href={explorerTxUrl(networkIndex, d.txHash)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {shortHex(d.txHash)} <ExternalIcon />
-                            </a>
+                            {/* A payment settled from a shielded note has no
+                                transaction to link to — it carries a synthetic
+                                note reference, and sending that to Voyager is
+                                a dead link. */}
+                            {isOnChainHash(d.txHash) ? (
+                              <a
+                                className={styles.txLink}
+                                href={explorerTxUrl(networkIndex, d.txHash)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {shortHex(d.txHash)} <ExternalIcon />
+                              </a>
+                            ) : (
+                              <span className={styles.cellMono} title={d.txHash}>
+                                {shortHex(d.txHash)}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       );

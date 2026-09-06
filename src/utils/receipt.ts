@@ -18,8 +18,26 @@ export function fmtStrk(amount: bigint): string {
 }
 
 // Shorten a felt/hex for display, like the wallet address ("0x1dc5a1c...1927a").
+//
+// Never throws. It is a display helper called from ~30 places, most of them
+// rendering a deposit's txHash, and not every one of those is a hash: a
+// payment settled from a shielded note has no transaction of its own, so it
+// carries a synthetic `note:<id>` reference instead (see server/attribution.ts).
+// num.toHex rejects that, which took down the whole transaction detail page
+// rather than one field. A formatter that can crash a page is the wrong shape
+// regardless of what it is handed.
 export function shortHex(h: string): string {
-  const hex = num.toHex(h);
+  // `note:2332…` and friends: keep the prefix, shorten the identifier, so the
+  // reader can still see what kind of thing it is.
+  const prefixed = /^([a-z]+):(.+)$/i.exec(h);
+  if (prefixed) return `${prefixed[1]}:${shortHex(prefixed[2])}`;
+
+  let hex: string;
+  try {
+    hex = num.toHex(h);
+  } catch {
+    hex = h;
+  }
   return hex.length <= 13 ? hex : `${hex.slice(0, 7)}...${hex.slice(-4)}`;
 }
 
