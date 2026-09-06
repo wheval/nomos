@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { DM_Sans, IBM_Plex_Mono } from 'next/font/google'
+import { DM_Sans, IBM_Plex_Mono, Inter } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils";
 import WalletSession from "./components/WalletSession";
@@ -28,6 +28,15 @@ const plexMono = IBM_Plex_Mono({
   display: 'swap',
 })
 
+// Landing page only. The reference build sets its type in Inter, and the
+// landing page is the one surface asked to match it exactly; the console
+// stays on DM Sans.
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
 export const metadata: Metadata = {
   title: 'Nomos · Private payment gateway for Starknet',
   description: 'Accept payment via Payment Link, invoice, or embedded widget — shielded and settled through the STRK20 pool.',
@@ -41,7 +50,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(dmSans.variable, plexMono.variable, "font-sans")}
+      className={cn(dmSans.variable, plexMono.variable, inter.variable, "font-sans")}
       suppressHydrationWarning
     >
       <body>

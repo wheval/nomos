@@ -3340,24 +3340,55 @@ a.copyFieldValue:hover { color: var(--pink-text); }
    Scoped to .landing so none of it can reach the console.
    ══════════════════════════════════════════════════════════════════════════ */
 .landing {
+  /* Exact tokens lifted from the reference build, not approximated. The
+     violet in its token list is a dead entry — referenced once — while the
+     amber is referenced fourteen times and is what the page actually reads
+     as, which is also what the product mockup is accented with. */
   --l-bg: #101010;
-  --l-surface: #161616;
+  --l-surface: #141414;
   --l-raised: #1c1c1c;
   --l-line: #262626;
-  --l-line-soft: #1f1f1f;
+  --l-line-soft: #1c1c1c;
   --l-ink: #ffffff;
-  --l-muted: #9f9f9f;
-  --l-muted-2: #6f6f6f;
-  --l-accent: #e56b43;
-  --l-accent-text: #f0916e;
-  --l-accent-soft: rgba(229, 107, 67, 0.13);
+  --l-muted: #b3b3b3;
+  --l-muted-2: #999999;
+  --l-accent: #ffaf4d;
+  --l-accent-text: #ffaf4d;
+  --l-accent-soft: rgba(255, 175, 77, 0.16);
   --l-green: #3ee089;
-  --l-green-soft: rgba(62, 224, 137, 0.14);
-  --l-r: 20px;
-  --l-r-sm: 12px;
+  --l-green-soft: rgba(62, 224, 137, 0.16);
+  --l-red: #e93544;
+  /* The reference sits at 8-10px on cards and pills its buttons. The 20px
+     I had was a guess and read noticeably softer than the original. */
+  --l-r: 10px;
+  --l-r-sm: 8px;
+
+  /* Remap the shared .page ramp too. Nav, Footer and the four demo sections
+     all draw from those variables, and leaving them on Nomos's own orange
+     over a #101010 ground put two different warm accents on one page. Both
+     classes sit on the same element, so this block winning is a matter of
+     source order — it is appended last on purpose. */
+  --pink: #ffaf4d;
+  --pink-hover: #ffbe6d;
+  --pink-text: #ffaf4d;
+  --pink-soft: rgba(255, 175, 77, 0.16);
+  --pink-soft-2: rgba(255, 175, 77, 0.26);
+  --bg: #101010;
+  --card: #141414;
+  --line: #262626;
+  --line-soft: #1c1c1c;
+  --inset: #1c1c1c;
+  --inset-2: #262626;
+  --ink: #ffffff;
+  --ink-soft: #b3b3b3;
+  --muted: #b3b3b3;
+  --muted-2: #999999;
+  --green: #3ee089;
+  --green-soft: rgba(62, 224, 137, 0.16);
 
   background: var(--l-bg);
   color: var(--l-ink);
+  font-family: var(--font-inter), var(--font-body), system-ui, sans-serif;
 }
 .landing ::selection { background: var(--l-accent-soft); }
 
@@ -3454,14 +3485,16 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   border: 1px solid transparent;
   transition: background 140ms, border-color 140ms, transform 140ms;
 }
-.landBtnPrimary { background: var(--l-accent); color: #fff; }
-.landBtnPrimary:hover { background: #f07c53; }
+/* Dark text on the amber, not white — #fff on #ffaf4d is about 1.8:1 and
+   unreadable. The reference does the same. */
+.landBtnPrimary { background: var(--l-accent); color: #101010; }
+.landBtnPrimary:hover { background: #ffbe6d; }
 .landBtnGhost {
   background: var(--l-surface);
   border-color: var(--l-line);
   color: var(--l-ink);
 }
-.landBtnGhost:hover { border-color: #3a3a3a; }
+.landBtnGhost:hover { border-color: #2b2b2b; }
 .landBtn:active { transform: translateY(1px); }
 
 .landTrust {
@@ -3638,6 +3671,7 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   width: 30px;
   height: 30px;
   border-radius: 50%;
+  font-weight: 500;
   background: var(--l-accent-soft);
   color: var(--l-accent-text);
   font-size: 14px;
@@ -3670,4 +3704,108 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   .landGrid2 { grid-template-columns: 1fr; }
   .landStatBand { grid-template-columns: repeat(2, 1fr); }
   .landSection { padding: 52px 0; }
+}
+
+/* ── Product mockup ──────────────────────────────────────────────────────
+   The reference anchors its hero with a large screenshot of its own
+   dashboard. Nomos gets the same visual weight, built in CSS rather than
+   captured: a real screenshot of the console would carry live merchant
+   addresses and amounts onto a public page, and a mockup is honest about
+   being one. Content mirrors what the console actually shows. */
+.landMockFrame {
+  margin-top: 56px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r);
+  background: var(--l-surface);
+  overflow: hidden;
+  text-align: left;
+}
+.landMockBar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--l-line);
+  background: var(--l-raised);
+}
+.landMockDot { width: 10px; height: 10px; border-radius: 50%; background: #2b2b2b; }
+.landMockUrl {
+  margin-left: 12px;
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 12px;
+  color: var(--l-muted-2);
+}
+.landMockBody { padding: 22px; display: grid; gap: 16px; }
+.landMockRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.landMockStat {
+  padding: 16px;
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r-sm);
+  background: var(--l-raised);
+}
+.landMockStatLabel { font-size: 12.5px; color: var(--l-muted-2); }
+.landMockStatValue {
+  margin-top: 7px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.landMockDelta { font-size: 12.5px; color: var(--l-green); margin-top: 4px; }
+
+.landMockList {
+  border: 1px solid var(--l-line);
+  border-radius: var(--l-r-sm);
+  background: var(--l-raised);
+  overflow: hidden;
+}
+.landMockListHead {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--l-line);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--l-muted-2);
+}
+.landMockItem {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--l-line-soft);
+  font-size: 14px;
+}
+.landMockItem:last-child { border-bottom: none; }
+.landMockRef {
+  font-family: var(--font-mono-ui), monospace;
+  font-size: 13px;
+  color: var(--l-muted);
+}
+.landMockAmt { font-variant-numeric: tabular-nums; }
+.landMockChip {
+  justify-self: start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  background: var(--l-accent-soft);
+  color: var(--l-accent-text);
+}
+.landMockChipPublic { background: rgba(153, 153, 153, 0.14); color: var(--l-muted); }
+.landMockOk {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  background: var(--l-green-soft);
+  color: var(--l-green);
+}
+
+@media (max-width: 760px) {
+  .landMockRow { grid-template-columns: 1fr; }
+  .landMockListHead, .landMockItem { grid-template-columns: 1fr auto; }
+  .landMockListHead > :nth-child(2), .landMockItem > :nth-child(2),
+  .landMockListHead > :nth-child(3), .landMockItem > :nth-child(3) { display: none; }
 }

@@ -65,6 +65,61 @@ export default function Page() {
               <div className={styles.landStatLabel}>privacy pool, on mainnet</div>
             </div>
           </div>
+
+          <div className={styles.landMockFrame}>
+            <div className={styles.landMockBar}>
+              <span className={styles.landMockDot} />
+              <span className={styles.landMockDot} />
+              <span className={styles.landMockDot} />
+              <span className={styles.landMockUrl}>nomos.app/dashboard</span>
+            </div>
+            <div className={styles.landMockBody}>
+              <div className={styles.landMockRow}>
+                <div className={styles.landMockStat}>
+                  <div className={styles.landMockStatLabel}>Available balance</div>
+                  <div className={styles.landMockStatValue}>4,182.00 USDC</div>
+                  <div className={styles.landMockDelta}>Private — not on the public chain</div>
+                </div>
+                <div className={styles.landMockStat}>
+                  <div className={styles.landMockStatLabel}>Payments this month</div>
+                  <div className={styles.landMockStatValue}>317</div>
+                  <div className={styles.landMockDelta}>3.17 USDC in fees, total</div>
+                </div>
+                <div className={styles.landMockStat}>
+                  <div className={styles.landMockStatLabel}>Settled to you</div>
+                  <div className={styles.landMockStatValue}>100%</div>
+                  <div className={styles.landMockDelta}>No percentage taken</div>
+                </div>
+              </div>
+
+              <div className={styles.landMockList}>
+                <div className={styles.landMockListHead}>
+                  <span>Reference</span>
+                  <span>Flow</span>
+                  <span>Amount</span>
+                  <span>Status</span>
+                </div>
+                <div className={styles.landMockItem}>
+                  <span className={styles.landMockRef}>nx_7f21c9a4</span>
+                  <span className={styles.landMockChip}>Private</span>
+                  <span className={styles.landMockAmt}>240.00 USDC</span>
+                  <span className={styles.landMockOk}>Settled</span>
+                </div>
+                <div className={styles.landMockItem}>
+                  <span className={styles.landMockRef}>nx_c084be12</span>
+                  <span className={`${styles.landMockChip} ${styles.landMockChipPublic}`}>Public</span>
+                  <span className={styles.landMockAmt}>1,500.00 USDC</span>
+                  <span className={styles.landMockOk}>Settled</span>
+                </div>
+                <div className={styles.landMockItem}>
+                  <span className={styles.landMockRef}>nx_3ade9071</span>
+                  <span className={styles.landMockChip}>Private</span>
+                  <span className={styles.landMockAmt}>85.00 USDC</span>
+                  <span className={styles.landMockOk}>Settled</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </header>
 
         {/* Problem, stated before the product — the reference opens this way
