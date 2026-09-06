@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
   let networkIndex = networkIndexClaim;
   let linkNote: string | undefined = typeof note === "string" ? note : undefined;
   let linkRef: string | undefined = typeof ref === "string" ? ref : undefined;
+  let duplicateOfSettledInvoice = false;
   let paidLinkId: string | undefined;
   if (linkId !== undefined) {
     if (typeof linkId !== "string") {
@@ -94,18 +95,24 @@ export async function POST(request: NextRequest) {
     if (!isTokenSymbol(link.token)) {
       return NextResponse.json({ error: "Payment link has an invalid token." }, { status: 500 });
     }
-    // An invoice is payable once. Reject a second payer before they spend
-    // gas, rather than silently accepting money against a settled invoice.
-    // A failed attempt (rejected/shield_failed) must not close it.
+    // An invoice is payable once — but this endpoint runs *after* the payer
+    // has broadcast, so refusing here does not stop a second payment, it only
+    // stops Nomos writing it down. The money is on-chain either way, and a
+    // deposit nobody recorded is money nobody can find. So a duplicate is
+    // recorded and credited like any other payment, and flagged; the merchant
+    // sees it in their console and can refund it, which is a decision that
+    // belongs to them and not to a 409.
+    //
+    // A second payer is stopped where it actually helps: the pay page hides
+    // the button once the link reads as paid, and reserving an intent is
+    // refused for a settled invoice — both before any gas is spent. This is
+    // the backstop for the payer whose page loaded before the first payment
+    // settled. A failed attempt (rejected/shield_failed) must not close it.
     if (link.singleUse) {
       const already = await store.listDepositsForLink(link.id);
-      const settled = already.filter((d) => d.status !== "rejected" && d.status !== "shield_failed");
-      if (settled.length > 0) {
-        return NextResponse.json(
-          { error: "This invoice has already been paid.", alreadyPaid: true },
-          { status: 409 }
-        );
-      }
+      duplicateOfSettledInvoice = already.some(
+        (d) => d.status !== "rejected" && d.status !== "shield_failed"
+      );
     }
     paidLinkId = link.id;
     normalizedMerchant = link.merchantAddress;
@@ -221,7 +228,14 @@ export async function POST(request: NextRequest) {
   // once shielding is confirmed — see Phase 5.
 
   return NextResponse.json(
-    { ok: true, status: deposit.status, reference: deposit.reference },
+    {
+      ok: true,
+      status: deposit.status,
+      reference: deposit.reference,
+      // The payment is recorded and credited; the invoice was already
+      // settled. The checkout tells the payer so they can ask for it back.
+      ...(duplicateOfSettledInvoice ? { duplicateOfSettledInvoice: true } : {}),
+    },
     { status: 201 }
   );
 }

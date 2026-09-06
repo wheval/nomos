@@ -65,6 +65,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Payment link is misconfigured." }, { status: 500 });
   }
 
+  // An invoice is payable once, and this is the last moment refusing costs
+  // the payer nothing — an intent is reserved before the wallet is invoked,
+  // so a second payer is turned away with their gas intact. /api/payments
+  // cannot do this: by the time it runs the money has already moved, and
+  // refusing there would only mean not writing it down.
+  if (link.singleUse) {
+    const already = await store.listDepositsForLink(link.id);
+    if (already.some((d) => d.status !== "rejected" && d.status !== "shield_failed")) {
+      return NextResponse.json(
+        { error: "This invoice has already been paid.", alreadyPaid: true },
+        { status: 409 }
+      );
+    }
+  }
+
   // Quote an amount no other open attempt is using, so the note that
   // eventually lands names exactly one intent. This is what turns attribution
   // from a guess into a lookup — see utils/paymentFingerprint.ts.
