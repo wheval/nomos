@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Signature, TypedData } from "starknet";
 import { useStoreWallet } from "../../Wallet/walletContext";
 import { useFrontendProvider } from "../provider/providerContext";
 
@@ -26,17 +27,49 @@ function authKey(address: string, networkIndex: number) {
   return `${address.toLowerCase()}:${networkIndex}`;
 }
 
-function ensureSession(address: string, networkIndex: number): Promise<boolean> {
+type Signer = { signMessage: (typedData: TypedData) => Promise<Signature> };
+
+// Prove the wallet is ours, then exchange that proof for a session.
+//
+// Connecting a wallet is not proof of anything — an address is public. The
+// server issues a challenge, the wallet signs it, and only then is a session
+// cookie handed out. Costs the merchant one signature prompt per login; it
+// signs a statement, never a transaction, and moves no money.
+async function establishSession(
+  address: string,
+  networkIndex: number,
+  signer: Signer
+): Promise<boolean> {
+  const challengeRes = await fetch(
+    `/api/merchant-session?address=${address}&network=${networkIndex}`,
+    { credentials: "include" }
+  );
+  if (!challengeRes.ok) return false;
+  const { challenge, typedData } = (await challengeRes.json()) as {
+    challenge: string;
+    typedData: TypedData;
+  };
+
+  // Signed as the server built it, never as the client imagines it.
+  const signature = await signer.signMessage(typedData);
+  const asArray = Array.isArray(signature)
+    ? signature.map(String)
+    : [signature.r, signature.s].map(String);
+
+  const res = await fetch("/api/merchant-session", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address, networkIndex, challenge, signature: asArray }),
+  });
+  return res.ok;
+}
+
+function ensureSession(address: string, networkIndex: number, signer: Signer): Promise<boolean> {
   const key = authKey(address, networkIndex);
   let pending = sessionPromises.get(key);
   if (!pending) {
-    pending = fetch("/api/merchant-session", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, networkIndex }),
-    })
-      .then((r) => r.ok)
+    pending = establishSession(address, networkIndex, signer)
       .catch(() => false)
       .then((ok) => {
         // A failed session must not be cached, or every later mount inherits
@@ -87,6 +120,7 @@ function endSession(): Promise<void> {
 export function useMerchantAuth() {
   const isConnected = useStoreWallet((state) => state.isConnected);
   const address = useStoreWallet((state) => state.address);
+  const myWalletAccount = useStoreWallet((state) => state.myWalletAccount);
   const networkIndex = useFrontendProvider((state) => state.currentFrontendProviderIndex);
 
   const [publicKey, setPublicKey] = useState<string | null>(null);
@@ -114,9 +148,14 @@ export function useMerchantAuth() {
     // components mounting this on a page cost one session POST and one key
     // GET between them — and a repeat mount (navigating between console
     // pages) resolves from the settled promise without another round-trip.
-    void ensureSession(address, networkIndex).then((ok) => {
-      if (!cancelled) setSessionReady(ok);
-    });
+    // No signer yet (the wallet object arrives a tick after the address on a
+    // restored connection) means no session yet — this effect re-runs when it
+    // lands, rather than opening an unproven one.
+    if (myWalletAccount) {
+      void ensureSession(address, networkIndex, myWalletAccount).then((ok) => {
+        if (!cancelled) setSessionReady(ok);
+      });
+    }
     void fetchPublicKey(address, networkIndex).then((key) => {
       if (!cancelled) setPublicKey(key);
     });
@@ -124,7 +163,7 @@ export function useMerchantAuth() {
     return () => {
       cancelled = true;
     };
-  }, [address, networkIndex]);
+  }, [address, networkIndex, myWalletAccount]);
 
   async function issueKey() {
     if (!address) return;
