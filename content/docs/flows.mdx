@@ -56,3 +56,44 @@ Flow A credits the merchant immediately — the funds are already shielded.
 Flow B lands as `pending_shield` until shielding is confirmed, because moving a
 public payment into the pool requires a screening step that is currently
 operated manually.
+
+## How a private payment is recognised
+
+This is the part of Nomos with no equivalent in a public-chain gateway, and it
+is worth understanding before you integrate.
+
+A public transfer announces itself. It has a transaction hash, it emits an
+event naming the sender, the recipient and the amount, and anyone can watch
+for it. That is exactly what a payment processor normally builds on.
+
+A shielded STRK20 transfer announces nothing. There is no event to watch, no
+sender to read, and the amount is not public. What Nomos can see, through the
+viewing key of the account being paid, is that *a note arrived* — carrying an
+amount, and nothing else. Not who sent it, and not which payment link it was
+meant for.
+
+So the amount has to carry that information, because it is the only field
+there is.
+
+**Every payment attempt reserves a unique amount.** When a customer opens a
+link for 25 USDC, Nomos records an intent and quotes them something like
+25.000412 — the price plus a few millionths of a unit that no other open
+attempt is using. When a note for exactly 25.000412 arrives, it names that one
+attempt and no other. Attribution stops being a guess and becomes a lookup.
+
+The overpay is bounded and tiny: at most 999 micro-units, under a tenth of a
+cent in USDC. The same trick is standard for Bitcoin processors, where it
+leaks the payment to anyone watching the chain. Here it does not — the amount
+is shielded, so only Nomos, holding the viewing key, ever sees it.
+
+Two consequences worth knowing:
+
+- **The payer must send the quoted amount exactly.** The checkout handles this
+  for you; if you drive the API yourself, use the amount the intent returns
+  rather than the link's round figure.
+- **Settlement does not depend on the payer's browser.** Because the note
+  identifies itself, Nomos can find and credit it with no transaction hash and
+  nobody watching. A customer who approves the payment and immediately closes
+  the tab is still paid in. This matters more than it sounds: shielded wallets
+  do not reliably return a transaction hash to the page that asked for it, so
+  a gateway that depended on the browser would lose payments routinely.
