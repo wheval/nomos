@@ -9,6 +9,12 @@ Open the console and connect. That wallet **is** your login — there is no
 signup, and no password. Everything you create is scoped to it, and separately
 to the network you are on: test-mode links never appear in live mode.
 
+Your wallet will ask you to sign a short statement the first time you connect.
+That signature is the login: a Starknet address is public information, so
+holding one proves nothing, and Nomos checks the signature against your
+account contract before it will open a session. It signs a statement, never a
+transaction — it moves no funds and grants Nomos no ability to spend.
+
 ## 2. Create a link
 
 Go to **Payment Links → Create payment link** and pick what you're making:

@@ -1,0 +1,64 @@
+---
+title: Disclosure
+description: Proving what you were paid — what Nomos can show, what it cannot, and who has to be trusted for each.
+---
+
+Privacy that cannot be undone on demand is not much use to a business. At some
+point an accountant, a tax authority, an investor or a bank asks you to show
+what you took in, and "it's private" is not an answer any of them accept.
+
+This page is about that moment: what Nomos can prove, and what it cannot.
+
+## Export your record
+
+**Transactions → Export CSV** downloads every payment recorded against your
+wallet on the network you are on. Each row carries the date, your own
+reference, the note, the gross amount, the Nomos fee and the net — so the
+arithmetic closes against your balance rather than needing to be recomputed.
+
+Amounts are exact decimal strings, never rounded, because the attribution
+scheme depends on differences of a millionth of a unit.
+
+You can also read the same data as JSON from
+[`GET /api/payments`](/docs/api#balances-and-payments) and shape it yourself.
+
+## What that export is, honestly
+
+It is **your record, attested by Nomos**. That is the same thing a Stripe or
+Paystack export is, and it is enough for the situations above, because those
+parties already accept a processor's statement.
+
+It is **not a cryptographic proof**. A reader who does not trust Nomos cannot
+verify it against the chain, because the payments it describes are shielded —
+that is the entire point of them. Anyone telling you a privacy system gives
+you both properties at once is selling one of them short.
+
+## What Nomos cannot do
+
+**Nomos cannot grant someone a view of your payments alone.** The privacy pool
+has a viewing key per account, and the account receiving payments is Nomos's
+operating wallet — one wallet, shared by every merchant. Its viewing key
+reveals every merchant's payments at once. There is no per-merchant viewing
+key to hand out, so there is nothing to selectively disclose.
+
+This falls out of the custody model described in
+[Privacy](/docs/privacy#custody-stated-plainly): Nomos holds funds between the
+payment and your payout, so payments arrive in its wallet, not yours.
+Non-custodial settlement would change this, and would make a real viewing-key
+grant possible. It is on the roadmap and is not what is offered today.
+
+## What is actually private
+
+Worth restating precisely, because "private" is doing specific work here:
+
+| | Can see your payments |
+| --- | --- |
+| The public chain | **No** — amounts, senders and your total volume are not public |
+| Anyone watching your address | **No** |
+| Nomos | **Yes** — it has to, in order to settle them |
+| Anyone you export to | **Yes**, and only what you export |
+
+The privacy that Nomos delivers is privacy **from the chain**. That is the
+property a business actually lacks when it accepts stablecoins today, and it
+is the one this product exists to restore. Privacy from Nomos is a different
+property, it requires non-custodial settlement, and Nomos does not claim it.

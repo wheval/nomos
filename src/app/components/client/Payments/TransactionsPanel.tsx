@@ -52,6 +52,17 @@ export default function TransactionsPanel() {
             <p className={styles.pageHeadSub}>Every deposit recorded against your Payment Links.</p>
           </div>
           <div className={styles.pageHeadActions}>
+            {/* A plain link, not a fetch-and-blob: the console authenticates
+                with a same-origin session cookie, which rides on an ordinary
+                navigation, so the browser downloads the file itself. */}
+            <a
+              className={styles.btnGhost}
+              href={`/api/payments/export?to=${address}&network=${networkIndex}`}
+              download
+              title="Download every payment as a spreadsheet"
+            >
+              <DownloadIcon /> Export CSV
+            </a>
             <span className={styles.filterSelectWrap}>
               <CalendarIcon />
               <select
@@ -155,6 +166,16 @@ export default function TransactionsPanel() {
         </div>
       </div>
     </div>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 11l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
