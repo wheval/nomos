@@ -9,12 +9,12 @@
 // the time" but causes intermittent "Note not mature" failures.
 import { addrSTRK, isTokenSymbol, myFrontendProviders, tokenAddressFor } from "@/utils/constants";
 import { num } from "starknet";
+import { SetupRequirement } from "@starkware-libs/starknet-privacy-sdk";
 import type { ProviderInterface } from "starknet";
 import { getOperatingAccount } from "./operatingWallet";
 import {
   ensurePoolAllowance,
   getPrivacyClient,
-  isRegisteredOnPool,
   poolFeeAmount,
   provingBlockId,
   submitPrivateAction,
@@ -68,19 +68,6 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
   ): Promise<{ txHash: string }> {
     const account = getOperatingAccount(provider, networkIndex);
 
-    // A private payout lands as a shielded note, which only an account
-    // registered on the pool can hold. Sending one to an ordinary wallet
-    // reverts inside the pool with SUBCHANNEL_NOT_FOUND — after gas is spent
-    // and a proof is burned, and with a revert dump for an error message.
-    // One read call up front turns that into a sentence and costs nothing.
-    if (mode === "transfer" && !(await isRegisteredOnPool(provider, networkIndex, params.destination))) {
-      throw new Error(
-        "That destination is not registered on STRK20, so it cannot receive a private payout. " +
-          "Choose Public (unshield) to withdraw to an ordinary wallet, or register the destination " +
-          "on the pool first."
-      );
-    }
-
     await assertCanPayFees(provider, networkIndex, account.address);
     // Same reason as registration: the pool pulls its fee, and without an
     // allowance the payout reverts after paying gas for the privilege.
@@ -104,6 +91,28 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
     if (tokenAddress === "0x0") {
       throw new Error(`${params.token} has no configured contract on network ${networkIndex}.`);
     }
+    // A private transfer needs a channel from this operating wallet to the
+    // recipient, and a subchannel for the token inside it. Neither exists
+    // until someone opens it, so a first payout to any given recipient
+    // reverts with SUBCHANNEL_NOT_FOUND unless the actions that open them
+    // ride along — which is what autoSetup below does.
+    //
+    // Ask first, because the one case autoSetup cannot fix is a recipient who
+    // has never registered a viewing key on the pool: only they can do that,
+    // and telling them to is more useful than a revert. Note that being
+    // registered is not enough on its own — a wallet holding shielded funds
+    // it received from someone else still has no channel from us.
+    if (mode === "transfer") {
+      const requirement = await transfers.discoverRequirement(params.destination, tokenAddress);
+      if (requirement === SetupRequirement.Register) {
+        throw new Error(
+          "That destination has never been registered on STRK20, so it cannot receive a private " +
+            "payout. The owner of that wallet has to register it on the pool first — or choose " +
+            "Public (unshield) to withdraw to it as an ordinary address."
+        );
+      }
+    }
+
     const tokenKey = BigInt(tokenAddress);
     const recipientKey = BigInt(params.destination);
 
@@ -112,6 +121,10 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
         autoDiscover: { notes: "refresh", channels: "refresh" },
         autoSelectNotes: "naive",
         provingBlockId: blockId,
+        // Adds the OpenChannel / OpenTokenChannel actions when they are
+        // missing. Costs a little more gas on a first payout to a recipient
+        // and nothing on every one after it.
+        autoSetup: true,
       })
       .with(tokenKey, (t) =>
         mode === "withdraw"
