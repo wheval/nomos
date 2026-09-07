@@ -29,7 +29,7 @@ export default function Page() {
             Live on Starknet mainnet
           </span>
           <h1 className={styles.landHeroTitle}>
-            Take payments nobody<br />else can <em>read</em>
+            Private payment gateway<br />for <em>stablecoin</em> business
           </h1>
           <p className={styles.landHeroSub}>
             A payment gateway that settles through the STRK20 privacy pool, so
