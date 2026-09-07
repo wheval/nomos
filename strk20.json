@@ -7,10 +7,7 @@
     "0xc3691eb4a5f87abe5bf44066fb9065fbf6cfb0ce611a504d4654e0e172d4d9",
     "0x74ec3bfa3aba3c0625a4c497787406c6d34b15f04cdfd98e1ed6d969909de88"
   ],
-  "contracts": [
-    "0x52d583f64500e3a08f1458146384c8728cb3c14a905c3fc2bf31a8e01c2ad7a",
-    "0x78ae662e0cc6d1ab2cfeaf2a51ba8783d88e31886f88a794d142f95a6f8735b"
-  ],
+  "contracts": [],
   "demo_video": "",
   "demo_url": "https://nomos-henna.vercel.app"
 }
