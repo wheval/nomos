@@ -216,6 +216,14 @@ export class SupabaseStore implements Store {
       .from("deposits")
       .select("*")
       .eq("tx_hash", input.txHash)
+      // Scoped to the network, because a transaction hash is only unique
+      // within one. It matters most for the synthetic `note:<id>` references a
+      // note-settled payment carries: note ids are pool-local, so the same id
+      // exists on Sepolia and on mainnet. Without this, a mainnet payment
+      // whose note happened to share an id with a Sepolia one was handed back
+      // the Sepolia deposit, the mainnet intent was matched to a payment on
+      // another network, and the real payment was never recorded at all.
+      .eq("network_index", input.networkIndex)
       .maybeSingle<DepositRow>();
     if (existing) return { deposit: depositFromRow(existing), alreadyExisted: true };
 

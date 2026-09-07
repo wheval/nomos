@@ -56,7 +56,9 @@ export class MemoryStore implements Store {
   }
 
   async recordDeposit(input: RecordDepositInput) {
-    const existingId = this.depositIdByTxHash.get(input.txHash);
+    // Keyed by network as well as hash: `note:<id>` references repeat across
+    // networks, so a bare hash key conflates two different payments.
+    const existingId = this.depositIdByTxHash.get(`${input.networkIndex}:${input.txHash}`);
     if (existingId) {
       return { deposit: this.deposits.get(existingId)!, alreadyExisted: true };
     }
@@ -80,7 +82,7 @@ export class MemoryStore implements Store {
       recordedAt: Math.floor(Date.now() / 1000),
     };
     this.deposits.set(id, deposit);
-    this.depositIdByTxHash.set(input.txHash, id);
+    this.depositIdByTxHash.set(`${input.networkIndex}:${input.txHash}`, id);
     return { deposit, alreadyExisted: false };
   }
 
@@ -148,8 +150,12 @@ export class MemoryStore implements Store {
   }
 
   async getDepositByTxHash(txHash: string): Promise<Deposit | null> {
-    const id = this.depositIdByTxHash.get(txHash);
-    return id ? this.deposits.get(id) ?? null : null;
+    // The index is keyed by network too, and this lookup is not told one, so
+    // it scans. Fine for an in-memory driver; the Supabase store queries.
+    for (const deposit of this.deposits.values()) {
+      if (deposit.txHash === txHash) return deposit;
+    }
+    return null;
   }
 
   async markDepositShielded(depositId: string, shieldTxHash: string): Promise<void> {

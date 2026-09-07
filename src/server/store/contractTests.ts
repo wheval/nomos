@@ -25,6 +25,36 @@ export function runStoreContractTests(label: string, makeStore: () => Store) {
       expect(second.deposit.id).toBe(first.deposit.id);
     });
 
+    it("does not treat the same txHash on two networks as one deposit", async () => {
+      // A transaction hash is unique only within a network, and the synthetic
+      // `note:<id>` reference a note-settled payment carries is not unique at
+      // all — note ids are pool-local and repeat across Sepolia and mainnet.
+      // Deduping on the hash alone handed a mainnet payment back the Sepolia
+      // deposit, matched the mainnet intent to a payment on another network,
+      // and left the real one unrecorded.
+      const store = makeStore();
+      const merchant = randomAddress();
+      const txHash = "note:2332359948240290564060511101448347587589826749951759148909";
+
+      const sepolia = await store.recordDeposit({ merchantAddress: merchant, networkIndex: 2, flow: "A", txHash, amountWei: 100n });
+      const mainnet = await store.recordDeposit({ merchantAddress: merchant, networkIndex: 0, flow: "A", txHash, amountWei: 100n });
+
+      expect(sepolia.alreadyExisted).toBe(false);
+      expect(mainnet.alreadyExisted).toBe(false);
+      expect(mainnet.deposit.id).not.toBe(sepolia.deposit.id);
+      expect(mainnet.deposit.networkIndex).toBe(0);
+    });
+
+    it("still dedupes the same txHash on the same network", async () => {
+      const store = makeStore();
+      const merchant = randomAddress();
+      const txHash = "note:88123";
+      const first = await store.recordDeposit({ merchantAddress: merchant, networkIndex: 0, flow: "A", txHash, amountWei: 100n });
+      const again = await store.recordDeposit({ merchantAddress: merchant, networkIndex: 0, flow: "A", txHash, amountWei: 100n });
+      expect(again.alreadyExisted).toBe(true);
+      expect(again.deposit.id).toBe(first.deposit.id);
+    });
+
     it("credits and debits keep an accurate running balance", async () => {
       const store = makeStore();
       const merchant = randomAddress();

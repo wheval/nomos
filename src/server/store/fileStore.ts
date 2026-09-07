@@ -229,7 +229,12 @@ export class FileStore implements Store {
 
   async recordDeposit(input: RecordDepositInput) {
     const deposits = await this.readDeposits();
-    const existing = deposits.find((d) => d.txHash === input.txHash);
+    // Network-scoped: a transaction hash is unique only within a network, and
+    // the synthetic `note:<id>` reference definitely is not — note ids are
+    // pool-local and repeat across Sepolia and mainnet.
+    const existing = deposits.find(
+      (d) => d.txHash === input.txHash && d.networkIndex === input.networkIndex
+    );
     if (existing) return { deposit: fromStoredDeposit(existing), alreadyExisted: true };
 
     await this.ensureMerchant(input.merchantAddress, input.networkIndex);
