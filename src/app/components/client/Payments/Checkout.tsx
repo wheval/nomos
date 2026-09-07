@@ -269,10 +269,25 @@ export default function Checkout() {
         if (d?.status === "paid") {
           setPaidReference(d.reference ?? null);
           setPaidAt((prev) => prev ?? Math.floor(Date.now() / 1000));
-          setResult({
-            status: "ok",
-            title: "Payment received",
-            rows: [{ label: "Amount", value: `${fmtTokenAmount(amountWei, decimals)} ${token}` }],
+          // Keep the transaction hash if the wallet already gave us one.
+          //
+          // Polling starts before the wallet is invoked, so it can settle the
+          // payment first and used to overwrite the result wholesale — taking
+          // the hash row out of a receipt that had it. The hash is the one
+          // thing a payer can carry away and check for themselves, so it is
+          // preserved rather than replaced.
+          setResult((prev) => {
+            const knownHash = prev?.rows?.find((r) => r.hash)?.hash;
+            return {
+              status: "ok",
+              title: "Payment received",
+              rows: [
+                { label: "Amount", value: `${fmtTokenAmount(amountWei, decimals)} ${token}` },
+                ...(knownHash
+                  ? [{ label: "Transaction", value: shortHex(knownHash), hash: knownHash }]
+                  : []),
+              ],
+            };
           });
           return;
         }
@@ -394,14 +409,17 @@ export default function Checkout() {
       setBroadcastTx(txH);
       setPaidAt(Math.floor(Date.now() / 1000));
       setPayPhase("confirming");
-      setResult({
-        status: "pending",
-        title: "Waiting for confirmation…",
+      // Additive, not a replacement. Polling starts before the wallet call and
+      // can settle the payment first; if it already reported success, adding
+      // the hash must not knock the receipt back to "waiting".
+      setResult((prev) => ({
+        status: prev?.status === "ok" ? "ok" : "pending",
+        title: prev?.status === "ok" ? "Payment received" : "Waiting for confirmation…",
         rows: [
           { label: "Amount", value: `${fmtTokenAmount(amountWei, decimals)} ${token}` },
           { label: "Transaction", value: shortHex(txH), hash: txH },
         ],
-      });
+      }));
 
       // Report the payment the moment a hash exists, not after a receipt poll
       // succeeds. This used to sit behind `if (final.status === "ok")`, so a
