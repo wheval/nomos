@@ -21,7 +21,8 @@ const createPayout = vi.fn(async () => ({
   status: "pending" as const,
   createdAt: 1700000000,
 }));
-const updatePayoutStatus = vi.fn(async () => {});
+// Typed with its real signature so a test can assert call ordering.
+const updatePayoutStatus = vi.fn(async (_id: string, _status: string, _txHash?: string) => {});
 const debitLedger = vi.fn(async () => ({}) as any);
 const listPayoutsFor = vi.fn(async (): Promise<any[]> => []);
 const getMerchantProfile = vi.fn(async () => ({ displayName: null, allowedIps: [] as string[], logoDataUrl: null }));
@@ -64,6 +65,63 @@ beforeEach(() => {
   verifyMerchantSecret.mockResolvedValue(true);
   getLedgerBalance.mockResolvedValue(REQUESTED * 2n);
   listPayoutsFor.mockResolvedValue([]);
+  // clearAllMocks resets calls but keeps implementations, so a test that made
+  // one of these reject would otherwise poison every test after it.
+  executeWithdraw.mockResolvedValue({ txHash: "0xpayouttx" });
+  executeTransfer.mockResolvedValue({ txHash: "0xpayouttx2" });
+  debitLedger.mockResolvedValue({} as never);
+  updatePayoutStatus.mockResolvedValue(undefined);
+});
+
+describe("once the money has moved", () => {
+  // The ordering here is the whole safety property. debitLedger used to run
+  // before the payout was marked confirmed, and when a database constraint
+  // rejected the fee entry, the catch marked a payout that had already
+  // settled on-chain as "failed" and threw its transaction hash away.
+  const body = {
+    merchantAddress: VALID_ADDR_1,
+    secretKey: "sk_test",
+    destination: VALID_ADDR_2,
+    amountWei: REQUESTED.toString(),
+    token: "STRK",
+    mode: "withdraw",
+    networkIndex: 2,
+  };
+
+  it("records the transaction hash before touching the ledger", async () => {
+    const order: string[] = [];
+    updatePayoutStatus.mockImplementation(async (_id, status) => {
+      order.push(`status:${status}`);
+    });
+    debitLedger.mockImplementation(async () => {
+      order.push("debit");
+      return {} as never;
+    });
+    await POST(req("POST", body));
+    expect(order.indexOf("status:confirmed")).toBeLessThan(order.indexOf("debit"));
+  });
+
+  it("keeps a settled payout confirmed even when its ledger debit fails", async () => {
+    // Anything else invites a retry that spends the funds a second time.
+    debitLedger.mockRejectedValue(new Error('violates check constraint "ledger_entries_kind_check"'));
+    const res = await POST(req("POST", body));
+    expect(res.status).toBe(201);
+    expect((await res.json()).status).toBe("confirmed");
+    expect(updatePayoutStatus).not.toHaveBeenCalledWith(expect.anything(), "failed");
+  });
+
+  it("still returns the hash when the ledger fails, so the payout is traceable", async () => {
+    debitLedger.mockRejectedValue(new Error("database is down"));
+    expect((await (await POST(req("POST", body))).json()).txHash).toBe("0xpayouttx");
+  });
+
+  it("marks failed only when the chain itself failed", async () => {
+    executeWithdraw.mockRejectedValue(new Error("reverted"));
+    const res = await POST(req("POST", body));
+    expect(res.status).toBe(502);
+    expect(updatePayoutStatus).toHaveBeenCalledWith(expect.anything(), "failed");
+    expect(debitLedger).not.toHaveBeenCalled();
+  });
 });
 
 describe("one payout in flight at a time", () => {

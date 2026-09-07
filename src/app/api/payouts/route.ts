@@ -136,27 +136,50 @@ export async function POST(request: NextRequest) {
         ? await executor.executeWithdraw({ amountWei: sendWei, token, destination: normalizedDestination })
         : await executor.executeTransfer({ amountWei: sendWei, token, destination: normalizedDestination });
 
+    // The money has now moved and cannot be recalled, so that fact is written
+    // down before anything that could fail. It used to be written last, after
+    // two ledger debits — and when the second of those hit a database
+    // constraint, the catch below marked a payout that had actually settled
+    // as "failed" and discarded its transaction hash. Funds gone, no record
+    // of where, and a row that invites someone to retry and send twice.
+    //
+    // Ordering is the whole fix: record the irreversible thing first, then do
+    // the bookkeeping that can be repaired later.
+    await store.updatePayoutStatus(payout.id, "confirmed", txHash);
+
     // Debited in two entries so the merchant's history shows the payout and
     // the charge separately, rather than one number they have to reconcile.
-    await store.debitLedger({
-      merchantAddress: normalizedMerchant,
-      networkIndex,
-      amountWei: sendWei,
-      token,
-      kind: "payout",
-      payoutId: payout.id,
-    });
-    if (feeWei > 0n) {
+    //
+    // A failure here leaves a real, settled payout whose ledger is behind. It
+    // must not turn into a retry — the funds are already spent — so it is
+    // logged loudly for a human and the payout stays confirmed.
+    try {
       await store.debitLedger({
         merchantAddress: normalizedMerchant,
         networkIndex,
-        amountWei: feeWei,
+        amountWei: sendWei,
         token,
-        kind: "payout_fee",
+        kind: "payout",
         payoutId: payout.id,
       });
+      if (feeWei > 0n) {
+        await store.debitLedger({
+          merchantAddress: normalizedMerchant,
+          networkIndex,
+          amountWei: feeWei,
+          token,
+          kind: "payout_fee",
+          payoutId: payout.id,
+        });
+      }
+    } catch (ledgerError) {
+      console.error(
+        `[nomos payout] ${payout.id} SETTLED ON-CHAIN as ${txHash} but its ledger debit failed. ` +
+          `The merchant's balance is overstated until this is corrected by hand. ` +
+          `Do not re-run the payout.`,
+        ledgerError
+      );
     }
-    await store.updatePayoutStatus(payout.id, "confirmed", txHash);
     return NextResponse.json(
       {
         ok: true,
