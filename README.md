@@ -22,7 +22,7 @@ public chain.
 
 Your customer pays either way:
 
-- **Shielded wallet** (Ready, Braavos) — private end to end.
+- **Shielded wallet** (Ready, Xverse) — private end to end.
 - **Any Starknet wallet** — the transfer is public, but who received it is not.
   Nomos shields it into your balance.
 

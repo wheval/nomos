@@ -562,7 +562,7 @@ export default function Checkout() {
           </div>
           <p className={styles.sectionSub} style={{ margin: "10px 0 0", fontSize: 12.5 }}>
             {flow === "A"
-              ? "The amount, and that you paid at all, stay off the public chain. Needs a shielded wallet — Ready, or Braavos with Private Balances."
+              ? "The amount, and that you paid at all, stay off the public chain. Needs a shielded wallet — Ready or Xverse."
               : "An ordinary transfer, so the amount is public. Which business you paid still stays private."}
           </p>
           <WalletStrip flow={flow} />
