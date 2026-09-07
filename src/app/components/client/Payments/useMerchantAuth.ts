@@ -45,10 +45,20 @@ async function establishSession(
     { credentials: "include" }
   );
   if (!challengeRes.ok) return false;
-  const { challenge, typedData } = (await challengeRes.json()) as {
-    challenge: string;
-    typedData: TypedData;
+  const body = (await challengeRes.json()) as {
+    authenticated?: boolean;
+    challenge?: string;
+    typedData?: TypedData;
   };
+
+  // A session lasts two weeks and survives reloads, but the cache above is
+  // module state that does not. Without this check the wallet prompted on
+  // every refresh for a session the browser was already holding — which is
+  // both irritating and the way people are taught to click through prompts
+  // they should be reading.
+  if (body.authenticated) return true;
+  if (!body.challenge || !body.typedData) return false;
+  const { challenge, typedData } = body as { challenge: string; typedData: TypedData };
 
   // Signed as the server built it, never as the client imagines it.
   const signature = await signer.signMessage(typedData);

@@ -15,6 +15,11 @@ holding one proves nothing, and Nomos checks the signature against your
 account contract before it will open a session. It signs a statement, never a
 transaction — it moves no funds and grants Nomos no ability to spend.
 
+You are asked once, not per action. The session lasts two weeks and survives
+reloads, so you will only see the prompt again after it expires, when you
+disconnect, or when you switch between test and live mode — those are separate
+sessions by design, the same way test and live API keys are separate.
+
 ## 2. Create a link
 
 Go to **Payment Links → Create payment link** and pick what you're making:

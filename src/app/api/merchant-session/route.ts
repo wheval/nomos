@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
-import { applySessionCookie, clearSessionCookie } from "@/server/merchantAuth";
+import { SESSION_COOKIE, applySessionCookie, clearSessionCookie, decodeSession } from "@/server/merchantAuth";
 import { challengeIsValid, issueChallenge, loginTypedData, walletOwnsAddress } from "@/server/walletProof";
 import { isValidNetworkIndex } from "@/utils/constants";
 
-// GET: the challenge half of the login. Returns something for the wallet to
-// sign, plus the exact typed data to sign it as, so the client never builds
-// the message itself and the two sides cannot drift apart.
+// GET: the challenge half of the login — but only when one is actually
+// needed.
+//
+// A session lasts two weeks, so most page loads already carry a valid one.
+// Answering with a challenge regardless made the client sign again on every
+// reload, which trains a merchant to approve wallet prompts without reading
+// them. So this reports an existing session first, and issues a challenge
+// only when there is nothing to reuse.
+//
+// When a challenge is returned it carries the exact typed data to sign it as,
+// so the client never builds the message itself and the two sides cannot
+// drift apart.
 export async function GET(request: NextRequest) {
   const address = request.nextUrl.searchParams.get("address");
   const networkRaw = request.nextUrl.searchParams.get("network");
@@ -25,8 +34,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "address is not a valid Starknet address." }, { status: 400 });
   }
 
+  // Already signed in as this wallet, on this network? Then nothing to prove.
+  // Read through the same decoder that authorises real requests, so this can
+  // never report a session that would not actually be honoured.
+  const existing = request.cookies.get(SESSION_COOKIE)?.value;
+  if (existing) {
+    const session = decodeSession(existing);
+    if (session && session.a === normalized.toLowerCase() && session.n === networkIndex) {
+      return NextResponse.json({ authenticated: true });
+    }
+  }
+
   const challenge = issueChallenge(normalized, networkIndex);
-  return NextResponse.json({ challenge, typedData: loginTypedData(challenge, networkIndex) });
+  return NextResponse.json({
+    authenticated: false,
+    challenge,
+    typedData: loginTypedData(challenge, networkIndex),
+  });
 }
 
 // POST: the connected wallet is the dashboard login — but connecting is not
