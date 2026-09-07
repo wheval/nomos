@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "../../../uni.module.css";
 import { parseTokenAmount, EXPIRY_CHOICES } from "@/utils/payments";
-import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
-import { TokenAmount } from "../../TokenIcons";
+import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
+import AmountField from "./AmountField";
 
 type Kind = "page" | "invoice";
 
@@ -159,22 +159,6 @@ export default function CreateLinkModal({
                 <p className={styles.settingsHint}>Shown to the customer at checkout.</p>
               </div>
 
-              <div className={styles.settingsField}>
-                <label className={styles.settingsLabel}>Token</label>
-                <div className={styles.chipRow}>
-                  {TokenSymbols.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
-                      onClick={() => setToken(t)}
-                    >
-                      <TokenAmount symbol={t} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {kind === "invoice" ? (
                 <div className={styles.settingsField}>
                   <label className={styles.settingsLabel} htmlFor="invoiceEmail">
@@ -222,21 +206,21 @@ export default function CreateLinkModal({
                 </span>
               </label>
 
-              {fixedAmount ? (
-                <div className={styles.settingsField}>
-                  <label className={styles.settingsLabel} htmlFor="linkAmount">
-                    Amount ({token})
-                  </label>
-                  <input
-                    id="linkAmount"
-                    className={styles.settingsInput}
-                    placeholder="25"
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                </div>
-              ) : null}
+              <div className={styles.settingsField}>
+                {/* Shown whether or not the amount is fixed: an open-amount
+                    link still has to say which token it is denominated in,
+                    and the token now lives inside this control. */}
+                <label className={styles.settingsLabel} htmlFor="linkAmount">Amount</label>
+                <AmountField
+                  id="linkAmount"
+                  amount={fixedAmount ? amount : ""}
+                  onAmountChange={setAmount}
+                  token={token}
+                  onTokenChange={setToken}
+                  placeholder={fixedAmount ? "25" : "Customer enters"}
+                  amountDisabled={!fixedAmount}
+                />
+              </div>
 
               <div className={styles.settingsField}>
                 <label className={styles.settingsLabel}>Expires</label>

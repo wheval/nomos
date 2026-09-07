@@ -3847,3 +3847,61 @@ a.copyFieldValue:hover { color: var(--pink-text); }
 }
 .headerActionLink:hover { border-color: var(--inset-2); background: var(--inset); }
 .headerActionLink svg { flex: none; }
+
+/* Amount and token as one control — see AmountField.tsx for why they were
+   merged. The container carries the border and the focus ring so the two
+   halves read as one field; the input and the select are both stripped of
+   their own chrome. */
+.amountField {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+/* :focus-within, not :focus — the ring belongs to the whole control whichever
+   half the caret is in. */
+.amountField:focus-within {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px var(--pink-soft);
+}
+.amountFieldInput:disabled { color: var(--muted-2); cursor: not-allowed; }
+
+.amountFieldInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.amountFieldInput:focus { outline: none; }
+.amountFieldInput::placeholder { color: var(--muted-2); }
+
+.amountFieldToken {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px 0 13px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+}
+.amountFieldSelect {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-body), sans-serif;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.amountFieldSelect:focus { outline: none; }
+.amountFieldSelect:disabled { cursor: not-allowed; }
+.amountFieldSelect option { background: var(--card); color: var(--ink); }

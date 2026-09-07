@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import styles from "../../../uni.module.css";
 import { explorerTxUrl, fmtTokenAmount, shortHex } from "@/utils/receipt";
 import { parseTokenAmount } from "@/utils/payments";
-import { TokenSymbols, tokenDecimals, type TokenSymbol } from "@/utils/constants";
+import { tokenDecimals, type TokenSymbol } from "@/utils/constants";
 import { TokenAmount } from "../../TokenIcons";
+import AmountField from "./AmountField";
 import { pillClass, type Tone } from "./statusTone";
 import { useFrontendProvider } from "../provider/providerContext";
 import type { Payout as PayoutRecord, PayoutMode } from "@/server/store";
@@ -143,22 +144,6 @@ export default function Payout({
 
       <div className={styles.pageBody} style={{ maxWidth: 640 }}>
       <div className={styles.settingsField}>
-        <label className={styles.settingsLabel}>Token</label>
-        <div className={styles.chipRow}>
-          {TokenSymbols.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`${styles.chip} ${token === t ? styles.chipActive : ""}`}
-              onClick={() => setToken(t)}
-            >
-              <TokenAmount symbol={t} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.settingsField}>
         <label className={styles.settingsLabel} htmlFor="payoutDestination">Destination address</label>
         <input
           id="payoutDestination"
@@ -170,14 +155,16 @@ export default function Payout({
       </div>
 
       <div className={styles.settingsField}>
-        <label className={styles.settingsLabel} htmlFor="payoutAmount">Amount ({token})</label>
-        <input
+        {/* The token no longer needs naming in the label — it is chosen in
+            the field itself. */}
+        <label className={styles.settingsLabel} htmlFor="payoutAmount">Amount</label>
+        <AmountField
           id="payoutAmount"
-          className={styles.settingsInput}
-          placeholder="e.g. 25"
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          amount={amount}
+          onAmountChange={setAmount}
+          token={token}
+          onTokenChange={setToken}
+          placeholder="0.00"
         />
         <p className={styles.settingsHint}>
           {receiveWei !== null
