@@ -2,13 +2,63 @@
 
 [![CI](https://github.com/wheval/nomos/actions/workflows/ci.yml/badge.svg)](https://github.com/wheval/nomos/actions/workflows/ci.yml)
 
-A private payment gateway for Starknet, built for the [STRK20 Private Sprint](https://strk20.starknet.io/hackathon). A business drops in a Payment Link or checkout widget; a customer pays two ways — with a shielded wallet (fully private end to end) or an ordinary Starknet wallet (the payment itself is public, but which business it went to stays private); settlement clears as real transactions against the live STRK20 pool.
+Take payments on Starknet without publishing your revenue.
 
-## The trust model, plainly
+Every stablecoin payment you accept today is public. Anyone with your address
+can read what you charged and add it up. Nomos settles through the STRK20
+privacy pool instead, so amounts, senders and your running total stay off the
+public chain.
 
-Nomos is **custodial, not a pure router**. Both payment flows settle into Nomos's own operating wallet first; a merchant's balance is an internal ledger claim, not an on-chain account they hold directly, and they cash out via a payout whenever they choose (publicly, or privately if they have their own shielded wallet). This is a deliberate trade, not an oversight — see [`docs/PRD.md`](docs/PRD.md) for why (short version: an ordinary wallet's payment has to land somewhere before it can be shielded, so a pure non-custodial router can't serve those customers at all) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full custody/signing model, including exactly what's private and what isn't for each flow.
+**Live on mainnet.** Six verified transactions against the live pool, listed in
+[`strk20.json`](strk20.json) — payments and payouts. Try it:
+[nomos-henna.vercel.app](https://nomos-henna.vercel.app)
 
-The operating wallet signs with a software secp256k1 key today — an explicit stand-in for real key-management infra (Turnkey/KMS), not the intended end state. It's deployed on Sepolia; see [`cairo/address.md`](cairo/address.md) for the address and class hash.
+## What you get
+
+- **Payment Links** — send a link, get paid. No integration.
+- **Invoices** — payable once, addressed to a customer.
+- **Hosted checkout** — create a session from your backend, redirect, get them back.
+- **API and webhooks** — verify a payment, read balances, trigger payouts.
+
+Your customer pays either way:
+
+- **Shielded wallet** (Ready, Braavos) — private end to end.
+- **Any Starknet wallet** — the transfer is public, but who received it is not.
+  Nomos shields it into your balance.
+
+## The hard part
+
+A shielded transfer publishes nothing. No sender, no amount, no memo. So a
+gateway can't watch the chain for "did anyone pay me?" — there's no event.
+
+Nomos reserves the amount before the customer pays. A note arriving for
+exactly that amount names exactly one payment. Attribution becomes a lookup.
+
+Two consequences:
+
+- When the wallet returns a transaction hash, we verify it and settle in
+  seconds.
+- When it doesn't — tab closed, wallet never came back — the amount still
+  identifies the note, and the payment is credited anyway.
+
+That second one is why a payment can't be lost by closing a tab. Details in
+[`docs/flows`](https://nomos-henna.vercel.app/docs/flows).
+
+## Custody, stated plainly
+
+Nomos holds funds between the payment and your payout, like any processor.
+Your balance is a ledger claim, not an on-chain account you control. That's a
+deliberate trade: an ordinary wallet's payment has to land somewhere before it
+can be shielded, so a pure non-custodial router can't serve those customers at
+all.
+
+Payments are private **from the chain**, not from Nomos. See
+[Disclosure](https://nomos-henna.vercel.app/docs/disclosure) for what can be
+proved to whom.
+
+The operating wallet signs with a software secp256k1 key — a stand-in for real
+key management (Turnkey/KMS), not the end state. Deployed and registered on
+mainnet and Sepolia; addresses in [`cairo/address.md`](cairo/address.md).
 
 ## Pricing
 
@@ -35,7 +85,8 @@ fifty.
 
 ## Networks
 
-Sepolia is fully set up. Mainnet needs funding and two commands.
+Both networks are live. The operating wallet is deployed and registered on
+the pool on each, and payments and payouts have settled on both.
 
 ```bash
 set -a; source .env.local; set +a
