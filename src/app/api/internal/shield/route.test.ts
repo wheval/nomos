@@ -39,6 +39,11 @@ function req(method: string, body?: unknown, auth = `Bearer ${SECRET}`) {
 beforeEach(() => {
   vi.clearAllMocks();
   listPendingShieldDeposits.mockResolvedValue([mockDeposit]);
+  // clearAllMocks resets calls but keeps implementations, so a test that made
+  // one of these reject would otherwise poison every test after it.
+  markDepositShielded.mockResolvedValue(undefined);
+  creditLedger.mockResolvedValue({} as never);
+  deliverPaymentWebhook.mockResolvedValue(undefined);
 });
 
 describe("GET /api/internal/shield", () => {
@@ -74,6 +79,42 @@ describe("GET /api/internal/shield", () => {
     expect(strkSepolia.depositIds).toEqual(["dep-1", "dep-4"]);
     expect(groups.find((g: any) => g.token === "USDC").totalWei).toBe("5");
     expect(groups.find((g: any) => g.networkIndex === 0).totalWei).toBe("7");
+  });
+});
+
+describe("partial failure while marking a batch shielded", () => {
+  // Marking first meant a failed credit dropped the deposit out of
+  // pending_shield and so out of the operator's queue, with the merchant
+  // never paid and nothing left to show it had happened.
+  const body = { depositIds: ["dep-1"], shieldTxHash: "0xshield" };
+
+  it("credits before it marks, so a failed credit leaves a clean retry", async () => {
+    const order: string[] = [];
+    creditLedger.mockImplementation(async () => {
+      order.push("credit");
+      return {} as never;
+    });
+    markDepositShielded.mockImplementation(async () => {
+      order.push("mark");
+    });
+    await POST(req("POST", body));
+    expect(order).toEqual(["credit", "mark"]);
+  });
+
+  it("does not mark a deposit whose credit failed", async () => {
+    creditLedger.mockRejectedValue(new Error("ledger unavailable"));
+    const { results } = await (await POST(req("POST", body))).json();
+    expect(results[0].ok).toBe(false);
+    expect(markDepositShielded).not.toHaveBeenCalled();
+  });
+
+  it("warns rather than inviting a retry when only the status update failed", async () => {
+    // Re-marking would credit the merchant twice.
+    markDepositShielded.mockRejectedValue(new Error("write failed"));
+    const { results } = await (await POST(req("POST", body))).json();
+    expect(results[0].ok).toBe(false);
+    expect(results[0].error).toMatch(/do not re-mark/i);
+    expect(creditLedger).toHaveBeenCalledTimes(1);
   });
 });
 

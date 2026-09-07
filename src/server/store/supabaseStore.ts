@@ -259,6 +259,15 @@ export class SupabaseStore implements Store {
     throw new Error(`claimShieldedNote failed: ${error.message}`);
   }
 
+  async releaseShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<void> {
+    const { error } = await this.client
+      .from("claimed_notes")
+      .delete()
+      .eq("note_id", noteId)
+      .eq("network_index", networkIndex);
+    if (error) throw new Error(`releaseShieldedNote failed: ${error.message}`);
+  }
+
   async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {
     const { data, error } = await this.client
       .from("payment_intents")

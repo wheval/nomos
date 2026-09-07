@@ -94,6 +94,10 @@ export class MemoryStore implements Store {
     return true;
   }
 
+  async releaseShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<void> {
+    this.claimedNotes.delete(`${networkIndex}:${noteId}`);
+  }
+
   private intents = new Map<string, PaymentIntent>();
 
   async createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntent> {

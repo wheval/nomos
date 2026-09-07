@@ -58,32 +58,51 @@ export async function settleIntentFromChain(intentId: string): Promise<SettleRes
       return { settled: false, reason: "not-arrived" };
     }
 
+    // From here the note is spoken for. Everything below is bookkeeping that
+    // can fail, and a claim is permanent — so a failure would consume the
+    // note, credit nobody, and leave no later sweep able to retry it. The
+    // payment would be gone with the money still sitting on-chain. Release
+    // the claim on any failure and let the next sweep have another go.
     const feeWei = transactionFeeWei(intent.token, "A");
-    const { deposit } = await store.recordDeposit({
-      merchantAddress: intent.merchantAddress,
-      networkIndex: intent.networkIndex,
-      flow: "A",
-      // Not a transaction hash and not pretending to be one: the note is what
-      // identifies this payment, and it is unique per arrival.
-      txHash: `note:${match.id}`,
-      amountWei: intent.amountWei,
-      feeWei,
-      token: intent.token,
-      linkId: intent.linkId,
-      status: "verified",
-    });
-    await store.creditLedger({
-      merchantAddress: intent.merchantAddress,
-      networkIndex: intent.networkIndex,
-      amountWei: netAfterFee(intent.amountWei, feeWei),
-      token: intent.token,
-      kind: "flow_a_deposit",
-      depositId: deposit.id,
-    });
-    await store.matchPaymentIntent(intent.id, deposit.id);
-    await deliverPaymentWebhook(deposit);
+    try {
+      const { deposit } = await store.recordDeposit({
+        merchantAddress: intent.merchantAddress,
+        networkIndex: intent.networkIndex,
+        flow: "A",
+        // Not a transaction hash and not pretending to be one: the note is
+        // what identifies this payment, and it is unique per arrival.
+        txHash: `note:${match.id}`,
+        amountWei: intent.amountWei,
+        feeWei,
+        token: intent.token,
+        linkId: intent.linkId,
+        status: "verified",
+      });
+      await store.creditLedger({
+        merchantAddress: intent.merchantAddress,
+        networkIndex: intent.networkIndex,
+        amountWei: netAfterFee(intent.amountWei, feeWei),
+        token: intent.token,
+        kind: "flow_a_deposit",
+        depositId: deposit.id,
+      });
+      await store.matchPaymentIntent(intent.id, deposit.id);
+      await deliverPaymentWebhook(deposit);
 
-    return { settled: true, reference: deposit.reference, alreadySettled: false };
+      return { settled: true, reference: deposit.reference, alreadySettled: false };
+    } catch (settlementError) {
+      // Best-effort: if the release itself fails there is nothing further to
+      // try, and the original failure is the more useful one to report.
+      try {
+        await store.releaseShieldedNote(match.id, intent.networkIndex);
+      } catch {
+        console.error(
+          `[nomos attribution] note ${match.id} on network ${intent.networkIndex} stayed claimed ` +
+            `after settlement failed. Intent ${intent.id} needs settling by hand.`
+        );
+      }
+      throw settlementError;
+    }
   } catch (err) {
     return { settled: false, reason: "error", detail: err instanceof Error ? err.message : String(err) };
   }

@@ -159,6 +159,12 @@ export class FileStore implements Store {
     return true;
   }
 
+  async releaseShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<void> {
+    const key = `${networkIndex}:${noteId}`;
+    const claimed = await this.readClaimedNotes();
+    await writeJson(CLAIMED_NOTES_FILE, claimed.filter((k) => k !== key));
+  }
+
   private async readIntents(): Promise<StoredPaymentIntent[]> {
     return readJson(PAYMENT_INTENTS_FILE, []);
   }

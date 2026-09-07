@@ -89,7 +89,14 @@ export async function POST(request: NextRequest) {
         results.push({ depositId, ok: false, error: "Not found or not pending_shield." });
         continue;
       }
-      await store.markDepositShielded(depositId, shieldTxHash);
+      // Credit before marking, so the likelier failure leaves a clean retry.
+      //
+      // Marking first meant a failed credit dropped the deposit out of
+      // pending_shield and therefore out of this queue, with the merchant
+      // never paid and nothing to show an operator that it had happened.
+      // This way a failed credit leaves the deposit exactly where it was and
+      // the batch can simply be marked again.
+      //
       // Net, same as Flow A. The fee was fixed when the deposit was
       // recorded, so shielding later never reprices it.
       await store.creditLedger({
@@ -100,6 +107,26 @@ export async function POST(request: NextRequest) {
         kind: "flow_b_deposit",
         depositId: deposit.id,
       });
+
+      try {
+        await store.markDepositShielded(depositId, shieldTxHash);
+      } catch (markError) {
+        // The merchant has their money; only the status is behind. Re-marking
+        // would credit them a second time, so this asks for a human rather
+        // than letting the operator retry it blind.
+        console.error(
+          `[nomos shield] deposit ${depositId} was CREDITED but could not be marked shielded. ` +
+            `It is still in the queue — do not mark it again, or the merchant is paid twice.`,
+          markError
+        );
+        results.push({
+          depositId,
+          ok: false,
+          error: "Credited, but the status could not be updated. Do not re-mark this one; it needs a fix by hand.",
+        });
+        continue;
+      }
+
       await deliverPaymentWebhook({ ...deposit, status: "shielded", shieldTxHash });
       results.push({ depositId, ok: true });
     } catch (err: any) {

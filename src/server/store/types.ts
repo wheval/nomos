@@ -217,6 +217,17 @@ export interface Store {
   // caller must then refuse the deposit. Implementations MUST make this
   // atomic — two concurrent callers cannot both win the same note.
   claimShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<boolean>;
+  /**
+   * Give a claimed note back.
+   *
+   * Claiming is what stops one note being credited twice, so it happens
+   * before the deposit is recorded. That leaves a window: if recording or
+   * crediting then fails, the note is spoken for and nothing came of it —
+   * and since a claim is permanent, no later sweep would ever retry it. The
+   * payment would be lost with the money sitting on-chain. Releasing closes
+   * the window, so a failed settlement can be attempted again.
+   */
+  releaseShieldedNote(noteId: string, networkIndex: NetworkIndex): Promise<void>;
   // Which notes are already spoken for, so reconciliation can tell an
   // unattributed payment from one that simply has no note.
   listClaimedNoteIds(networkIndex: NetworkIndex): Promise<Set<string>>;
