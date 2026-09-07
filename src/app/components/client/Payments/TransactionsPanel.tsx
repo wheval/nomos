@@ -56,7 +56,7 @@ export default function TransactionsPanel() {
                 with a same-origin session cookie, which rides on an ordinary
                 navigation, so the browser downloads the file itself. */}
             <a
-              className={styles.btnGhost}
+              className={styles.headerActionLink}
               href={`/api/payments/export?to=${address}&network=${networkIndex}`}
               download
               title="Download every payment as a spreadsheet"
