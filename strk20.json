@@ -1,5 +1,7 @@
 {
-  "transactions": [],
+  "transactions": [
+    "0x6ab9bd3163f59e70f7df08277c75fb0eb84972657d520bb15c34d9c899f8772"
+  ],
   "contracts": [],
   "demo_video": "",
   "demo_url": "https://nomos-henna.vercel.app"

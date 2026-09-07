@@ -14,10 +14,26 @@ declare tx : 0x05c0501c0ab8e599fd6e622f5c70ed5e45864f7611331470a569e778cc32fe6f
 
 deploy tx : 0x01c3949c97d9002c109cbfe2ab60634a8a68e57cffa572de00d16097544911dc
 
-Not yet deployed on mainnet — Sepolia only, per the Sepolia-first build sequence in docs/ARCHITECTURE.md.
+Deployed and registered on **mainnet** as of 2026-09-03, at the same address
+(the class, signing key and salt are identical, so the counterfactual address
+is the same on both networks).
+
+pool address (mainnet) : 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a
 
 Registered on the STRK20 privacy pool (Sepolia) — 2026-08-27:
 
 register tx : 0x399a9894860e73ba046a7f94ac40a13101153ea4a12d2878df3805efd1e4677
 
 pool address (Sepolia) : 0x0254a6b2997ef52e9f830ce1f543f6b29768295e8d17e2267d672c552cfe0d91
+
+---
+
+Mainnet transactions against the STRK20 pool (for `strk20.json`)
+
+Verify any of these with `node scripts/verify-mainnet-txs.mts` — it checks the
+same three things the sprint panel does: the transaction exists, it succeeded,
+and it emitted events from the pool.
+
+| what | hash | block |
+| --- | --- | --- |
+| Private payment, 10 STRK, via a Nomos Payment Link | `0x6ab9bd3163f59e70f7df08277c75fb0eb84972657d520bb15c34d9c899f8772` | 14515850 |
