@@ -7,7 +7,7 @@
 // to pass provingBlockId explicitly — the SDK's own proving-config docs say
 // to always pass it (currentBlock - 10), since omitting it "works most of
 // the time" but causes intermittent "Note not mature" failures.
-import { addrSTRK, myFrontendProviders } from "@/utils/constants";
+import { addrSTRK, isTokenSymbol, myFrontendProviders, tokenAddressFor } from "@/utils/constants";
 import { num } from "starknet";
 import type { ProviderInterface } from "starknet";
 import { getOperatingAccount } from "./operatingWallet";
@@ -67,7 +67,23 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
     const transfers = getPrivacyClient(provider, networkIndex);
     const blockId = await provingBlockId(provider);
 
-    const tokenKey = BigInt(params.token);
+    // params.token is a symbol ("USDC"), and the pool wants the ERC-20
+    // contract as a felt. BigInt("USDC") throws, so every payout through this
+    // executor failed with "Cannot convert USDC to a BigInt" — the three
+    // payouts in the database that look confirmed are fixtures written before
+    // this executor existed, and carry a placeholder hash.
+    //
+    // Resolved per network, because the same symbol is a different contract
+    // on mainnet and Sepolia — and on mainnet the registry's USDC is not the
+    // one the pool custodies (see utils/constants.ts).
+    if (!isTokenSymbol(params.token)) {
+      throw new Error(`Unknown token ${params.token}; cannot resolve a contract to pay out.`);
+    }
+    const tokenAddress = tokenAddressFor(params.token, networkIndex);
+    if (tokenAddress === "0x0") {
+      throw new Error(`${params.token} has no configured contract on network ${networkIndex}.`);
+    }
+    const tokenKey = BigInt(tokenAddress);
     const recipientKey = BigInt(params.destination);
 
     const result = await transfers
