@@ -298,7 +298,15 @@ export default function Checkout() {
       // prover, short enough that a payer is not left staring.
       if (attempts < 60) setTimeout(() => void tick(), 5_000);
     };
-    setTimeout(() => void tick(), 4_000);
+    // Give the wallet a real chance to answer first.
+    //
+    // Polling exists for the wallet that never comes back, but it used to
+    // start after four seconds — sooner than a wallet can realistically
+    // return — so on mainnet, where the hash does come back, the poll won the
+    // race and settled the payment as "settled privately" with no hash at
+    // all. The safety net was taking the better outcome away. Twenty seconds
+    // is past the normal wallet round trip and well short of giving up.
+    setTimeout(() => void tick(), 20_000);
   }
 
   async function handlePay() {
@@ -694,7 +702,7 @@ export default function Checkout() {
           say so. A payer watching a spinner assumes leaving loses their money,
           and for a shielded payment the wait is a block plus note discovery —
           long enough that the assumption matters. */}
-      {payPhase === "signing" && waitingSeconds >= 15 && !stalled && !broadcastTx ? (
+      {!isPaid && payPhase === "signing" && waitingSeconds >= 15 && !stalled && !broadcastTx ? (
         <p className={styles.payWaitNote}>
           Checking the chain for your payment. Once you&apos;ve approved it in your
           wallet this completes on its own — you can close this page.
@@ -704,7 +712,7 @@ export default function Checkout() {
       {/* The wallet never came back. The payment may well have gone through —
           it did, the one time this was observed — so offer the one thing that
           recovers it: the hash, which the server verifies on-chain anyway. */}
-      {stalled && !broadcastTx ? (
+      {!isPaid && stalled && !broadcastTx ? (
         <div className={styles.stalledBox}>
           <div className={styles.stalledTitle}>Still waiting on your wallet</div>
           <p className={styles.stalledBody}>

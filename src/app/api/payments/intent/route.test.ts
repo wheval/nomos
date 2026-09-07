@@ -95,12 +95,25 @@ describe("POST /api/payments/intent", () => {
     expect((await POST(req(validBody))).status).toBe(404);
   });
 
-  it("never reserves an amount another open attempt already holds", async () => {
+  it("never reserves an amount another attempt is still holding", async () => {
+    const now = Math.floor(Date.now() / 1000);
     listOpenPaymentIntents.mockResolvedValue([
-      { token: "USDC", amountWei: 1_000_000n },
-      { token: "USDC", amountWei: 1_000_001n },
+      { token: "USDC", amountWei: 1_000_000n, createdAt: now - 30 },
+      { token: "USDC", amountWei: 1_000_001n, createdAt: now - 30 },
     ]);
     const { amountWei } = await (await POST(req(validBody))).json();
     expect([1_000_000n, 1_000_001n]).not.toContain(BigInt(amountWei));
+  });
+
+  it("reuses the round price once an abandoned attempt has gone stale", async () => {
+    // Intents open when a payer loads the page and mostly are never settled.
+    // Treating those as taken forever meant a link quoted 10.000001 with
+    // nobody else paying — which looks broken, and was.
+    const now = Math.floor(Date.now() / 1000);
+    listOpenPaymentIntents.mockResolvedValue([
+      { token: "USDC", amountWei: 1_000_000n, createdAt: now - 60 * 60 },
+    ]);
+    const { amountWei } = await (await POST(req(validBody))).json();
+    expect(BigInt(amountWei)).toBe(1_000_000n);
   });
 });

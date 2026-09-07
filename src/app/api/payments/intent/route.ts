@@ -83,11 +83,21 @@ export async function POST(request: NextRequest) {
   // Quote an amount no other open attempt is using, so the note that
   // eventually lands names exactly one intent. This is what turns attribution
   // from a guess into a lookup — see utils/paymentFingerprint.ts.
+  // Only attempts that could still be in flight hold a slot. An intent is
+  // opened when a payer loads the page, and most are simply abandoned — they
+  // never settle and nothing closes them. Counting those as "taken" meant
+  // dead attempts permanently owned the round number, so a real payer was
+  // quoted 10.000001 for a 10 STRK link with nobody else paying. A payment
+  // that has not arrived within this window is not coming.
+  const IN_FLIGHT_SECONDS = 20 * 60;
+  const cutoff = Date.now() / 1000 - IN_FLIGHT_SECONDS;
   const open = await store.listOpenPaymentIntents(link.networkIndex);
   const payable = uniquePayableAmount(
     amount,
     link.token,
-    open.filter((i) => i.token === link.token).map((i) => i.amountWei)
+    open
+      .filter((i) => i.token === link.token && i.createdAt >= cutoff)
+      .map((i) => i.amountWei)
   );
 
   const intent = await store.createPaymentIntent({
