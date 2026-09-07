@@ -393,7 +393,13 @@ export class SupabaseStore implements Store {
   async getLedgerBalance(merchantAddress: string, token: string, networkIndex: NetworkIndex): Promise<bigint> {
     const { data } = await this.client
       .from("ledger_entries")
-      .select("running_balance_wei")
+      // Cast to text on the way out. running_balance_wei is numeric(78,0) and
+      // PostgREST serialises numerics as JSON numbers, so a 20-digit balance
+      // arrives as a float that cannot hold it — 40000001000000000000 came
+      // back as 40000000999999995904. That is not only an ugly figure on the
+      // dashboard: this value gates payouts and is the base creditLedger adds
+      // to, so the error compounds into stored balances.
+      .select("running_balance_wei::text")
       .eq("merchant_address", merchantAddress.toLowerCase())
       .eq("token", token)
       .eq("network_index", networkIndex)
