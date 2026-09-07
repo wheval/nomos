@@ -11,7 +11,14 @@ import { addrSTRK, isTokenSymbol, myFrontendProviders, tokenAddressFor } from "@
 import { num } from "starknet";
 import type { ProviderInterface } from "starknet";
 import { getOperatingAccount } from "./operatingWallet";
-import { ensurePoolAllowance, getPrivacyClient, poolFeeAmount, provingBlockId, submitPrivateAction } from "./privacyClient";
+import {
+  ensurePoolAllowance,
+  getPrivacyClient,
+  isRegisteredOnPool,
+  poolFeeAmount,
+  provingBlockId,
+  submitPrivateAction,
+} from "./privacyClient";
 
 export interface PayoutExecutor {
   executeWithdraw(params: { amountWei: bigint; token: string; destination: string }): Promise<{ txHash: string }>;
@@ -60,6 +67,20 @@ export function getPayoutExecutor(networkIndex: number): PayoutExecutor {
     params: { amountWei: bigint; token: string; destination: string }
   ): Promise<{ txHash: string }> {
     const account = getOperatingAccount(provider, networkIndex);
+
+    // A private payout lands as a shielded note, which only an account
+    // registered on the pool can hold. Sending one to an ordinary wallet
+    // reverts inside the pool with SUBCHANNEL_NOT_FOUND — after gas is spent
+    // and a proof is burned, and with a revert dump for an error message.
+    // One read call up front turns that into a sentence and costs nothing.
+    if (mode === "transfer" && !(await isRegisteredOnPool(provider, networkIndex, params.destination))) {
+      throw new Error(
+        "That destination is not registered on STRK20, so it cannot receive a private payout. " +
+          "Choose Public (unshield) to withdraw to an ordinary wallet, or register the destination " +
+          "on the pool first."
+      );
+    }
+
     await assertCanPayFees(provider, networkIndex, account.address);
     // Same reason as registration: the pool pulls its fee, and without an
     // allowance the payout reverts after paying gas for the privilege.

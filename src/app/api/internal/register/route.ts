@@ -9,7 +9,6 @@
 //
 // Idempotent: an already-registered wallet returns ok without spending.
 import { NextRequest, NextResponse } from "next/server";
-import { num } from "starknet";
 import { isValidNetworkIndex, myFrontendProviders } from "@/utils/constants";
 import { getOperatingAccount } from "@/server/signer/operatingWallet";
 import {
@@ -17,6 +16,7 @@ import {
   getPrivacyClient,
   poolAddressFor,
   provingBlockId,
+  isRegisteredOnPool,
   submitPrivateAction,
 } from "@/server/signer/privacyClient";
 
@@ -31,23 +31,6 @@ function requireAuth(request: NextRequest): NextResponse | null {
     return NextResponse.json({ error: "Invalid or missing Authorization header." }, { status: 401 });
   }
   return null;
-}
-
-async function isRegistered(
-  provider: (typeof myFrontendProviders)[number],
-  networkIndex: number,
-  address: string
-): Promise<boolean> {
-  try {
-    const res = await provider.callContract({
-      contractAddress: poolAddressFor(networkIndex),
-      entrypoint: "get_public_key",
-      calldata: [address],
-    });
-    return res.some((v) => num.toBigInt(v) !== 0n);
-  } catch {
-    return false;
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -74,7 +57,7 @@ export async function POST(request: NextRequest) {
   try {
     const account = getOperatingAccount(provider, networkIndex);
 
-    if (await isRegistered(provider, networkIndex, account.address)) {
+    if (await isRegisteredOnPool(provider, networkIndex, account.address)) {
       return NextResponse.json({ ok: true, alreadyRegistered: true, address: account.address });
     }
 
@@ -142,7 +125,7 @@ export async function GET(request: NextRequest) {
     networkIndex,
     address,
     deployed,
-    registered: await isRegistered(provider, networkIndex, address),
+    registered: await isRegisteredOnPool(provider, networkIndex, address),
     pool: poolAddressFor(networkIndex),
   });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAndParseAddress } from "starknet";
 import { unauthorizedUnlessMerchant } from "@/server/merchantAuth";
 import { getStore } from "@/server/store";
+import { explainPoolError } from "@/server/signer/poolErrors";
 import { minimumPayoutWei, payoutFeeWei } from "@/utils/fees";
 import { getPayoutExecutor } from "@/server/signer/payoutExecutor";
 import { isTokenSymbol, isValidNetworkIndex, TokenSymbols } from "@/utils/constants";
@@ -169,8 +170,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (err: any) {
     await store.updatePayoutStatus(payout.id, "failed");
+    // The merchant gets a sentence; the log keeps the revert dump, which is
+    // the only place it is actually useful.
+    console.error(`[nomos payout] ${payout.id} failed:`, err);
     return NextResponse.json(
-      { ok: false, payoutId: payout.id, status: "failed", error: err?.message ?? String(err) },
+      { ok: false, payoutId: payout.id, status: "failed", error: explainPoolError(err) },
       { status: 502 }
     );
   }

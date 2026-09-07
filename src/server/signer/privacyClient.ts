@@ -297,6 +297,36 @@ export async function waitForSuccess(
   }
 }
 
+/**
+ * Is this address registered on the privacy pool?
+ *
+ * A registered account has a public key recorded against it; an unregistered
+ * one reads back zero. Cheap — one read call, no gas — which is the whole
+ * point: a private transfer to an unregistered recipient reverts inside the
+ * pool with SUBCHANNEL_NOT_FOUND, and by then the caller has paid gas and
+ * burned a proof (on mainnet, one from a rate-limited daily quota) to learn
+ * something a read could have told them.
+ */
+export async function isRegisteredOnPool(
+  provider: ProviderInterface,
+  networkIndex: number,
+  address: string
+): Promise<boolean> {
+  try {
+    const res = await provider.callContract({
+      contractAddress: poolAddressFor(networkIndex),
+      entrypoint: "get_public_key",
+      calldata: [address],
+    });
+    return res.some((v) => num.toBigInt(v) !== 0n);
+  } catch {
+    // A read that cannot complete is not evidence of non-registration, but
+    // treating it as "not registered" only ever costs a clear refusal, where
+    // the opposite costs a reverted transaction.
+    return false;
+  }
+}
+
 export async function submitPrivateAction(
   account: Account,
   result: ExecuteResult,
