@@ -109,6 +109,6 @@ export function isOnChainHash(h: string | undefined | null): boolean {
 
 export function explorerTxUrl(providerIndex: number, h: string): string {
   return providerIndex === 0
-    ? `https://voyager.online/tx/${h}`
-    : `https://sepolia.voyager.online/tx/${h}`;
+    ? `https://starkscan.co/tx/${h}`
+    : `https://sepolia.starkscan.co/tx/${h}`;
 }
