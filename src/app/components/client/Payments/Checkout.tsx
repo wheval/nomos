@@ -144,6 +144,12 @@ export default function Checkout() {
   // different waits and the button said "Confirm in your wallet" through both,
   // for up to twenty minutes.
   const [payPhase, setPayPhase] = useState<"idle" | "signing" | "confirming">("idle");
+  // How long the wallet has had the request. The label cannot be driven by
+  // the wallet's promise alone: for a shielded payment strk20InvokeTransaction
+  // often never resolves, so "Confirm in your wallet…" would still be on
+  // screen long after the payer had confirmed and the payment had landed.
+  const [askedWalletAt, setAskedWalletAt] = useState<number | null>(null);
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
   // Set the instant a transaction is broadcast. Once this exists the payment
   // is in flight whatever happens next, so the page must never offer a clean
   // "Pay" again — a failed *receipt lookup* is not a failed payment, and
@@ -173,6 +179,17 @@ export default function Checkout() {
   const [paidReference, setPaidReference] = useState<string | null>(null);
 
   const isPaid = result?.status === "ok";
+
+  // Above the early returns below: hooks must run in the same order on every
+  // render, and everything past this point can bail out.
+  useEffect(() => {
+    if (askedWalletAt === null) return;
+    const id = setInterval(
+      () => setWaitingSeconds(Math.floor((Date.now() - askedWalletAt) / 1000)),
+      1000
+    );
+    return () => clearInterval(id);
+  }, [askedWalletAt]);
 
   if (loadingLink) {
     return <div className={styles.panel} />;
@@ -304,6 +321,8 @@ export default function Checkout() {
     }
     setPaying(true);
     setPayPhase("signing");
+    setAskedWalletAt(Date.now());
+    setWaitingSeconds(0);
     setStalled(false);
     setPendingAmountWei(amountWei);
 
@@ -618,15 +637,32 @@ export default function Checkout() {
           disabled={!isStrk20Network || networkMismatch || paying || broadcastTx !== null}
           onClick={handlePay}
         >
-          {payPhase === "signing"
-            ? "Confirm in your wallet…"
-            : payPhase === "confirming" || broadcastTx !== null
-              ? "Payment sent — confirming…"
+          {payPhase === "confirming" || broadcastTx !== null
+            ? "Payment sent — confirming…"
+            : payPhase === "signing"
+              ? // Past the point where a payer is still reading the prompt,
+                // stop claiming to wait on them. Either they approved and the
+                // note is on its way, or they have not — and in both cases
+                // what this page is doing is watching the chain.
+                waitingSeconds < 15
+                ? "Confirm in your wallet…"
+                : "Watching for your payment…"
               : "Pay"}
         </button>
       ) : (
         <SelectWallet variant="ctaBig" />
       )}
+
+      {/* Since settlement no longer depends on this tab (server/intentSweep.ts),
+          say so. A payer watching a spinner assumes leaving loses their money,
+          and for a shielded payment the wait is a block plus note discovery —
+          long enough that the assumption matters. */}
+      {payPhase === "signing" && waitingSeconds >= 15 && !stalled && !broadcastTx ? (
+        <p className={styles.payWaitNote}>
+          Checking the chain for your payment. Once you&apos;ve approved it in your
+          wallet this completes on its own — you can close this page.
+        </p>
+      ) : null}
 
       {/* The wallet never came back. The payment may well have gone through —
           it did, the one time this was observed — so offer the one thing that

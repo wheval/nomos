@@ -3809,3 +3809,13 @@ a.copyFieldValue:hover { color: var(--pink-text); }
   .landMockListHead > :nth-child(2), .landMockItem > :nth-child(2),
   .landMockListHead > :nth-child(3), .landMockItem > :nth-child(3) { display: none; }
 }
+
+/* Shown while the checkout waits on a shielded payment to appear on-chain.
+   Deliberately quiet — it is reassurance, not an error. */
+.payWaitNote {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  text-align: center;
+}
