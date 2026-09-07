@@ -14,6 +14,7 @@ import { networkLabel } from "@/utils/networks";
 import ReceiptCard from "../ReceiptCard";
 import PaymentReceipt from "./PaymentReceipt";
 import { TokenLogo } from "../../TokenIcons";
+import { maxFingerprintOverpay } from "@/utils/paymentFingerprint";
 import { parseTokenAmount } from "@/utils/payments";
 import { errorResult, receiptToResult, shortHex, fmtTokenAmount, type ActionResult } from "@/utils/receipt";
 
@@ -301,7 +302,7 @@ export default function Checkout() {
       return;
     }
     const amountStr = fixedAmount ? fmtTokenAmount(BigInt(fixedAmount), decimals) : customAmount;
-    const amountWei = parseTokenAmount(amountStr, decimals);
+    let amountWei = parseTokenAmount(amountStr, decimals);
     if (amountWei === null) {
       setAmountError("Enter a positive amount, e.g. 25 or 12.5");
       return;
@@ -330,6 +331,13 @@ export default function Checkout() {
     // open-amount link has no price to reserve against, so its intent is
     // created here instead, once the payer has chosen a figure.
     let createdIntentId: string | null = intentId;
+    // The server decides what this attempt must pay: normally the price, and
+    // a few micro-units above it only when another attempt is already holding
+    // that figure. Whatever it says has to be the amount the wallet is asked
+    // for, or the note that arrives will not match the intent waiting for it
+    // and settlement falls back to needing a transaction hash. This response
+    // used to be read for its id alone and its amount thrown away, which left
+    // the reservation decorative.
     if (!createdIntentId) {
       try {
         const r = await fetch("/api/payments/intent", {
@@ -338,8 +346,19 @@ export default function Checkout() {
           body: JSON.stringify({ linkId: linkData.id, flow, amountWei: amountWei.toString() }),
         });
         if (r.ok) {
-          createdIntentId = (await r.json())?.intentId ?? null;
+          const d = (await r.json()) as { intentId?: string; amountWei?: string };
+          createdIntentId = d.intentId ?? null;
           setIntentId(createdIntentId);
+          if (d.amountWei) {
+            const reserved = BigInt(d.amountWei);
+            // Never silently charge more than the payer agreed to. The offset
+            // is bounded by design; anything larger means something is wrong,
+            // and paying the figure on screen is the safe way to be wrong.
+            if (reserved >= amountWei && reserved - amountWei <= maxFingerprintOverpay(token)) {
+              amountWei = reserved;
+              setPayableWei(d.amountWei);
+            }
+          }
         }
       } catch {
         // Offline or blocked; the fallbacks still apply.

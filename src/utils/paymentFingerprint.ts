@@ -41,19 +41,20 @@ export function maxFingerprintOverpay(token: string): bigint {
  * `takenAmounts` is every open intent's amount for this token and network.
  * Returns the base amount plus a free slot.
  *
- * The slot is probed from a random start rather than from zero, and that is
- * deliberate. Reserving an amount is read-then-write — list the open intents,
- * pick a slot, create the intent — so two attempts on the same link at the
- * same moment see the same set. Always picking the lowest free slot makes
- * them pick the *same* slot every time; a random start makes it one chance in
- * FINGERPRINT_SLOTS. It matters because two open intents sharing an amount is
- * exactly the state attribution cannot resolve: if only one of the two notes
- * arrives, it names both, and the wrong merchant can be credited. (The
- * remaining case is caught, not silent — reconciliation refuses to attribute
- * an arrival that matches more than one intent and reports it for a human.)
+ * Slots are probed from zero, so the common case — one payer, one price —
+ * reserves the price itself and the customer is asked for a round number.
+ * That matters more than it sounds: a checkout demanding 10.000184 STRK for a
+ * 10 STRK donation looks broken, and a payment product cannot afford to look
+ * broken. The offset is collision handling, not the default.
  *
- * The cost is that a payer typically overpays by half the slot range instead
- * of nothing — for USDC, five hundredths of a cent.
+ * A random start was tried instead, to close a read-then-write race: two
+ * attempts on the same link in the same instant see the same set of taken
+ * amounts and both pick slot zero. Randomising made that rare, but it also
+ * made *every* amount fractional, which traded a rare, detectable problem for
+ * a permanent, visible one. Two open intents sharing an amount is caught
+ * rather than silent — reconciliation refuses to attribute an arrival that
+ * matches more than one intent — and on a network whose wallet returns a
+ * transaction hash the payment settles by hash regardless.
  *
  * If every slot is taken it returns the base amount unchanged rather than
  * refusing the payment. Attribution then degrades to that same ambiguous
@@ -64,8 +65,9 @@ export function uniquePayableAmount(
   baseAmountWei: bigint,
   token: string,
   takenAmounts: Iterable<bigint>,
-  // Injectable so tests can pin the probe order; production never passes it.
-  startSlot: bigint = BigInt(Math.floor(Math.random() * Number(FINGERPRINT_SLOTS)))
+  // Retained so a caller can pin the probe order in tests; production relies
+  // on the default, which is to take the price itself when it is free.
+  startSlot: bigint = 0n
 ): bigint {
   const unit = fingerprintUnit(token);
   const taken = new Set(takenAmounts);

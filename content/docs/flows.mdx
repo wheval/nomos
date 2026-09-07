@@ -75,25 +75,30 @@ meant for.
 So the amount has to carry that information, because it is the only field
 there is.
 
-**Every payment attempt reserves a unique amount.** When a customer opens a
-link for 25 USDC, Nomos records an intent and quotes them something like
-25.000412 — the price plus a few millionths of a unit that no other open
-attempt is using. When a note for exactly 25.000412 arrives, it names that one
-attempt and no other. Attribution stops being a guess and becomes a lookup.
+**Every payment attempt reserves the amount it will pay.** When a customer
+opens a link for 25 USDC, Nomos records an intent against exactly 25.000000 —
+and a note for exactly that amount names that one attempt. Attribution stops
+being a guess and becomes a lookup.
 
-The overpay is bounded and tiny: at most 999 micro-units, under a tenth of a
-cent in USDC. The same trick is standard for Bitcoin processors, where it
-leaks the payment to anyone watching the chain. Here it does not — the amount
-is shielded, so only Nomos, holding the viewing key, ever sees it.
+It only stops being exact when it has to. If a second customer opens the same
+link while the first is still mid-payment, the second is quoted 25.000001
+instead, because two open attempts holding the same figure is the one state
+this cannot resolve. The step is a millionth of a unit, capped at 999 of them
+— under a tenth of a cent in USDC — and most payers never see one.
+
+The same trick is standard for Bitcoin processors, where it leaks the payment
+to anyone watching the chain. Here it does not: the amount is shielded, so
+only Nomos, holding the viewing key, ever sees it.
 
 Two consequences worth knowing:
 
 - **The payer must send the quoted amount exactly.** The checkout handles this
   for you; if you drive the API yourself, use the amount the intent returns
   rather than the link's round figure.
-- **Settlement does not depend on the payer's browser.** Because the note
-  identifies itself, Nomos can find and credit it with no transaction hash and
-  nobody watching. A customer who approves the payment and immediately closes
-  the tab is still paid in. This matters more than it sounds: shielded wallets
-  do not reliably return a transaction hash to the page that asked for it, so
-  a gateway that depended on the browser would lose payments routinely.
+- **Settlement does not depend on the payer's browser.** Where a wallet does
+  return a transaction hash, Nomos verifies it directly and settles in
+  seconds — that is the ordinary path on mainnet. Where it does not, or where
+  the tab is closed before the page can report anything, the note still
+  identifies itself by amount and is credited without a hash and without
+  anyone watching. The first path is faster; the second is why a payment
+  cannot be lost by closing a tab.
